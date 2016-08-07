@@ -1,39 +1,40 @@
+/*
+ *  Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/ 
+ *  
+ *  Redistribution and use in source and binary forms, with or without 
+ *  modification, are permitted provided that the following conditions 
+ *  are met:
+ *
+ *    Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ *    Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the   
+ *    distribution.
+ *
+ *    Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  
+ */
 //*****************************************************************************
 //
 //  pin.c
 //
 //  Mapping of peripherals to pins.
-//
-//  Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
-//
-//
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions
-//  are met:
-//
-//    Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//
-//    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the
-//    distribution.
-//
-//    Neither the name of Texas Instruments Incorporated nor the names of
-//    its contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //*****************************************************************************
 
@@ -334,7 +335,7 @@ void PinConfigSet(unsigned long ulPin,unsigned long  ulPinStrength,
     //
     // Isolate the output
     //
-    HWREG(ulPad) |= 0xC00;
+    HWREG(ulPad) = 0xC00;
 
   }
   else
@@ -657,6 +658,222 @@ void PinTypeSDHost(unsigned long ulPin,unsigned long ulPinMode)
   //
   PinConfigSet(ulPin,PIN_STRENGTH_2MA,PIN_TYPE_STD);
 
+}
+
+
+//*****************************************************************************
+//
+//! Sets the hysteresis for all the pins
+//!
+//! \param ulHysteresis is one of the valid predefined hysterisys values
+//!
+//! This function sets the hysteresis vlaue for all the pins. The parameter
+//! \e ulHysteresis can be on one the following:
+//! -\b PIN_HYSTERESIS_OFF - To turn Off hysteresis, default on POR
+//! -\b PIN_HYSTERESIS_10  - To turn On hysteresis, 10%
+//! -\b PIN_HYSTERESIS_20  - To turn On hysteresis, 20%
+//! -\b PIN_HYSTERESIS_30  - To turn On hysteresis, 30%
+//! -\b PIN_HYSTERESIS_40  - To turn On hysteresis, 40%
+//!
+//! \return None.
+//
+//*****************************************************************************
+void PinHysteresisSet(unsigned long ulHysteresis)
+{
+  unsigned long ulRegValue;
+
+  //
+  // Read the current value
+  //
+  ulRegValue =  (HWREG( OCP_SHARED_BASE + OCP_SHARED_O_GPIO_PAD_CMN_CONFIG )
+                & ~(0x0000001C));
+
+  //
+  // Set the new Hysteresis
+  //
+  if( ulHysteresis != PIN_HYSTERESIS_OFF )
+  {
+      ulRegValue |= (ulHysteresis & 0x0000001C);
+  }
+
+  //
+  // Write the new value
+  //
+  HWREG( OCP_SHARED_BASE + OCP_SHARED_O_GPIO_PAD_CMN_CONFIG ) = ulRegValue;
+}
+
+//*****************************************************************************
+//
+//! Sets the level of the pin when locked
+//!
+//! \param ulPin is one of the valid pin.
+//! \param ucLevel is the level the pin drives when locked
+//!
+//! This function sets the pin level when the pin is locked using
+//! \sa PinLock() API.
+//!
+//! By default all pins are set to drive 0.
+//!
+//! \note Use case is to park the pins when entering LPDS
+//!
+//! \return None.
+//
+//*****************************************************************************
+void PinLockLevelSet(unsigned long ulPin, unsigned char ucLevel)
+{
+  unsigned long ulPad;
+
+  //
+  // Supported only in ES2.00 and Later devices i.e. ROM Version 2.x.x or greater
+  //
+  if( (HWREG(0x00000400) & 0xFFFF) >= 2 )
+  {
+    //
+    // Get the corresponding Pad
+    //
+    ulPad = g_ulPinToPadMap[ulPin & 0x3F];
+
+    //
+    // Get the required bit
+    //
+    ulPad = 1 << ulPad;
+
+    if(ucLevel)
+    {
+      HWREG( OCP_SHARED_BASE + OCP_SHARED_O_SPARE_REG_6 ) |= ulPad;
+    }
+    else
+    {
+      HWREG( OCP_SHARED_BASE + OCP_SHARED_O_SPARE_REG_6 ) &= ~ulPad;
+    }
+  }
+}
+
+//*****************************************************************************
+//
+//! Locks all the pins to configured level(s).
+//!
+//! \param ulOutEnable the bit-packed representation of pins to be set as output
+//!
+//! This function locks all the pins to the pre-configure level. By default
+//! the pins are set to drive 0. Default level can be changed using
+//! \sa PinLockLevelSet() API.
+//!
+//! The \e ulOutEnable paramter is bit-packed representation of pins that
+//! are required to be enabled as output. If a bit is set 1, the corresponding
+//! pin (as shown below) are set  and locked as output.
+//!
+//!    |------|-----------------------------------------------|
+//!    |  Bit |31|30|29|28|27|26|25|24|23|22|21|20|19|18|17|16|
+//!    |------|-----------------------------------------------|
+//!    |  Pin |xx|xx|20|19|30|29|21|17|16|15|14|13|12|11|08|07|
+//!    |------|-----------------------------------------------|
+//!
+//!    |------|-----------------------------------------------|
+//!    |  Bit |15|14|13|12|11|10|09|08|07|06|05|04|03|02|01|00|
+//!    |------|-----------------------------------------------|
+//!    |  Pin |06|05|04|03|02|01|64|63|62|61|60|59|58|57|55|50|
+//!    |------|-----------------------------------------------|
+//!
+//!
+//! \note Use case is to park the pins when entering LPDS
+//!
+//! \return None.
+//
+//*****************************************************************************
+void PinLock(unsigned long ulOutEnable)
+{
+  //
+  // Supported only in ES2.00 and Later devices i.e. ROM Version 2.x.x or greater
+  //
+  if( (HWREG(0x00000400) & 0xFFFF) >= 2 )
+  {
+    //
+    // Enable/disable the pin(s) output
+    //
+    HWREG( OCP_SHARED_BASE + OCP_SHARED_O_SPARE_REG_7 ) = ~ulOutEnable;
+
+    //
+    // Lock the pins to selected levels
+    //
+    HWREG( OCP_SHARED_BASE + OCP_SHARED_O_SPARE_REG_5 ) |= (3 << 24);
+  }
+}
+
+//*****************************************************************************
+//
+//! Unlocks all the pins.
+//!
+//! This function unlocks all the pins and can be used for peripheral function.
+//!
+//! By default all the pins are in unlocked state.
+//!
+//! \note Use case is to un-park the pins when exiting LPDS
+//!
+//! \return None.
+//
+//*****************************************************************************
+void PinUnlock()
+{
+  //
+  // Supported only in ES2.00 and Later devices i.e. ROM Version 2.x.x or greater
+  //
+  if( (HWREG(0x00000400) & 0xFFFF) >= 2 )
+  {
+    //
+    // Unlock the pins
+    //
+    HWREG( OCP_SHARED_BASE + OCP_SHARED_O_SPARE_REG_5 ) &= ~(3 << 24);
+  }
+}
+
+//*****************************************************************************
+//
+// Gets pad number from pin number
+//
+// \param ulPin is a valid pin number
+//
+// This function return the pad corresponding to the specified pin
+//
+// \return Pad number on success, 0xFF otherwise
+//
+//*****************************************************************************
+unsigned long PinToPadGet(unsigned long ulPin)
+{
+	//
+    // Return the corresponding Pad
+    //
+    return g_ulPinToPadMap[ulPin & 0x3F];
+}
+
+
+//*****************************************************************************
+//
+// Gets pin number from pad number
+//
+// \param ulPad is a valid pad number
+//
+// This function return the pin corresponding to the specified pad
+//
+// \return Pin number on success, 0xFF otherwise
+//
+//*****************************************************************************
+unsigned long PinFromPadGet(unsigned long ulPad)
+{
+	unsigned long ulPin;
+	
+	//
+	// search and return the pin number
+	//
+	for(ulPin=0; ulPin < sizeof(g_ulPinToPadMap)/4; ulPin++)
+	{
+		if(g_ulPinToPadMap[ulPin] == ulPad)
+		{
+			return ulPin;
+		}
+	}
+	
+	return 0xFF;
 }
 
 //*****************************************************************************

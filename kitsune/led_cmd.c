@@ -29,8 +29,6 @@
 #define LED_GPIO_BIT 0x1
 #define LED_GPIO_BASE GPIOA3_BASE
 
-#define LED_LOGIC_HIGH_FAST 0
-#define LED_LOGIC_LOW_FAST LED_GPIO_BIT
 #define LED_LOGIC_HIGH_SLOW LED_GPIO_BIT
 #define LED_LOGIC_LOW_SLOW 0
 
@@ -81,73 +79,6 @@ int led_init(void){
 	return 0;
 }
 
-static void led_fast(led_color_t * color ) {
-	int i;
-	led_color_t * end = &color[NUM_LED];
-
-	for( ;; ) {
-		for (i = 0; i < 24; ++i) {
-			if ((color->rgb << i) & 0x800000 ) {
-				//1
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_FAST);
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_FAST);
-				if( i!=23 ) {
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-
-				} else {
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				}
-			} else {
-				//0
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_FAST);
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_FAST);
-				if( i!=23 ) {
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-
-				} else {
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				}
-			}
-		}
-		if( ++color > end ) {
-			return;
-		}
-	}
-}
 static void led_slow(led_color_t * color) {
 	int i;
 	led_color_t * end = &color[NUM_LED];
@@ -184,16 +115,8 @@ static void led_slow(led_color_t * color) {
 	}
 }
 
-#define LED_GPIO_BASE_DOUT GPIOA2_BASE
-#define LED_GPIO_BIT_DOUT 0x80
 static void set_low() {
-	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
-
-	if (fast) {
-		MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_FAST);
-	} else {
-		MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
-	}
+	MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
 }
 
 static void led_array(led_color_t * colors, int delay) {
@@ -202,17 +125,10 @@ static void led_array(led_color_t * colors, int delay) {
 
 	// Temporarily turn off interrupts.
 	//
-	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
-
 	vTaskDelay(_clamp(delay,0,500)); //just to be sure...
 	ulInt = MAP_IntMasterDisable();
-	if (fast) {
-		MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_FAST);
-		led_fast(colors);
-	} else {
-		MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
-		led_slow(colors);
-	}
+	MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
+	led_slow(colors);
 	if (!ulInt) {
 		MAP_IntMasterEnable();
 	}

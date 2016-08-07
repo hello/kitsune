@@ -125,7 +125,8 @@ extern void (* const g_pfnVectors[])(void);
 extern uVectorEntry __vector_table;
 #endif
 
-
+int sync_ln;
+const char * sync_fnc = NULL;
 
 //*****************************************************************************
 //
@@ -220,20 +221,22 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
 //! \return None
 //
 //*****************************************************************************
+extern void (* const g_pfnVectors[])(void);
+#pragma DATA_SECTION(ulRAMVectorTable, ".ramvecs")
+unsigned long ulRAMVectorTable[256];
 static void
 BoardInit(void)
 {
 /* In case of TI-RTOS vector table is initialize by OS itself */
 #ifndef USE_TIRTOS
-    //
-    // Set vector table base
-    //
 #if defined(ccs) || defined(gcc)
-    IntVTableBaseSet((unsigned long)&g_pfnVectors[0]);
+	memcpy(ulRAMVectorTable,g_pfnVectors,16*4);
 #endif
+
 #if defined(ewarm)
-    IntVTableBaseSet((unsigned long)&__vector_table);
+	memcpy(ulRAMVectorTable,&__vector_table,16*4);
 #endif
+	IntVTableBaseSet((unsigned long)&ulRAMVectorTable[0]);
 #endif
     //
     // Enables the clock ticking for scheduler to switch between different
@@ -245,7 +248,7 @@ BoardInit(void)
 
     // I2C Init
     //
-    I2C_IF_Open(I2C_MASTER_MODE_STD);
+    I2C_IF_Open(I2C_MASTER_MODE_FST);
 	
     //
     // Enable Processor
@@ -288,7 +291,7 @@ void start_wdt() {
 void mcu_reset();
 #include "kit_assert.h"
 volatile portTickType last_upload_time = 0;
-#define NWP_WATCHDOG_TIMEOUT
+//#define NWP_WATCHDOG_TIMEOUT
 #define ONE_HOUR (1000*60*60)
 #define FIFTEEN_MINUTES (1000*60*15)
 #define TWENTY_FIVE_HOURS (ONE_HOUR*25)
@@ -355,8 +358,8 @@ void main()
   wifi_status_init();
 
   /* Create the UART processing task. */
-  xTaskCreate( vUARTTask, "UARTTask", 2048/(sizeof(portSTACK_TYPE)), NULL, 3, NULL );
-  xTaskCreate( watchdog_thread, "wdtTask", 1280/(sizeof(portSTACK_TYPE)), NULL, 1, NULL );
+  xTaskCreate( vUARTTask, "UARTTask", 1024/(sizeof(portSTACK_TYPE)), NULL, 3, NULL );
+  xTaskCreate( watchdog_thread, "wdtTask", 512/(sizeof(portSTACK_TYPE)), NULL, 1, NULL );
 
   //
   // Start the task scheduler

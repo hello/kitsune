@@ -13,6 +13,7 @@ static void get_bmap(int32_t * bmap, const AudioHmm_t * hmm, const int8_t * obs)
     int16_t istate,i;
     int32_t temp32;
     int16_t dotprod;
+    int16_t denom;
     const int16_t * vecs;
     
     
@@ -46,8 +47,17 @@ static void get_bmap(int32_t * bmap, const AudioHmm_t * hmm, const int8_t * obs)
         //tantheta/2 squared
         temp32 = (TOFIX(1.0f, QFIXEDPOINT) - dotprod);
         temp32 <<= QFIXEDPOINT;
-        temp32 /=  (TOFIX(1.0f, QFIXEDPOINT) + dotprod);
-        temp32 <<= QFIXEDPOINT;
+        denom = TOFIX(1.0f, QFIXEDPOINT) + dotprod;
+        
+        if (denom <= 0) {
+            temp32 = 0x7FFFFFFF;
+        }
+        else {
+            temp32 /=  denom;
+            temp32 <<= QFIXEDPOINT;
+        }
+        
+      
         
         temp32 /= hmm->vars[istate]; //divide by variance
         temp32 = -temp32;

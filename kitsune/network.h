@@ -71,9 +71,14 @@ extern "C"
 // Define Packet Size, Rx and Tx Buffer
 //
 //*****************************************************************************
+#include "codec_debug_config.h"
+#if (CODEC_ENABLE_MULTI_CHANNEL==1)
+#define PING_PONG_CHUNK_SIZE (2048)
+#else
 #define PING_PONG_CHUNK_SIZE (1024)
+#endif
 
-#define AUD_BUFFER_SIZE         (8*PING_PONG_CHUNK_SIZE)
+#define AUD_BUFFER_SIZE         (24*PING_PONG_CHUNK_SIZE)
 #define RX_BUFFER_SIZE          (AUD_BUFFER_SIZE)
 #define PLAY_WATERMARK          (RX_BUFFER_SIZE-PING_PONG_CHUNK_SIZE-PING_PONG_CHUNK_SIZE/2)
 

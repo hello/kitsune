@@ -28,8 +28,8 @@ typedef struct {
 	network_prep_callback_t unprepare;
 	void * prepdata;
 
-	/* Called at the start of the session and after all retries, get context as arg */
-	network_prep_callback_t begin, end;
+	/* Called after all retries, get context as arg */
+	network_prep_callback_t end;
 	void * context;
 
 	//protobuf
@@ -49,6 +49,9 @@ typedef struct {
 	bool has_pb_cb;
 
 	bool priority;
+
+	//track whether a higher priority message has interrupted this one...
+	bool interrupted;
 } NetworkTaskServerSendMessage_t;
 
 typedef struct {

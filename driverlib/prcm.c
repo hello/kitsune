@@ -1,41 +1,35 @@
-//*****************************************************************************
-//
-//  prcm.c
-//
-//  Driver for the Power, Reset and Clock Module (PRCM)
-//
-//  Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
-//
-//
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions
-//  are met:
-//
-//    Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//
-//    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the
-//    distribution.
-//
-//    Neither the name of Texas Instruments Incorporated nor the names of
-//    its contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-//*****************************************************************************
+/*
+ *  Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/ 
+ *  
+ *  Redistribution and use in source and binary forms, with or without 
+ *  modification, are permitted provided that the following conditions 
+ *  are met:
+ *
+ *    Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ *    Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the   
+ *    distribution.
+ *
+ *    Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  
+ */
 
 //*****************************************************************************
 //
@@ -51,6 +45,8 @@
 #include "inc/hw_gprcm.h"
 #include "inc/hw_hib1p2.h"
 #include "inc/hw_hib3p3.h"
+#include "inc/hw_ocp_shared.h"
+#include "inc/hw_common_reg.h"
 #include "prcm.h"
 #include "interrupt.h"
 #include "cpu.h"
@@ -107,8 +103,23 @@
 //*****************************************************************************
 // Register Access and Updates
 //
-// Tick of SCC has a resolution of 32768Hz. Therefore, scaling SCC value by 32
-// yields ~1 msec resolution. All operations of SCC in RTC context use ms unit.
+// Tick of SCC has a resolution of 32768Hz, meaning 1 sec is equal to 32768
+// clock ticks. Ideal way of getting time in millisecond will involve floating
+// point arithmetic (division by 32.768). To avoid this, we simply divide it by
+// 32, which will give a range from 0 -1023(instead of 0-999). To use this
+// output correctly we have to take care of this inaccuracy externally.
+// following wrapper can be used to convert the value from cycles to
+// millisecond:
+//
+// CYCLES_U16MS(cycles)	((cycles *1000)/ 1024),
+//
+// Similarly, before setting the value, it must be first converted (from ms to
+// cycles).
+//
+// U16MS_CYCLES(msec)	((msec *1024)/1000)
+//
+// Note: There is a precision loss of 1 ms with the above scheme.
+//
 //*****************************************************************************
 #define SCC_U64MSEC_GET()                (PRCMSlowClkCtrGet() >> 5)
 #define SCC_U64MSEC_MATCH_SET(u64Msec)   (PRCMSlowClkCtrMatchSet(u64Msec << 5))
@@ -241,24 +252,6 @@ static const PRCM_PeriphRegs_t PRCM_PeriphRegsList[] =
 
 //*****************************************************************************
 //
-//! Performs a software reset of a SOC
-//!
-//! This function performs a software reset of a SOC
-//!
-//! \return None.
-//
-//*****************************************************************************
-void PRCMSOCReset()
-{
-  //
-  // Reset MCU
-  //
-  HWREG(GPRCM_BASE+ GPRCM_O_MCU_GLOBAL_SOFT_RESET) |= 0x1;
-
-}
-
-//*****************************************************************************
-//
 //! Performs a software reset of a MCU and associated peripherals
 //!
 //! \param bIncludeSubsystem is \b true to reset associated peripherals.
@@ -285,6 +278,19 @@ void PRCMMCUReset(tBoolean bIncludeSubsystem)
     // Reset Apps processor only
     //
     HWREG(GPRCM_BASE+ GPRCM_O_APPS_SOFT_RESET) = 0x1;
+  }
+
+  //
+  // Wait for system to enter hibernate
+  //
+  __asm("    wfi\n");
+
+  //
+  // Infinite loop
+  //
+  while(1)
+  {
+
   }
 }
 
@@ -314,13 +320,26 @@ unsigned long PRCMSysResetCauseGet()
   ulWakeupStatus = (HWREG(GPRCM_BASE+ GPRCM_O_APPS_RESET_CAUSE) & 0xFF);
 
   //
-  // For hibernate do additional chaeck.
+  // For hibernate do additional check.
   //
   if(ulWakeupStatus == PRCM_POWER_ON)
   {
     if(PRCMHIBRegRead(HIB3P3_BASE + HIB3P3_O_MEM_HIB_WAKE_STATUS) & 0x1)
     {
       ulWakeupStatus = PRCM_HIB_EXIT;
+
+      if( (HWREG(OCP_SHARED_BASE + OCP_SHARED_O_SPARE_REG_8) & (0x00000280)) == 0x00000280  )
+      {
+        ulWakeupStatus = PRCM_WDT_RESET;
+      }
+    }
+  }
+  else if((ulWakeupStatus == PRCM_LPDS_EXIT) &&
+          !(HWREG(GPRCM_BASE + GPRCM_O_GPRCM_EFUSE_READ_REG1) & (1 <<2)) )
+  {
+    if(HWREG(OCP_SHARED_BASE + OCP_SHARED_O_SPARE_REG_8) & (0x1<<8))
+    {
+      ulWakeupStatus = PRCM_POWER_ON;
     }
   }
 
@@ -344,7 +363,6 @@ unsigned long PRCMSysResetCauseGet()
 //! The parameter \e ulClkFlags can be logical OR of the following:
 //! -\b PRCM_RUN_MODE_CLK - Ungates clock to the peripheral
 //! -\b PRCM_SLP_MODE_CLK - Keeps the clocks ungated in sleep.
-//! -\b PRCM_DSLP_MODE_CLK - Keeps the clock ungated in deepsleep.
 //!
 //! \return None.
 //
@@ -360,12 +378,20 @@ PRCMPeripheralClkEnable(unsigned long ulPeripheral, unsigned long ulClkFlags)
   {
     HWREG(ARCM_BASE + PRCM_PeriphRegsList[ulPeripheral].ulClkReg) |= ulClkFlags;
   }
+  
   //
-  // Set the default clock for camera
+  // Checking ROM Version less than 2.x.x. 
+  // Only for driverlib backward compatibility
   //
-  if(ulPeripheral == PRCM_CAMERA)
+  if( (HWREG(0x00000400) & 0xFFFF) < 2 )
   {
-    HWREG(ARCM_BASE + APPS_RCM_O_CAMERA_CLK_GEN) = 0x0404;
+    //
+    // Set the default clock for camera
+    //
+    if(ulPeripheral == PRCM_CAMERA)
+    {
+      HWREG(ARCM_BASE + APPS_RCM_O_CAMERA_CLK_GEN) = 0x0404;
+    }
   }
 }
 
@@ -456,8 +482,7 @@ PRCMPeripheralClockGet(unsigned long ulPeripheral)
 //!
 //! \param ulPeripheral is one of the valid peripheral.
 //!
-//! This assert or deassert reset to the specified peripheral based of the
-//! \e bAssert parameter.
+//! This function does soft reset of the specified peripheral
 //!
 //! \return None.
 //
@@ -475,9 +500,9 @@ PRCMPeripheralReset(unsigned long ulPeripheral)
     HWREG(ARCM_BASE + PRCM_PeriphRegsList[ulPeripheral].ulRstReg)
                                                          |= PRCM_SOFT_RESET;
     //
-    // Delay for a little bit.
+    // Delay a little bit.
     //
-    for(ulDelay = 0; ulDelay < 32; ulDelay++)
+    for(ulDelay = 0; ulDelay < 16; ulDelay++)
     {
     }
 
@@ -549,7 +574,7 @@ PRCMPeripheralStatusGet(unsigned long ulPeripheral)
 void
 PRCMI2SClockFreqSet(unsigned long ulI2CClkFreq)
 {
- unsigned long long ullDiv;
+  unsigned long long ullDiv;
   unsigned short usInteger;
   unsigned short usFrac;
 
@@ -581,14 +606,33 @@ void
 PRCMLPDSRestoreInfoSet(unsigned long ulStackPtr, unsigned long ulProgCntr)
 {
   //
-  // Set The SP Value
+  // ROM Version 2.x.x or greater
   //
-  HWREG(0x4402E18C) = ulStackPtr;
+  if( (HWREG(0x00000400) & 0xFFFF) >= 2 )
+  {
+    //
+    // Set The SP Value
+    //
+    HWREG(0x4402E160) = ulStackPtr;
 
-  //
-  // Set The PC Value
-  //
-  HWREG(0x4402E190) = ulProgCntr;
+    //
+    // Set The PC Value
+    //
+    HWREG(0x4402E198) = ulProgCntr;
+
+  }
+  else
+  {
+    //
+    // Set The SP Value
+    //
+    HWREG(0x4402E18C) = ulStackPtr;
+
+    //
+    // Set The PC Value
+    //
+    HWREG(0x4402E190) = ulProgCntr;
+  }
 }
 
 //*****************************************************************************
@@ -600,18 +644,28 @@ PRCMLPDSRestoreInfoSet(unsigned long ulStackPtr, unsigned long ulProgCntr)
 //! \sa PRCMLPDSRestoreInfoSet().
 //!
 //! \return None.
+//!
+//! \note  External debugger will always disconnect whenever the system
+//!  enters LPDS and debug interface is shutdown until next POR reset. In order
+//!  to avoid this and allow for connecting back the debugger after waking up
+//!  from LPDS \sa PRCMLPDSEnterKeepDebugIf().
+//!
 //
 //*****************************************************************************
 void
 PRCMLPDSEnter()
 {
-  volatile unsigned long ulDelay;
+  unsigned long ulChipId;
+
+  //
+  // Read the Chip ID
+  //
+  ulChipId = ((HWREG(GPRCM_BASE + GPRCM_O_GPRCM_EFUSE_READ_REG2) >> 16) & 0x1F);
 
   //
   // Check if flash exists
   //
-  if(HWREG((GPRCM_BASE +
-            GPRCM_O_GPRCM_EFUSE_READ_REG2) & 0x00110000) == 0x00110000)
+  if( (0x11 == ulChipId) || (0x19 == ulChipId))
   {
 
     //
@@ -639,10 +693,85 @@ PRCMLPDSEnter()
   HWREG(ARCM_BASE + APPS_RCM_O_APPS_LPDS_REQ)
           = APPS_RCM_APPS_LPDS_REQ_APPS_LPDS_REQ;
 
-  __asm("    nop\n"
-        "    nop\n"
-        "    nop\n"
-        "    nop\n");
+  //
+  // Wait for system to enter LPDS
+  //
+  __asm("    wfi\n");
+
+  //
+  // Infinite loop
+  //
+  while(1)
+  {
+
+  }
+
+}
+
+
+//*****************************************************************************
+//
+//! Puts the system into Low Power Deel Sleep (LPDS) power mode keeping
+//! debug interface alive.
+//!
+//! This function puts the system into Low Power Deel Sleep (LPDS) power mode
+//! keeping debug interface alive. A call to this function never returns and the
+//! execution starts from Reset \sa PRCMLPDSRestoreInfoSet().
+//!
+//! \return None.
+//!
+//! \note External debugger will always disconnect whenever the system
+//!  enters LPDS, using this API will allow connecting back the debugger after
+//!  waking up from LPDS. This API is recommended for development purposes
+//!  only as it adds to the current consumption of the system.
+//!
+//
+//*****************************************************************************
+void
+PRCMLPDSEnterKeepDebugIf()
+{
+  unsigned long ulChipId;
+
+  //
+  // Read the Chip ID
+  //
+  ulChipId = ((HWREG(GPRCM_BASE + GPRCM_O_GPRCM_EFUSE_READ_REG2) >> 16) & 0x1F);
+
+  //
+  // Check if flash exists
+  //
+  if( (0x11 == ulChipId) || (0x19 == ulChipId))
+  {
+
+    //
+    // Disable the flash
+    //
+    FlashDisable();
+  }
+
+  //
+  // Set bandgap duty cycle to 1
+  //
+  HWREG(HIB1P2_BASE + HIB1P2_O_BGAP_DUTY_CYCLING_EXIT_CFG) = 0x1;
+
+  //
+  // Request LPDS
+  //
+  HWREG(ARCM_BASE + APPS_RCM_O_APPS_LPDS_REQ)
+          = APPS_RCM_APPS_LPDS_REQ_APPS_LPDS_REQ;
+
+  //
+  // Wait for system to enter LPDS
+  //
+  __asm("    wfi\n");
+
+  //
+  // Infinite loop
+  //
+  while(1)
+  {
+
+  }
 
 }
 
@@ -815,52 +944,14 @@ PRCMSleepEnter()
 
 //*****************************************************************************
 //
-//! Puts the system into Deep Sleep power mode.
-//!
-//! This function puts the system into Deep Sleep power mode. System exits the
-//! power state on any one of the available interrupt. On exit from deep
-//! sleep the function returns to the calling function with all the processor
-//! core registers retained.
-//!
-//! \return None.
-//
-//*****************************************************************************
-void
-PRCMDeepSleepEnter()
-{
-  //
-  // Set bandgap duty cycle to 1
-  //
-  HWREG(HIB1P2_BASE + HIB1P2_O_BGAP_DUTY_CYCLING_EXIT_CFG) = 0x1;
-
-  //
-  // Enable DSLP in cortex
-  //
-  HWREG(0xE000ED10)|=1<<2;
-
-  //
-  // Request Deep Sleep
-  //
-  CPUwfi();
-
-  //
-  // Disable DSLP in cortex before
-  // returning to the caller
-  //
-  HWREG(0xE000ED10) &= ~(1<<2);
-
-}
-
-//*****************************************************************************
-//
-//! Enable SRAM column retention during Deep Sleep and/or LPDS Power mode(s)
+//! Enable SRAM column retention during LPDS Power mode(s)
 //!
 //! \param ulSramColSel is bit mask of valid SRAM columns.
 //! \param ulModeFlags is the bit mask of power modes.
 //!
 //! This functions enables the SRAM retention. The device supports configurable
-//! SRAM column retention in Low Power Deep Sleep (LPDS) and Deep Sleep power
-//! modes. Each column is of 64 KB size.
+//! SRAM column retention in Low Power Deep Sleep (LPDS). Each column is of
+//! 64 KB size.
 //!
 //! The parameter \e ulSramColSel should be logical OR of the following:-
 //! -\b PRCM_SRAM_COL_1
@@ -870,7 +961,6 @@ PRCMDeepSleepEnter()
 //!
 //! The parameter \e ulModeFlags selects the power modes and sholud be logical
 //! OR of one or more of the following
-//! -\b PRCM_SRAM_DSLP_RET
 //! -\b PRCM_SRAM_LPDS_RET
 //!
 //! \return None.
@@ -879,14 +969,6 @@ PRCMDeepSleepEnter()
 void
 PRCMSRAMRetentionEnable(unsigned long ulSramColSel, unsigned long ulModeFlags)
 {
-  if(ulModeFlags & PRCM_SRAM_DSLP_RET)
-  {
-    //
-    // Configure deep sleep SRAM retention register
-    //
-    HWREG(GPRCM_BASE+ GPRCM_O_APPS_SRAM_DSLP_CFG) = (ulSramColSel & 0xF);
-  }
-
   if(ulModeFlags & PRCM_SRAM_LPDS_RET)
   {
     //
@@ -898,14 +980,14 @@ PRCMSRAMRetentionEnable(unsigned long ulSramColSel, unsigned long ulModeFlags)
 
 //*****************************************************************************
 //
-//! Disable SRAM column retention during Deep Sleep and/or LPDS Power mode(s).
+//! Disable SRAM column retention during LPDS Power mode(s).
 //!
 //! \param ulSramColSel is bit mask of valid SRAM columns.
 //! \param ulFlags is the bit mask of power modes.
 //!
 //! This functions disable the SRAM retention. The device supports configurable
-//! SRAM column retention in Low Power Deep Sleep (LPDS) and Deep Sleep power
-//! modes. Each column is of 64 KB size.
+//! SRAM column retention in Low Power Deep Sleep (LPDS). Each column is
+//! of 64 KB size.
 //!
 //! The parameter \e ulSramColSel should be logical OR of the following:-
 //! -\b PRCM_SRAM_COL_1
@@ -915,7 +997,6 @@ PRCMSRAMRetentionEnable(unsigned long ulSramColSel, unsigned long ulModeFlags)
 //!
 //! The parameter \e ulFlags selects the power modes and sholud be logical OR
 //! of one or more of the following
-//! -\b PRCM_SRAM_DSLP_RET
 //! -\b PRCM_SRAM_LPDS_RET
 //!
 //! \return None.
@@ -924,14 +1005,6 @@ PRCMSRAMRetentionEnable(unsigned long ulSramColSel, unsigned long ulModeFlags)
 void
 PRCMSRAMRetentionDisable(unsigned long ulSramColSel, unsigned long ulFlags)
 {
-  if(ulFlags & PRCM_SRAM_DSLP_RET)
-  {
-    //
-    // Configure deep sleep SRAM retention register
-    //
-    HWREG(GPRCM_BASE+ GPRCM_O_APPS_SRAM_DSLP_CFG) &= ~(ulSramColSel & 0xF);
-  }
-
   if(ulFlags & PRCM_SRAM_LPDS_RET)
   {
     //
@@ -1062,7 +1135,17 @@ PRCMHibernateWakeupSourceDisable(unsigned long ulHIBWakupSrc)
 unsigned long
 PRCMHibernateWakeupCauseGet()
 {
-  return ((PRCMHIBRegRead(HIB3P3_BASE + HIB3P3_O_MEM_HIB_WAKE_STATUS)>>1)&0xF);
+  //
+  // Supported only in ES2.00 and Later devices i.e. ROM Version 2.x.x or greater
+  //
+  if( (HWREG(0x00000400) & 0xFFFF) >= 2 )
+  {
+      return ((PRCMHIBRegRead((OCP_SHARED_BASE + OCP_SHARED_O_SPARE_REG_8))>>2)&0xF);
+  }
+  else
+  {
+      return(0);
+  }
 }
 
 //*****************************************************************************
@@ -1157,7 +1240,7 @@ PRCMHibernateWakeUpGPIOSelect(unsigned long ulGPIOBitMap, unsigned long ulType)
     if(ulGPIOBitMap & (1<<ucLoop))
     {
       ulRegValue  = PRCMHIBRegRead(HIB3P3_BASE+HIB3P3_O_MEM_GPIO_WAKE_CONF);
-      ulRegValue |= (ulType << (ucLoop*2));
+      ulRegValue = (ulRegValue & (~(0x3 << (ucLoop*2)))) | (ulType <<(ucLoop*2));
       PRCMHIBRegWrite(HIB3P3_BASE+HIB3P3_O_MEM_GPIO_WAKE_CONF, ulRegValue);
     }
   }
@@ -1183,10 +1266,18 @@ PRCMHibernateEnter()
   //
   PRCMHIBRegWrite((HIB3P3_BASE+HIB3P3_O_MEM_HIB_REQ),0x1);
 
-  __asm("    nop\n"
-        "    nop\n"
-        "    nop\n"
-        "    nop\n");
+  //
+  // Wait for system to enter hibernate
+  //
+  __asm("    wfi\n");
+
+  //
+  // Infinite loop
+  //
+  while(1)
+  {
+
+  }
 }
 
 //*****************************************************************************
@@ -1218,6 +1309,35 @@ PRCMSlowClkCtrGet()
   return ullRTCVal;
 }
 
+//*****************************************************************************
+//
+//! Gets the current value of the internal slow clock counter
+//!
+//! This function is similar to \sa PRCMSlowClkCtrGet() but reads the counter
+//! value from a relatively faster interface using an auto-latch mechainsm.
+//!
+//! \note Due to the nature of implemetation of auto latching, when using this
+//! API, the recommendation is to read the value thrice and identify the right
+//! value (as 2 out the 3 read values will always be correct and with a max. of
+//! 1 LSB change)
+//!
+//! \return 64-bit current counter vlaue.
+//
+//*****************************************************************************
+unsigned long long PRCMSlowClkCtrFastGet(void)
+{
+  unsigned long long ullRTCVal;
+
+  //
+  // Read as 2 32-bit values
+  //
+  ullRTCVal = HWREG(HIB1P2_BASE + HIB1P2_O_HIB_RTC_TIMER_MSW_1P2);
+  ullRTCVal = ullRTCVal << 32;
+  ullRTCVal |= HWREG(HIB1P2_BASE + HIB1P2_O_HIB_RTC_TIMER_LSW_1P2);
+
+  return ullRTCVal;
+
+}
 
 //*****************************************************************************
 //
@@ -1279,12 +1399,98 @@ unsigned long long PRCMSlowClkCtrMatchGet()
 //!
 //! The parameter \e ucIndex is an index of the OCR and can be \b 0 or \b 1.
 //!
+//! These registers are shared by the RTC implementation (if Driverlib RTC
+//! APIs are used), ROM, and user application.
+//!
+//! When RTC APIs in use:
+//!
+//!     |-----------------------------------------------|
+//!     |                  INDEX 1                      |
+//!     |-----------------------------------------------|
+//!     |31|30|29|28|27|26|25|24|23|22|21|20|19|18|17|16|
+//!     |-----------------------------------------------|
+//!     |           Reserved by RTC APIs - YY           |
+//!     |-----------------------------------------------|
+//!     |15|14|13|12|11|10|09|08|07|06|05|04|03|02|01|00|
+//!     |-----------------------------------------------|
+//!     |           Reserved by RTC APIs - YY           |
+//!     |-----------------------------------------------|
+//!
+//!
+//!     |-----------------------------------------------|
+//!     |                  INDEX 0                      |
+//!     |-----------------------------------------------|
+//!     |31|30|29|28|27|26|25|24|23|22|21|20|19|18|17|16|
+//!     |-----------------------------------------------|
+//!     |           Reserved by RTC APIs - YY           |
+//!     |-----------------------------------------------|
+//!     |15|14|13|12|11|10|09|08|07|06|05|04|03|02|01|00|
+//!     |-----------------------------------------------|
+//!     |YY|        For User Application             |XX|
+//!     |-----------------------------------------------|
+//!
+//!     YY => Reserved by RTC APIs. If Driverlib RTC APIs are used
+//!     XX => Reserved by ROM
+//!
+//!
+//! When RTC APIs are not in use:
+//!
+//!     |-----------------------------------------------|
+//!     |                  INDEX 1                      |
+//!     |-----------------------------------------------|
+//!     |31|30|29|28|27|26|25|24|23|22|21|20|19|18|17|16|
+//!     |-----------------------------------------------|
+//!     |            For User Application               |
+//!     |-----------------------------------------------|
+//!     |15|14|13|12|11|10|09|08|07|06|05|04|03|02|01|00|
+//!     |-----------------------------------------------|
+//!     |            For User Application               |
+//!     |-----------------------------------------------|
+//!
+//!
+//!     |-----------------------------------------------|
+//!     |                  INDEX 0                      |
+//!     |-----------------------------------------------|
+//!     |31|30|29|28|27|26|25|24|23|22|21|20|19|18|17|16|
+//!     |-----------------------------------------------|
+//!     |            For User Application               |
+//!     |-----------------------------------------------|
+//!     |15|14|13|12|11|10|09|08|07|06|05|04|03|02|01|00|
+//!     |-----------------------------------------------|
+//!     |           For User Application             |XX|
+//!     |-----------------------------------------------|
+//!
+//!     XX => Reserved by ROM
+//!
+//!
+//!
 //! \return None.
 //
 //*****************************************************************************
 void PRCMOCRRegisterWrite(unsigned char ucIndex, unsigned long ulRegValue)
 {
-  PRCMHIBRegWrite(HIB3P3_BASE+HIB3P3_O_MEM_HIB_REG2+(ucIndex << 2),ulRegValue);
+  unsigned long ulVal;
+
+  //
+  // Compuitr the offset
+  //
+  ucIndex = ucIndex << 2;
+
+  //
+  // If bit 0 is reserved
+  //
+  if( (HWREG(OCP_SHARED_BASE + OCP_SHARED_O_SPARE_REG_8) & (0x00000080)) &&
+      (ucIndex == 0) )
+  {
+    ulVal = PRCMHIBRegRead(HIB3P3_BASE + HIB3P3_O_MEM_HIB_REG2 + ucIndex);
+    ulRegValue = ((ulRegValue << 0x1) | (ulVal & (0x1)));
+  }
+
+  //
+  // Write thr value
+  //
+  PRCMHIBRegWrite(HIB3P3_BASE + HIB3P3_O_MEM_HIB_REG2 + ucIndex,ulRegValue);
+
 }
 
 //*****************************************************************************
@@ -1296,15 +1502,33 @@ void PRCMOCRRegisterWrite(unsigned char ucIndex, unsigned long ulRegValue)
 //!
 //! The parameter \e ucIndex is an index of the OCR and can be \b 0 or \b 1.
 //!
+//! \sa PRCMOCRRegisterWrite() for the register usage details.
+//!
 //! \return None.
 //
 //*****************************************************************************
 unsigned long PRCMOCRRegisterRead(unsigned char ucIndex)
 {
+  unsigned long ulRet;
+
+  //
+  // Read the OCR register
+  //
+  ulRet = PRCMHIBRegRead(HIB3P3_BASE+HIB3P3_O_MEM_HIB_REG2 + (ucIndex << 2));
+
+  //
+  // If bit 0 is reserved
+  //
+  if( (HWREG(OCP_SHARED_BASE + OCP_SHARED_O_SPARE_REG_8) & (0x00000080)) &&
+      (ucIndex == 0) )
+  {
+     ulRet = ulRet >> 0x1;
+  }
+
   //
   // Return the read value.
   //
-  return PRCMHIBRegRead(HIB3P3_BASE+HIB3P3_O_MEM_HIB_REG2 + (ucIndex << 2));
+  return ulRet;
 }
 
 //*****************************************************************************
@@ -1630,7 +1854,11 @@ void PRCMRTCMatchGet(unsigned long *ulSecs, unsigned short *usMsec)
 //
 //! MCU Initialization Routine
 //!
-//! This function sets mandatory configurations for the MCU
+//! This function contains all the mandatory bug fixes, ECO enables,
+//! initializations for both CC3200 and CC3220.
+//!
+//! \note \b ###IMPORTANT### : This is a routine which should be one of the
+//! first things to be executed after control comes to MCU Application code.
 //!
 //! \return None
 //
@@ -1638,102 +1866,108 @@ void PRCMRTCMatchGet(unsigned long *ulSecs, unsigned short *usMsec)
 void PRCMCC3200MCUInit()
 {
 
-#ifdef CC3200_ES_1_2_1
-
-    unsigned long ulRegVal;
-
-    //
-    // DIG DCDC NFET SEL and COT mode disable
-    //
-    HWREG(0x4402F010) = 0x30031820;
-    HWREG(0x4402F00C) = 0x04000000;
-
-    UtilsDelay(32000);
-
-    //
-    // ANA DCDC clock config
-    //
-    HWREG(0x4402F11C) = 0x099;
-    HWREG(0x4402F11C) = 0x0AA;
-    HWREG(0x4402F11C) = 0x1AA;
-
-    //
-    // PA DCDC clock config
-    //
-    HWREG(0x4402F124) = 0x099;
-    HWREG(0x4402F124) = 0x0AA;
-    HWREG(0x4402F124) = 0x1AA;
-
-    //
-    // TD Flash timing configurations in case of MCU WDT reset
-    //
-    if((HWREG(0x4402D00C) & 0xFF) == 0x00000005)
+  if( PRCMSysResetCauseGet() != PRCM_LPDS_EXIT )
+  {
+    if( 0x00010001 == HWREG(0x00000400) )
     {
-        HWREG(0x400F707C) |= 0x01840082;
-        HWREG(0x400F70C4)= 0x1;
-        HWREG(0x400F70C4)= 0x0;
+
+#ifndef REMOVE_CC3200_ES_1_2_1_CODE
+
+      unsigned long ulRegVal;
+
+      //
+      // DIG DCDC NFET SEL and COT mode disable
+      //
+      HWREG(0x4402F010) = 0x30031820;
+      HWREG(0x4402F00C) = 0x04000000;
+
+      UtilsDelay(32000);
+
+      //
+      // ANA DCDC clock config
+      //
+      HWREG(0x4402F11C) = 0x099;
+      HWREG(0x4402F11C) = 0x0AA;
+      HWREG(0x4402F11C) = 0x1AA;
+
+      //
+      // PA DCDC clock config
+      //
+      HWREG(0x4402F124) = 0x099;
+      HWREG(0x4402F124) = 0x0AA;
+      HWREG(0x4402F124) = 0x1AA;
+
+      //
+      // TD Flash timing configurations in case of MCU WDT reset
+      //
+      if((HWREG(0x4402D00C) & 0xFF) == 0x00000005)
+      {
+          HWREG(0x400F707C) |= 0x01840082;
+          HWREG(0x400F70C4)= 0x1;
+          HWREG(0x400F70C4)= 0x0;
+      }
+
+      //
+      // Take I2C semaphore
+      //
+      ulRegVal = HWREG(0x400F7000);
+      ulRegVal = (ulRegVal & ~0x3) | 0x1;
+      HWREG(0x400F7000) = ulRegVal;
+
+      //
+      // Take GPIO semaphore
+      //
+      ulRegVal = HWREG(0x400F703C);
+      ulRegVal = (ulRegVal & ~0x3FF) | 0x155;
+      HWREG(0x400F703C) = ulRegVal;
+
+      //
+      // Enable 32KHz internal RC oscillator
+      //
+      PRCMHIBRegWrite(HIB3P3_BASE+HIB3P3_O_MEM_INT_OSC_CONF, 0x00000101);
+
+      //
+      // Delay for a little bit.
+      //
+      UtilsDelay(8000);
+
+      //
+      // Enable 16MHz clock
+      //
+      HWREG(HIB1P2_BASE+HIB1P2_O_CM_OSC_16M_CONFIG) = 0x00010008;
+
+      //
+      // Delay for a little bit.
+      //
+      UtilsDelay(8000);
+
+#endif // REMOVE_CC3200_ES_1_2_1_CODE
+
+    }
+    else
+    {
+
+      unsigned long ulRegValue;
+
+      //
+      // DIG DCDC LPDS ECO Enable
+      //
+      HWREG(0x4402F064) |= 0x800000;
+
+      //
+      // Enable hibernate ECO for PG 1.32 devices only. With this ECO enabled,
+      // any hibernate wakeup source will be kept maked until the device enters
+      // hibernate completely (analog + digital)
+      //
+      ulRegValue = PRCMHIBRegRead(HIB3P3_BASE  + HIB3P3_O_MEM_HIB_REG0);
+      PRCMHIBRegWrite(HIB3P3_BASE + HIB3P3_O_MEM_HIB_REG0, ulRegValue | (1<<4));
+
+      //
+      // Handling the clock switching (for 1.32 only)
+      //
+      HWREG(0x4402E16C) |= 0x3C;
     }
 
-    //
-    // Take I2C semaphore
-    //
-    ulRegVal = HWREG(0x400F7000);
-    ulRegVal = (ulRegVal & ~0x3) | 0x1;
-    HWREG(0x400F7000) = ulRegVal;
-
-    //
-    // Take GPIO semaphore
-    //
-    ulRegVal = HWREG(0x400F703C);
-    ulRegVal = (ulRegVal & ~0x3FF) | 0x155;
-    HWREG(0x400F703C) = ulRegVal;
-
-   //
-   // Enable 32KHz internal RC oscillator
-   //
-   PRCMHIBReadRegWrite(HIB3P3_BASE+HIB3P3_O_MEM_INT_OSC_CONF, 0x00000101);
-
-  //
-  // Delay for a little bit.
-  //
-  UtilsDelay(8000);
-
-  //
-  // Enable 16MHz clock
-  //
-  HWREG(HIB1P2_BASE+HIB1P2_O_CM_OSC_16M_CONFIG) = 0x00010008;
-
-  //
-  // Delay for a little bit.
-  //
-  UtilsDelay(8000);
-
-
-
-#else
-
-    unsigned long ulRegValue;
-
-    //
-    // DIG DCDC LPDS ECO Enable
-    //
-    HWREG(0x4402F064) |= 0x800000;
-
-    //
-    // Enable hibernate ECO for PG 1.32 devices only. With this ECO enabled,
-    // any hibernate wakeup source will be kept maked until the device enters
-    // hibernate completely (analog + digital)
-    //
-    ulRegValue = PRCMHIBRegRead(HIB3P3_BASE  + HIB3P3_O_MEM_HIB_REG0);
-    PRCMHIBRegWrite(HIB3P3_BASE + HIB3P3_O_MEM_HIB_REG0, ulRegValue | (1<<4));
-
-    //
-    // Handling the clock switching (for 1.32 only)
-    //
-    HWREG(0x4402E16C) |= 0x3C;
-
-
-#endif
 
     //
     // Enable uDMA
@@ -1745,9 +1979,6 @@ void PRCMCC3200MCUInit()
     //
     PRCMPeripheralReset(PRCM_UDMA);
 
-    // Reset I2S
-    //
-    PRCMPeripheralReset(PRCM_I2S);
     //
     // Disable uDMA
     //
@@ -1805,13 +2036,62 @@ void PRCMCC3200MCUInit()
     //
     HWREG(0x4402FC74) &= ~(0x10000000);
 
+    //
+    // Required only if ROM version is lower than 2.x.x
+    //
+    if( (HWREG(0x00000400) & 0xFFFF) < 2 )
+    {
+      //
+      // Disable the sleep for ANA DCDC
+      //
+      HWREG(0x4402F0A8) |= 0x00000004 ;
+    }
+    else if( (HWREG(0x00000400) >> 16)  >= 1 )
+    {
+      //
+      // Enable NWP force reset and HIB on WDT reset
+      // Enable direct boot path for flash
+      //
+      HWREG(OCP_SHARED_BASE + OCP_SHARED_O_SPARE_REG_8) |= ((7<<5) | 0x1);
+      if((HWREG(HIB3P3_BASE + HIB3P3_O_MEM_HIB_REG2) & 0x1) )
+      {
+          HWREG(HIB3P3_BASE + HIB3P3_O_MEM_HIB_REG2) &= ~0x1;
+          HWREG(OCP_SHARED_BASE + OCP_SHARED_O_SPARE_REG_8) |= (1<<9);
+
+          //
+          // Clear the RTC hib wake up source
+          //
+          HWREG(HIB3P3_BASE+HIB3P3_O_MEM_HIB_RTC_WAKE_EN) &= ~0x1;
+
+          //
+          // Reset RTC match value
+          //
+          HWREG(HIB3P3_BASE + HIB3P3_O_MEM_HIB_RTC_WAKE_LSW_CONF) = 0;
+          HWREG(HIB3P3_BASE + HIB3P3_O_MEM_HIB_RTC_WAKE_MSW_CONF) = 0;
+
+      }
+    }
+
+  }
+  else
+  {
+    unsigned long ulRegVal;
 
     //
-    // Disable the sleep for ANA DCDC
+    // I2C Configuration
     //
-    HWREG(0x4402F0A8) |= 0x00000004 ;
+    ulRegVal = HWREG(COMMON_REG_BASE + COMMON_REG_O_I2C_Properties_Register);
+    ulRegVal = (ulRegVal & ~0x3) | 0x1;
+    HWREG(COMMON_REG_BASE + COMMON_REG_O_I2C_Properties_Register) = ulRegVal;
 
+    //
+    // GPIO configuration
+    //
+    ulRegVal = HWREG(COMMON_REG_BASE + COMMON_REG_O_GPIO_properties_register);
+    ulRegVal = (ulRegVal & ~0x3FF) | 0x155;
+    HWREG(COMMON_REG_BASE + COMMON_REG_O_GPIO_properties_register) = ulRegVal;
 
+  }
 }
 
 //*****************************************************************************
@@ -1871,6 +2151,467 @@ void PRCMHIBRegWrite(unsigned long ulRegAddr, unsigned long ulValue)
   //
   UtilsDelay((80*200)/3);
 }
+
+//*****************************************************************************
+//
+//! \param ulDivider is clock frequency divider value
+//! \param ulWidth is the width of the high pulse
+//!
+//! This function sets the input frequency for camera module.
+//!
+//! The frequency is calculated as follows:
+//!
+//!        f_out = 240MHz/ulDivider;
+//!
+//! The parameter \e ulWidth sets the width of the high pulse.
+//!
+//! For e.g.:
+//!
+//!     ulDivider = 4;
+//!     ulWidth   = 2;
+//!
+//!     f_out = 30 MHz and 50% duty cycle
+//!
+//! And,
+//!
+//!     ulDivider = 4;
+//!     ulWidth   = 1;
+//!
+//!     f_out = 30 MHz and 25% duty cycle
+//!
+//! \return 0 on success, 1 on error
+//
+//*****************************************************************************
+unsigned long PRCMCameraFreqSet(unsigned char ulDivider, unsigned char ulWidth)
+{
+    if(ulDivider > ulWidth && ulWidth != 0 )
+    {
+      //
+      // Set  the hifh pulse width
+      //
+      HWREG(ARCM_BASE +
+            APPS_RCM_O_CAMERA_CLK_GEN) = (((ulWidth & 0x07) -1) << 8);
+
+      //
+      // Set the low pulse width
+      //
+      HWREG(ARCM_BASE +
+            APPS_RCM_O_CAMERA_CLK_GEN) = ((ulDivider - ulWidth - 1) & 0x07);
+      //
+      // Return success
+      //
+      return 0;
+    }
+
+    //
+    // Success;
+    //
+    return 1;
+}
+
+//*****************************************************************************
+//
+//! Enable the IO value retention
+//!
+//! \param ulIORetGrpFlags is one of the valid IO groups.
+//!
+//! This function enables the IO retention for group of pins as specified by
+//! \e ulIORetGrpFlags parameter. Enabling retention will immediately lock the
+//! digital pins, in the specified group, to their current state (0 or 1).
+//! Output pins can only be driven when retention is disabled.
+//!
+//! The parameter \e ulIORetGrpFlags can be logical OR of one or
+//! more of the following:
+//! -\b PRCM_IO_RET_GRP_0 - All the pins except sFlash and JTAG interface
+//! -\b PRCM_IO_RET_GRP_1 - sFlash interface pins 11,12,13,14
+//! -\b PRCM_IO_RET_GRP_2 - JTAG TDI and TDO interface pins 16,17
+//! -\b PRCM_IO_RET_GRP_3 - JTAG TCK and TMS interface pins 19,20
+//!
+//! \note Use case is to park the pins when entering HIB.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void PRCMIORetentionEnable(unsigned long ulIORetGrpFlags)
+{
+
+  //
+  // Supported only in ES2.00 and Later devices i.e. ROM Version 2.x.x or greater
+  //
+  if( (HWREG(0x00000400) & 0xFFFF) >= 2 )
+  {
+    //
+    // Disable IO Pad to ODI Path
+    //
+    HWREG(OCP_SHARED_BASE + OCP_SHARED_O_GPIO_PAD_CMN_CONFIG) |= 0x00001F00;
+
+    //
+    // 0b'0 in bit 5 for JTAG PADS
+    // 0b'0 in bit 0 for all other IOs
+    //
+    HWREG(OCP_SHARED_BASE + OCP_SHARED_O_GPIO_PAD_CMN_CONFIG) &= ~(0x00000023);
+
+    //
+    // Enable retention for GRP0
+    //
+    if( ulIORetGrpFlags & PRCM_IO_RET_GRP_0 )
+    {
+      HWREG(HIB3P3_BASE+HIB3P3_O_MEM_PAD_OEN_RET33_CONF) |= 0x5;
+    }
+
+    //
+    // Enable retention for GRP1
+    //
+    if( ulIORetGrpFlags & PRCM_IO_RET_GRP_1 )
+    {
+      HWREG(HIB3P3_BASE  + HIB3P3_O_MEM_HIB_REG0) |= ((0x3<<5));
+    }
+
+    //
+    // Enable retention for GRP2
+    //
+    if( ulIORetGrpFlags & PRCM_IO_RET_GRP_2 )
+    {
+      HWREG(HIB3P3_BASE  + HIB3P3_O_MEM_JTAG_CONF) |= 0x00000101;
+    }
+
+    //
+    // Enable retention for GRP3
+    //
+    if( ulIORetGrpFlags & PRCM_IO_RET_GRP_3 )
+    {
+      HWREG(HIB3P3_BASE  + HIB3P3_O_MEM_JTAG_CONF) |= 0x00000204;
+    }
+  }
+}
+
+//*****************************************************************************
+//
+//! Disable the IO value retention
+//!
+//! \param ulIORetGrpFlags is one of the valid IO groups.
+//!
+//! This function disable the IO retention for group of pins as specified by
+//! \e ulIORetGrpFlags parameter. Disabling retention will unlock the
+//! digital pins in the specified group. Output pins can only be driven when
+//! retention is disabled.
+//!
+//! The parameter \e ulIORetGrpFlags can be logical OR of one or
+//! more of the following:
+//! -\b PRCM_IO_RET_GRP_0 - All the pins except sFlash and JTAG interface
+//! -\b PRCM_IO_RET_GRP_1 - sFlash interface pins 11,12,13,14
+//! -\b PRCM_IO_RET_GRP_2 - JTAG TDI and TDO interface pins 16,17
+//! -\b PRCM_IO_RET_GRP_3 - JTAG TCK and TMS interface pins 19,20
+//!
+//! \note Use case is to un-park the pins when exiting HIB
+//!
+//! \return None.
+//
+//*****************************************************************************
+void PRCMIORetentionDisable(unsigned long ulIORetGrpFlags)
+{
+  //
+  // Supported only in ES2.00 and Later devices i.e. ROM Version 2.x.x or greater
+  //
+  if( (HWREG(0x00000400) & 0xFFFF) >= 2 )
+  {
+
+    //
+    // Enable IO Pad to ODI Path
+    //
+    HWREG(OCP_SHARED_BASE + OCP_SHARED_O_GPIO_PAD_CMN_CONFIG) &= ~(0x00001F00);
+
+    //
+    // 0b'1 in bit 5 for JTAG PADS
+    // 0b'1 in bit 0 for all other IOs
+    //
+    HWREG(OCP_SHARED_BASE + OCP_SHARED_O_GPIO_PAD_CMN_CONFIG) |= 0x00000023;
+
+    //
+    // Disable retention for GRP0
+    //
+    if( ulIORetGrpFlags & PRCM_IO_RET_GRP_0 )
+    {
+      HWREG(HIB3P3_BASE+HIB3P3_O_MEM_PAD_OEN_RET33_CONF) &= ~0x5;
+    }
+
+    //
+    // Disable retention for GRP1
+    //
+    if( ulIORetGrpFlags & PRCM_IO_RET_GRP_1 )
+    {
+      HWREG(HIB3P3_BASE + HIB3P3_O_MEM_HIB_REG0) &= ~((0x3<<5));
+    }
+
+    //
+    // Disable retention for GRP2
+    //
+    if( ulIORetGrpFlags & PRCM_IO_RET_GRP_2 )
+    {
+      HWREG(HIB3P3_BASE  + HIB3P3_O_MEM_JTAG_CONF) &= ~0x00000101;
+    }
+
+    //
+    // Disable retention for GRP3
+    //
+    if( ulIORetGrpFlags & PRCM_IO_RET_GRP_3 )
+    {
+      HWREG(HIB3P3_BASE  + HIB3P3_O_MEM_JTAG_CONF) &= ~0x00000204;
+    }
+
+  }
+}
+
+//*****************************************************************************
+//
+//! Gets the device type
+//!
+//! This function returns bit-packed value representing the device type
+//!
+//! The returned value is logical OR of one or more of the following:-
+//!
+//! -\b PRCM_DEV_TYPE_FLAG_R        - R variant
+//! -\b PRCM_DEV_TYPE_FLAG_F        - F variant
+//! -\b PRCM_DEV_TYPE_FLAG_Z        - Z variant
+//! -\b PRCM_DEV_TYPE_FLAG_SECURE   - Device is secure
+//! -\b PRCM_DEV_TYPE_FLAG_PRE_PROD - Device is a pre-production part
+//! -\b PRCM_DEV_TYPE_FLAG_3200     - Device is CC3200
+//! -\b PRCM_DEV_TYPE_FLAG_3220     - Device is CC3220
+//! -\b PRCM_DEV_TYPE_FLAG_REV1     - Device Rev 1
+//! -\b PRCM_DEV_TYPE_FLAG_REV2     - Device Rev 2
+//!
+//! Pre-defined helper macros:-
+//!
+//! -\b PRCM_DEV_TYPE_PRE_CC3200R   - Pre-Production CC3200R
+//! -\b PRCM_DEV_TYPE_PRE_CC3200F   - Pre-Production CC3200F
+//! -\b PRCM_DEV_TYPE_PRE_CC3200Z   - Pre-Production CC3200Z
+//! -\b PRCM_DEV_TYPE_CC3200R       - Production CC3200R
+//! -\b PRCM_DEV_TYPE_PRE_CC3220R   - Pre-Production CC3220R
+//! -\b PRCM_DEV_TYPE_PRE_CC3220F   - Pre-Production CC3220F
+//! -\b PRCM_DEV_TYPE_PRE_CC3220Z   - Pre-Production CC3220Z
+//! -\b PRCM_DEV_TYPE_CC3220R       - Production CC3220R
+//! -\b PRCM_DEV_TYPE_PRE_CC3220RS  - Pre-Production CC3220RS
+//! -\b PRCM_DEV_TYPE_PRE_CC3220FS  - Pre-Production CC3220FS
+//! -\b PRCM_DEV_TYPE_PRE_CC3220ZS  - Pre-Production CC3220ZS
+//! -\b PRCM_DEV_TYPE_CC3220RS      - Production CC3220RS
+//! -\b PRCM_DEV_TYPE_CC3220FS      - Production CC3220FS
+//!
+//! \return  Returns, bit-packed value representing the device type,
+//! or 0 if device is unknown
+//
+//*****************************************************************************
+unsigned long PRCMDeviceTypeGet()
+{
+  unsigned long ulDevType;
+  unsigned long ulChipId;
+  unsigned long ulDevMajorVer;
+  unsigned long ulDevMinorVer;
+
+  //
+  // Read the device identification register
+  //
+  ulChipId = HWREG(GPRCM_BASE + GPRCM_O_GPRCM_EFUSE_READ_REG2);
+
+  //
+  // Read the ROM mojor and minor version
+  //
+  ulDevMajorVer = ((ulChipId >> 28) & 0xF);
+  ulDevMinorVer = ((ulChipId >> 24) & 0xF);
+
+  
+  ulChipId = ((HWREG(GPRCM_BASE + GPRCM_O_GPRCM_EFUSE_READ_REG2) >> 16) & 0x1F);
+   
+  //
+  // Get the device variant from the chip id
+  //
+  switch((ulChipId & 0xF))
+  {
+    //
+    // It is R variant
+    //
+    case 0x0:
+      ulDevType = PRCM_DEV_TYPE_FLAG_R;
+      break;
+
+    //
+    // It is F variant, non secure F variant is always Pre-Production
+    //
+    case 0x1:
+      ulDevType = PRCM_DEV_TYPE_FLAG_F|PRCM_DEV_TYPE_FLAG_PRE_PROD;
+      break;
+
+    //
+    // It is Z variant and is always Pre-Production
+    //
+    case 0x3:
+      ulDevType = PRCM_DEV_TYPE_FLAG_Z|PRCM_DEV_TYPE_FLAG_PRE_PROD;
+      break;
+
+    //
+    // It is Secure R
+    //
+    case 0x8:
+      ulDevType = PRCM_DEV_TYPE_FLAG_R|PRCM_DEV_TYPE_FLAG_SECURE;
+      break;
+
+    //
+    // It is Secure F
+    //
+    case 0x9:
+      ulDevType = PRCM_DEV_TYPE_FLAG_F|PRCM_DEV_TYPE_FLAG_SECURE;
+      break;
+
+    //
+    // It is secure Z variant and variant is always Pre-Production
+    //
+    case 0xB:
+      ulDevType = PRCM_DEV_TYPE_FLAG_Z|PRCM_DEV_TYPE_FLAG_SECURE|
+                  PRCM_DEV_TYPE_FLAG_PRE_PROD;
+      break;
+
+    //
+    // Undefined variant
+    //
+    default:
+      ulDevType = 0x0;
+  }
+  
+  if( ulDevType != 0 )
+  {
+    if( ulDevMajorVer == 0x3 )
+    {
+      ulDevType |= PRCM_DEV_TYPE_FLAG_3220;
+    }
+    else if( ulDevMajorVer == 0x2 )
+    {
+      ulDevType  |= (PRCM_DEV_TYPE_FLAG_PRE_PROD|PRCM_DEV_TYPE_FLAG_3220);
+      
+      if( ((ulDevType & PRCM_DEV_TYPE_FLAG_Z) != 0) )
+      {
+        if((ulDevMinorVer == 0x0))
+        {
+          ulDevType |= PRCM_DEV_TYPE_FLAG_REV1; 
+        }
+        else
+        {
+          ulDevType |= PRCM_DEV_TYPE_FLAG_REV2;
+        }
+      }
+      else
+      {
+        if((ulDevMinorVer == 0x1))
+        {
+          ulDevType |= PRCM_DEV_TYPE_FLAG_REV1;
+        }
+      }     
+    }
+    else
+    {
+      if( (ulDevMinorVer == 0x4))
+      {
+        if( ((ulDevType & PRCM_DEV_TYPE_FLAG_Z) != 0))
+        {
+          ulDevType |= (PRCM_DEV_TYPE_FLAG_PRE_PROD|PRCM_DEV_TYPE_FLAG_3220);
+        }
+        else
+        {
+          ulDevType |= PRCM_DEV_TYPE_FLAG_3200;
+        }
+      }
+      else
+      {
+        ulDevType |= (PRCM_DEV_TYPE_FLAG_PRE_PROD|PRCM_DEV_TYPE_FLAG_3200);
+      }
+    }	  
+  }
+ 
+
+  return ulDevType;
+}
+
+
+
+//****************************************************************************
+//
+//! Used to trigger a hibernate cycle for the device using RTC
+//!
+//! This API can be used to do a clean reboot of device.
+//!
+//! \note This routine should only be exercised after all the network processing
+//! has been stopped. To stop network processing use \b sl_stop API from
+//! simplelink library.
+//!
+//! \return None
+//
+//****************************************************************************
+void PRCMHibernateCycleTrigger()
+{
+  unsigned long ulRegValue;
+  unsigned long long ullRTCVal;
+
+  //
+  // Read the RTC register
+  //
+  ulRegValue = PRCMHIBRegRead(HIB3P3_BASE+HIB3P3_O_MEM_HIB_RTC_WAKE_EN);
+
+  //
+  // Enable the RTC as wakeup source if specified
+  //
+  ulRegValue |= (PRCM_HIB_SLOW_CLK_CTR & 0x1);
+
+  //
+  // Enable HIB wakeup sources
+  //
+  PRCMHIBRegWrite(HIB3P3_BASE+HIB3P3_O_MEM_HIB_RTC_WAKE_EN,ulRegValue);
+
+  //
+  // Latch the RTC vlaue
+  //
+  PRCMHIBRegWrite(HIB3P3_BASE+HIB3P3_O_MEM_HIB_RTC_TIMER_READ ,0x1);
+
+  //
+  // Read latched values as 2 32-bit vlaues
+  //
+  ullRTCVal  = PRCMHIBRegRead(HIB3P3_BASE + HIB3P3_O_MEM_HIB_RTC_TIMER_MSW);
+  ullRTCVal  = ullRTCVal << 32;
+  ullRTCVal |= PRCMHIBRegRead(HIB3P3_BASE+HIB3P3_O_MEM_HIB_RTC_TIMER_LSW);
+
+  //
+  //Considering worst case execution times of ROM,RAM,Flash value of 160 is used
+  //
+  ullRTCVal = ullRTCVal + 160;
+
+  //
+  // Set RTC match value
+  //
+  PRCMHIBRegWrite(HIB3P3_BASE+HIB3P3_O_MEM_HIB_RTC_WAKE_LSW_CONF,
+                                            (unsigned long)(ullRTCVal));
+  PRCMHIBRegWrite(HIB3P3_BASE+HIB3P3_O_MEM_HIB_RTC_WAKE_MSW_CONF,
+                                           (unsigned long)(ullRTCVal>>32));
+  //
+  // Note : Any addition of code after this line would need a change in
+  // ullTicks Interval currently set to 160
+  //
+
+  //
+  // Request hibernate.
+  //
+  PRCMHIBRegWrite((HIB3P3_BASE+HIB3P3_O_MEM_HIB_REQ),0x1);
+
+  //
+  // Wait for system to enter hibernate
+  //
+  __asm("    wfi\n");
+
+  //
+  // Infinite loop
+  //
+  while(1)
+  {
+
+  }
+}
+
 
 //*****************************************************************************
 //

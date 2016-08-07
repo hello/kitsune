@@ -1,39 +1,40 @@
+/*
+ *  Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/ 
+ *  
+ *  Redistribution and use in source and binary forms, with or without 
+ *  modification, are permitted provided that the following conditions 
+ *  are met:
+ *
+ *    Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ *    Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the   
+ *    distribution.
+ *
+ *    Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  
+ */
 //*****************************************************************************
 //
 //  i2c.c
 //
 //  Driver for Inter-IC (I2C) bus block.
-//
-//  Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
-//
-//
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions
-//  are met:
-//
-//    Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//
-//    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the
-//    distribution.
-//
-//    Neither the name of Texas Instruments Incorporated nor the names of
-//    its contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //*****************************************************************************
 
@@ -158,10 +159,7 @@ _I2CIntNumberGet(uint32_t ui32Base)
 //! initial communication with the slave is done at either 100 Kbps or
 //! 400 Kbps.
 //!
-//! The peripheral clock is the same as the processor clock.  This value is
-//! returned by SysCtlClockGet(), or it can be explicitly hard coded if it is
-//! constant and known (to save the code/execution overhead of a call to
-//! SysCtlClockGet()).
+//! The peripheral clock frequency is returned by PRCMPeripheralClockGet().
 //!
 //! \return None.
 //
@@ -435,7 +433,6 @@ I2CSlaveDisable(uint32_t ui32Base)
 //! \return None.
 //
 //*****************************************************************************
-#include "FreeRTOS.h"
 void
 I2CIntRegister(uint32_t ui32Base, void (*pfnHandler)(void))
 {
@@ -452,12 +449,11 @@ I2CIntRegister(uint32_t ui32Base, void (*pfnHandler)(void))
     ui32Int = _I2CIntNumberGet(ui32Base);
 
     ASSERT(ui32Int != 0);
+
     //
     // Register the interrupt handler, returning an error if an error occurs.
     //
     IntRegister(ui32Int, pfnHandler);
-
-    IntPrioritySet(ui32Int, configMAX_SYSCALL_INTERRUPT_PRIORITY);
 
     //
     // Enable the I2C interrupt.
@@ -1245,8 +1241,8 @@ I2CMasterControl(uint32_t ui32Base, uint32_t ui32Cmd)
     //
     ASSERT(_I2CBaseValid(ui32Base));
     ASSERT((ui32Cmd == I2C_MASTER_CMD_SINGLE_SEND) ||
-           (ui32Cmd == I2C_MASTER_CMD_SINGLE_RECEIVE) ||
            (ui32Cmd == I2C_MASTER_CMD_BURST_SEND_START) ||
+           (ui32Cmd == I2C_MASTER_CMD_SINGLE_RECEIVE) ||
            (ui32Cmd == I2C_MASTER_CMD_BURST_SEND_CONT) ||
            (ui32Cmd == I2C_MASTER_CMD_BURST_SEND_FINISH) ||
            (ui32Cmd == I2C_MASTER_CMD_BURST_SEND_ERROR_STOP) ||

@@ -27,8 +27,6 @@ static uint32_t samplecounter;
 
 static void * _longTermStorageBuffer = NULL;
 
-static uint8_t _isUploadingRawData = 0;
-
 typedef enum {
 	command,
 	features
@@ -36,31 +34,12 @@ typedef enum {
 
 typedef struct {
 	EAudioProcesingMessage_t type;
-	NotificationCallback_t onFinished;
 	void * context;
-
 	union {
 		AudioFeatures_t feats;
 		EAudioProcessingCommand_t cmd;
 	} message;
 } AudioProcessingTaskMessage_t;
-
-
-static void RecordCallback(const AudioCaptureDesc_t * request) {
-	/* Go tell audio capture task to write to disk as it captures */
-	AudioMessage_t m;
-	memset(&m,0,sizeof(m));
-
-	if (!_isUploadingRawData) {
-		return;
-	}
-
-	m.command = eAudioSaveToDisk;
-
-	memcpy(&m.message.capturedesc,request,sizeof(AudioCaptureDesc_t));
-
-	AudioTask_AddMessageToQueue(&m);
-}
 
 static void Prepare(void * data) {
 	xSemaphoreTake(_mutex,portMAX_DELAY);
@@ -82,7 +61,7 @@ static void Init(void) {
 	samplecounter = 0;
 	_longTermStorageBuffer = NULL;
 
-	AudioClassifier_Init(RecordCallback);
+	AudioClassifier_Init(NULL);
 	AudioClassifier_SetStorageBuffers(NULL,0);
 
 }
@@ -120,13 +99,11 @@ void AudioProcessingTask_AddFeaturesToQueue(const AudioFeatures_t * feat) {
 	}
 }
 
-void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCallback_t onFinished, void * context, TickType_t wait ) {
+void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd, TickType_t wait ) {
 	AudioProcessingTaskMessage_t m;
 	memset(&m,0,sizeof(m));
 	m.message.cmd = cmd;
 	m.type = command;
-	m.onFinished = onFinished;
-	m.context = context;
 
 	if (_queue) {
 		xQueueSend(_queue,&m,wait);
@@ -172,7 +149,7 @@ void AudioProcessingTask_Thread(void * data) {
 	uint8_t featureUploads = 0;
 
 	Init();
-
+	Setup();
 	for( ;; ) {
 		/* Wait until we get a message */
         xQueueReceive( _queue,(void *) &m, portMAX_DELAY );
@@ -184,62 +161,29 @@ void AudioProcessingTask_Thread(void * data) {
     	{
     		switch (m.message.cmd) {
 
-    		case processingOff:
-    		{
-    			TearDown();
-    			break;
-    		}
-
-    		case processingOn:
-    		{
-    			Setup();
-    			break;
-    		}
-
-    		case rawUploadsOn:
-    		{
-    			_isUploadingRawData = 1;
-    			break;
-    		}
-
-    		case rawUploadsOff:
-    		{
-    			_isUploadingRawData = 0;
-    			break;
-    		}
-
     		case featureUploadsOn:
-    		{
     			featureUploads = 1;
     			break;
-    		}
-
     		case featureUploadsOff:
-    		{
     			featureUploads = 0;
     			break;
-    		}
-
     		default:
-    		{
     			LOGI("AudioProcessingTask_Thread -- unrecognized command\r\n");
     			break;
     		}
-    		}
-
     		break;
-    	}
-
+    	}//end command
     	case features:
     	{
     		if (_longTermStorageBuffer) {
     			//process features
+    			//indeterminate load
     			AudioClassifier_DataCallback(&m.message.feats);
-
-    			//check to see if it's time to try to upload
     			samplecounter++;
 
+    			//check to see if it's time to try to upload
     			if (samplecounter > AUDIO_UPLOAD_PERIOD_IN_TICKS) {
+    				LOGI("uploading features\r\n");
     				if (featureUploads) {
     					SetUpUpload();
     				}
@@ -248,22 +192,15 @@ void AudioProcessingTask_Thread(void * data) {
     		}
 
     		break;
-    	}
+    	}//features
 
-    	default: {
+    	default:
     		LOGI("AudioProcessingTask_Thread -- unrecognized message type\r\n");
     		break;
     	}
-    	}
-
-
     	//end critical section
     	xSemaphoreGive(_mutex);
 
-
-    	if (m.onFinished) {
-    		m.onFinished(m.context);
-    	}
-
 	}
+	//TearDown();
 }

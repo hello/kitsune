@@ -1,39 +1,40 @@
+/*
+ *  Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/ 
+ *  
+ *  Redistribution and use in source and binary forms, with or without 
+ *  modification, are permitted provided that the following conditions 
+ *  are met:
+ *
+ *    Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ *    Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the   
+ *    distribution.
+ *
+ *    Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  
+ */
 //*****************************************************************************
 //
 //  timer.c
 //
 //  Driver for the timer module.
-//
-//  Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
-//
-//
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions
-//  are met:
-//
-//    Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//
-//    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the
-//    distribution.
-//
-//    Neither the name of Texas Instruments Incorporated nor the names of
-//    its contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //*****************************************************************************
 
@@ -184,26 +185,26 @@ void
 TimerConfigure(unsigned long ulBase, unsigned long ulConfig)
 {
 
-    ASSERT((ulConfig == TIMER_CFG_ONE_SHOT) ||
-           (ulConfig == TIMER_CFG_ONE_SHOT_UP) ||
-           (ulConfig == TIMER_CFG_PERIODIC) ||
-           (ulConfig == TIMER_CFG_PERIODIC_UP) ||
-           ((ulConfig & 0xff000000) == TIMER_CFG_SPLIT_PAIR));
-    ASSERT(((ulConfig & 0xff000000) != TIMER_CFG_SPLIT_PAIR) ||
-           ((((ulConfig & 0x000000ff) == TIMER_CFG_A_ONE_SHOT) ||
-             ((ulConfig & 0x000000ff) == TIMER_CFG_A_ONE_SHOT_UP) ||
-             ((ulConfig & 0x000000ff) == TIMER_CFG_A_PERIODIC) ||
-             ((ulConfig & 0x000000ff) == TIMER_CFG_A_PERIODIC_UP) ||
-             ((ulConfig & 0x000000ff) == TIMER_CFG_A_CAP_COUNT) ||
-             ((ulConfig & 0x000000ff) == TIMER_CFG_A_CAP_TIME) ||
-             ((ulConfig & 0x000000ff) == TIMER_CFG_A_PWM)) &&
+    ASSERT( (ulConfig == TIMER_CFG_ONE_SHOT) ||
+            (ulConfig == TIMER_CFG_ONE_SHOT_UP) ||
+            (ulConfig == TIMER_CFG_PERIODIC) ||
+            (ulConfig == TIMER_CFG_PERIODIC_UP) ||
+            (((ulConfig & 0xff000000) == TIMER_CFG_SPLIT_PAIR) &&
+            ((((ulConfig & 0x000000ff) == TIMER_CFG_A_ONE_SHOT) ||
+            ((ulConfig & 0x000000ff) == TIMER_CFG_A_ONE_SHOT_UP) ||
+            ((ulConfig & 0x000000ff) == TIMER_CFG_A_PERIODIC) ||
+            ((ulConfig & 0x000000ff) == TIMER_CFG_A_PERIODIC_UP) ||
+            ((ulConfig & 0x000000ff) == TIMER_CFG_A_CAP_COUNT) ||
+            ((ulConfig & 0x000000ff) == TIMER_CFG_A_CAP_TIME) ||
+            ((ulConfig & 0x000000ff) == TIMER_CFG_A_PWM)) ||
             (((ulConfig & 0x0000ff00) == TIMER_CFG_B_ONE_SHOT) ||
-             ((ulConfig & 0x0000ff00) == TIMER_CFG_B_ONE_SHOT_UP) ||
-             ((ulConfig & 0x0000ff00) == TIMER_CFG_B_PERIODIC) ||
-             ((ulConfig & 0x0000ff00) == TIMER_CFG_B_PERIODIC_UP) ||
-             ((ulConfig & 0x0000ff00) == TIMER_CFG_B_CAP_COUNT) ||
-             ((ulConfig & 0x0000ff00) == TIMER_CFG_B_CAP_TIME) ||
-             ((ulConfig & 0x0000ff00) == TIMER_CFG_B_PWM))));
+            ((ulConfig & 0x0000ff00) == TIMER_CFG_B_ONE_SHOT_UP) ||
+            ((ulConfig & 0x0000ff00) == TIMER_CFG_B_PERIODIC) ||
+            ((ulConfig & 0x0000ff00) == TIMER_CFG_B_PERIODIC_UP) ||
+            ((ulConfig & 0x0000ff00) == TIMER_CFG_B_CAP_COUNT) ||
+            ((ulConfig & 0x0000ff00) == TIMER_CFG_B_CAP_TIME) ||
+            ((ulConfig & 0x0000ff00) == TIMER_CFG_B_PWM)))));
+
 
     //
     // Enable CCP to IO path
@@ -617,6 +618,45 @@ TimerValueGet(unsigned long ulBase, unsigned long ulTimer)
 
 //*****************************************************************************
 //
+//! Sets the current timer value.
+//!
+//! \param ulBase is the base address of the timer module.
+//! \param ulTimer specifies the timer; must be one of \b TIMER_A or
+//! \b TIMER_B.  Only \b TIMER_A should be used when the timer is configured
+//! for 32-bit operation.
+//! \param ulValue is the new value of the timer to be set.
+//!
+//! This function sets the current value of the specified timer.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void
+TimerValueSet(unsigned long ulBase, unsigned long ulTimer,
+              unsigned long ulValue)
+{
+    //
+    // Check the arguments.
+    //
+    ASSERT(TimerBaseValid(ulBase));
+    ASSERT((ulTimer == TIMER_A) || (ulTimer == TIMER_B));
+
+    //
+    // Set the appropriate timer value.
+    //
+    if( (ulTimer == TIMER_A) )
+    {
+      HWREG(ulBase + TIMER_O_TAV) = ulValue;
+    }
+    else
+    {
+      HWREG(ulBase + TIMER_O_TBV) = ulValue;
+    }
+}
+
+
+//*****************************************************************************
+//
 //! Sets the timer match value.
 //!
 //! \param ulBase is the base address of the timer module.
@@ -977,8 +1017,8 @@ TimerIntClear(unsigned long ulBase, unsigned long ulIntFlags)
 //
 //! Enables the events that can trigger a DMA request.
 //!
-//! \param ui32Base is the base address of the timer module.
-//! \param ui32DMAEvent is a bit mask of the events that can trigger DMA.
+//! \param ulBase is the base address of the timer module.
+//! \param ulDMAEvent is a bit mask of the events that can trigger DMA.
 //!
 //! This function enables the timer events that can trigger the start of a DMA
 //! sequence.  The DMA trigger events are specified in the \e ui32DMAEvent
@@ -1020,7 +1060,7 @@ TimerDMAEventSet(unsigned long ulBase, unsigned long ulDMAEvent)
 //
 //! Returns the events that can trigger a DMA request.
 //!
-//! \param ui32Base is the base address of the timer module.
+//! \param ulBase is the base address of the timer module.
 //!
 //! This function returns the timer events that can trigger the start of a DMA
 //! sequence.  The DMA trigger events are the logical OR of the following

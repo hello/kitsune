@@ -1,37 +1,35 @@
-//*****************************************************************************
-//
-//  Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
-//
-//
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions
-//  are met:
-//
-//    Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//
-//    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the
-//    distribution.
-//
-//    Neither the name of Texas Instruments Incorporated nor the names of
-//    its contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-//*****************************************************************************
+/*
+ *  Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/ 
+ *  
+ *  Redistribution and use in source and binary forms, with or without 
+ *  modification, are permitted provided that the following conditions 
+ *  are met:
+ *
+ *    Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ *    Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the   
+ *    distribution.
+ *
+ *    Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  
+ */
 //*****************************************************************************
 
 #ifndef __HW_DTHE_H__
@@ -107,10 +105,10 @@
 // DTHE_O_SHAMD5_ICIS register.
 //
 //******************************************************************************
-#define DTHE_SHAMD5_ICIS_DIN  0x00000004  // Clear “input Data movement done”
+#define DTHE_SHAMD5_ICIS_DIN  0x00000004  // Clear “input Data movement done�?
                                             // flag
-#define DTHE_SHAMD5_ICIS_COUT 0x00000002  // Clear “Context output done” flag
-#define DTHE_SHAMD5_ICIS_CIN  0x00000001  // Clear “context input done” flag
+#define DTHE_SHAMD5_ICIS_COUT 0x00000002  // Clear “Context output done�? flag
+#define DTHE_SHAMD5_ICIS_CIN  0x00000001  // Clear “context input done�? flag
 //******************************************************************************
 //
 // The following are defines for the bit fields in the
@@ -158,11 +156,11 @@
 //
 //******************************************************************************
 #define DTHE_AES_ICIS_DOUT 0x00000008  // Clear “output Data movement
-                                            // done” flag
-#define DTHE_AES_ICIS_DIN  0x00000004  // Clear “input Data movement done”
+                                            // done�? flag
+#define DTHE_AES_ICIS_DIN  0x00000004  // Clear “input Data movement done�?
                                             // flag
-#define DTHE_AES_ICIS_COUT 0x00000002  // Clear “Context output done” flag
-#define DTHE_AES_ICIS_CIN  0x00000001  // Clear “context input done” flag
+#define DTHE_AES_ICIS_COUT 0x00000002  // Clear “Context output done�? flag
+#define DTHE_AES_ICIS_CIN  0x00000001  // Clear “context input done�? flag
 //******************************************************************************
 //
 // The following are defines for the bit fields in the
@@ -204,10 +202,10 @@
 //
 //******************************************************************************
 #define DTHE_DES_ICIS_DOUT 0x00000008  // Clear “output Data movement
-                                            // done” flag
-#define DTHE_DES_ICIS_DIN  0x00000004  // Clear “input Data movement done”
+                                            // done�? flag
+#define DTHE_DES_ICIS_DIN  0x00000004  // Clear “input Data movement done�?
                                             // flag
-#define DTHE_DES_ICIS_CIN  0x00000001  // Clear "context input done” flag
+#define DTHE_DES_ICIS_CIN  0x00000001  // Clear "context input done�? flag
 //******************************************************************************
 //
 // The following are defines for the bit fields in the
@@ -250,12 +248,12 @@
 // DTHE_O_EIP_CGREQ register.
 //
 //******************************************************************************
-#define DTHE_EIP_CGREQ_Key_M  0xF0000000  // When “0x5” write “1” to lower
+#define DTHE_EIP_CGREQ_Key_M  0xF0000000  // When “0x5�? write “1�? to lower
                                             // bits [4:0] will set the bit.
-                                            // Write “0” will be ignored When
-                                            // “0x2” write “1” to lower bit
+                                            // Write “0�? will be ignored When
+                                            // “0x2�? write “1�? to lower bit
                                             // [4:0] will clear the bit. Write
-                                            // “0” will be ignored for other key
+                                            // “0�? will be ignored for other key
                                             // value, regular read write
                                             // operation
 #define DTHE_EIP_CGREQ_Key_S  28
@@ -286,8 +284,8 @@
 //******************************************************************************
 #define DTHE_CRC_CTRL_INIT_M  0x00006000  // Initialize the CRC 00 – use SEED
                                             // register context as starting
-                                            // value 10 – all “zero” 11 – all
-                                            // “one” This is self clearing. With
+                                            // value 10 – all “zero�? 11 – all
+                                            // “one�? This is self clearing. With
                                             // first write to data register this
                                             // value clears to zero and remain
                                             // zero for rest of the operation

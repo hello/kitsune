@@ -59,10 +59,9 @@
 #include "pcm_handler.h"
 #include "circ_buff.h"
 #include "pcm_handler.h"
-#include "osi.h"
+
 
 #include "control.h"
-#include "ti_codec.h"
 #include "network.h"
 
 #include "diskio.h"
@@ -91,15 +90,30 @@
 #include "proto_utils.h"
 #include "ustdlib.h"
 
+#include "hlo_stream.h"
 #include "pill_settings.h"
 #include "prox_signal.h"
+#include "hlo_audio_tools.h"
+#include "hlo_audio.h"
 #include "hlo_net_tools.h"
 #include "top_board.h"
 #include "long_poll.h"
+#include "filedownloadmanager.h"
+#include "codec_runtime_update.h"
+#include "tensor/keyword_net.h"
+
+#define ONLY_AUDIO 0
+
+#if (AUDIO_FULL_DUPLEX==1)
+#include "audiohelper.h"
+#endif
+
 #define ONLY_MID 0
 
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
 
+
+#include "hlo_proto_tools.h"
 
 //******************************************************************************
 //			        FUNCTION DECLARATIONS
@@ -214,13 +228,13 @@ int Cmd_fs_write(int argc, char *argv[]) {
 
 	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
 
-	if (sl_FsOpen((unsigned char*)argv[1],
-	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
+	if (hndl = sl_FsOpen((unsigned char*)argv[1],
+			SL_FS_WRITE, &tok) < 0 ) {
 		LOGF("error opening file, trying to create\n");
 
-		if (sl_FsOpen((unsigned char*)argv[1],
-				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
-				&hndl)) {
+		if ( hndl = sl_FsOpen((unsigned char*)argv[1],
+				SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 65535 ),
+				&tok) < 0 ) {
 			LOGF("error opening for write\n");
 			return -1;
 		}
@@ -230,7 +244,7 @@ int Cmd_fs_write(int argc, char *argv[]) {
     int expected = argc - 2;
 	while( cnt != expected ) {
         uint8_t byte = strtol(next, &next, 16);
-    	bytes = sl_FsWrite(hndl, info.FileLen + cnt, (unsigned char*)&byte, 1);
+    	bytes = sl_FsWrite(hndl, info.Len + cnt, (unsigned char*)&byte, 1);
     	assert(bytes==1);
     	++cnt;
     	next = next + 1;
@@ -271,24 +285,28 @@ int Cmd_fs_read(int argc, char *argv[]) {
 		LOGF("unauthorized\n");
 		return 0;
 	}
+	if (strstr(argv[1], "ota") != 0) {
+		LOGF("unauthorized\n");
+		return 0;
+	}
 #endif
 
 	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
 
-	err = sl_FsOpen((unsigned char*) argv[1], FS_MODE_OPEN_READ, &tok, &hndl);
-	if (err) {
-		LOGF("error opening for read %d\n", err);
+	hndl = sl_FsOpen((unsigned char*) argv[1], SL_FS_READ, &tok );
+	if (hndl < 0 ) {
+		LOGF("error opening for read %d\n", hndl);
 		return -1;
 	}
 	if( argc >= 3 ){
 		bytes = sl_FsRead(hndl, atoi(argv[2]), (unsigned char* ) buffer,
-				minval(info.FileLen, BUF_SZ));
+				minval(info.Len, BUF_SZ));
 		if (bytes) {
 			LOGF("read %d bytes\n", bytes);
 		}
 	} else {
 		bytes = sl_FsRead(hndl, 0, (unsigned char* ) buffer,
-				minval(info.FileLen, BUF_SZ));
+				minval(info.Len, BUF_SZ));
 		if (bytes) {
 			LOGF("read %d bytes\n", bytes);
 		}
@@ -304,66 +322,21 @@ int Cmd_fs_read(int argc, char *argv[]) {
 	return 0;
 }
 
-int Cmd_record_buff(int argc, char *argv[]) {
-	AudioMessage_t m;
-	static xSemaphoreHandle wait = 0;
-
-	if (!wait) {
-		wait = xSemaphoreCreateBinary();
-	}
-
-	//turn on
-	AudioTask_StartCapture(atoi(argv[1]));
-
-	//capture
-	memset(&m,0,sizeof(m));
-	m.command = eAudioSaveToDisk;
-	m.message.capturedesc.change = startSaving;
-	AudioTask_AddMessageToQueue(&m);
-
-	xSemaphoreTake(wait,10000); //10 seconds
-
-	m.command = eAudioSaveToDisk;
-	m.message.capturedesc.change = stopSaving;
-	AudioTask_AddMessageToQueue(&m);
-
-
-	m.command = eAudioCaptureTurnOff;
-	AudioTask_AddMessageToQueue(&m);
-
-	return 0;
-
-}
-
-
 int Cmd_audio_turn_on(int argc, char * argv[]) {
+	AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
 
-	AudioTask_StartCapture(16000);
-
-	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL,0);
+	AudioProcessingTask_SetControl(featureUploadsOn,0);
 #ifdef KIT_INCLUDE_FILE_UPLOAD
-	AudioProcessingTask_SetControl(rawUploadsOn,NULL,NULL,0);
+	AudioProcessingTask_SetControl(rawUploadsOn,0);
 #endif
 
 	return 0;
-}
-
-int Cmd_audio_turn_off(int agrc, char * agrv[]) {
-	AudioTask_StopCapture();
-	return 0;
-
 }
 
 int Cmd_stop_buff(int argc, char *argv[]) {
 	AudioTask_StopPlayback();
 
 	return 0;
-}
-
-static void octogram_notification(void * context) {
-	xSemaphoreHandle sem = (xSemaphoreHandle)context;
-
-	xSemaphoreGive(sem);
 }
 
 static
@@ -386,94 +359,8 @@ int Cmd_get_octogram(int argc, char * argv[]) {
 
 	return 0;
 }
-int Cmd_do_octogram(int argc, char * argv[]) {
-	AudioMessage_t m;
-    int32_t numsamples = atoi( argv[1] );
-    uint16_t i,j;
-    int counts;
-
-    if( argc == 1 ) {
-    	numsamples = 500;
-    	counts = 1;
-    } else {
-        counts = atoi( argv[2] );
-    }
-    if (numsamples == 0) {
-    	LOGF("number of requested samples was zero.\r\n");
-    	return 0;
-    }
-
-    if( !octogram_semaphore ) {
-    	octogram_semaphore = xSemaphoreCreateBinary();
-    }
-    for( j = 0; j< counts; ++j) {
-
-		memset(&m,0,sizeof(m));
-
-		AudioTask_StartCapture(22050);
-
-		m.command = eAudioCaptureOctogram;
-		m.message.octogramdesc.result = &octorgram_result;
-		m.message.octogramdesc.analysisduration = numsamples;
-		m.message.octogramdesc.onFinished = octogram_notification;
-		m.message.octogramdesc.context = octogram_semaphore;
-
-		AudioTask_AddMessageToQueue(&m);
-
-		if( argc == 1 ) {
-			return 0;
-		}
-
-		xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
 
 
-		int avg = 0;
-		avg += octorgram_result.logenergy[3];
-		avg += octorgram_result.logenergy[4];
-		avg += octorgram_result.logenergy[5];
-		avg += octorgram_result.logenergy[6];
-		avg /= 4;
-
-		//report results
-		LOGF("%d\r\n", octorgram_result.logenergy[2] - avg );
-		for (i = 0; i < OCTOGRAM_SIZE; i++) {
-			if (i != 0) {
-				LOGI(",");
-			}
-			LOGI("%d",octorgram_result.logenergy[i]);
-		}
-		LOGI("\r\n");
-
-    }
-
-	return 0;
-
-}
-
-int Cmd_play_buff(int argc, char *argv[]) {
-    int vol = atoi( argv[1] );
-    char * file = argv[3];
-    AudioPlaybackDesc_t desc;
-    memset(&desc,0,sizeof(desc));
-    strncpy( desc.file, file, 64 );
-    desc.volume = vol;
-    if( argc >= 4 ) {
-        desc.durationInSeconds = atoi(argv[4]);
-    } else {
-        desc.durationInSeconds = -1;
-    }
-    if( argc >= 5 ) {
-    	desc.fade_out_ms = desc.fade_in_ms = atoi(argv[5]);
-    } else {
-    	desc.fade_out_ms = desc.fade_in_ms = 0;
-    }
-    desc.rate = atoi(argv[2]);
-
-    AudioTask_StartPlayback(&desc);
-
-    return 0;
-    //return play_ringtone( vol );
-}
 int Cmd_fs_delete(int argc, char *argv[]) {
 	//
 	// Print some header text.
@@ -520,6 +407,10 @@ static char alarm_ack[sizeof(((SyncResponse *)0)->ring_time_ack)];
 static volatile bool needs_alarm_ack = false;
 #define ALARM_LOC "/hello/alarm"
 static bool alarm_is_ringing = false;
+
+void delete_alarms() {
+	sl_FsDel((unsigned char*)ALARM_LOC, 0);
+}
 
 void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size ) {
     if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
@@ -605,9 +496,9 @@ static bool cancel_alarm() {
 int set_test_alarm(int argc, char *argv[]) {
 	SyncResponse_Alarm alarm;
 	unsigned int now = get_time();
-	alarm.end_time = now + 245;
+	alarm.end_time = now + 45;
 	alarm.start_time = now + 5;
-	alarm.ring_duration_in_second = 240;
+	alarm.ring_duration_in_second = 40;
 	alarm.ring_offset_from_now_in_second = 5;
 	strncpy(alarm.ringtone_path, "/ringtone/tone.raw",
 			strlen("/ringtone/tone.raw"));
@@ -647,7 +538,7 @@ static bool _is_file_exists(char* path)
 	}
 	return true;
 }
-
+#include "hellofilesystem.h"
 uint8_t get_alpha_from_light();
 void thread_alarm(void * unused) {
 	int alarm_led_id = -1;
@@ -658,9 +549,7 @@ void thread_alarm(void * unused) {
 		uint32_t time = get_time();
 		// The alarm thread should go ahead even without a valid time,
 		// because we don't need a correct time to fire alarm, we just need the offset.
-
 		if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
-
 			if( time - alarm.start_time < 600 || alarm.start_time - time < 600 ) {
 				if( time < alarm.start_time ) {
 					LOGI("coming %d in %d\n",
@@ -676,9 +565,8 @@ void thread_alarm(void * unused) {
 				AudioPlaybackDesc_t desc;
 				memset(&desc,0,sizeof(desc));
 
-				desc.fade_in_ms = 30000;
+				desc.to_fade_out_ms = desc.fade_in_ms = 30000;
 				desc.fade_out_ms = 3000;
-				strncpy( desc.file, AUDIO_FILE, 64 );
 				int has_valid_sound_file = 0;
 				char file_name[64] = {0};
 				if(alarm.has_ringtone_path)
@@ -725,11 +613,12 @@ void thread_alarm(void * unused) {
 					LOGE("ALARM RING FAIL: NO RINGTONE FILE FOUND %s\n", file_name);
 				}
 
-				strncpy(desc.file, file_name, 64);
+				desc.stream = fs_stream_open(file_name,HLO_STREAM_READ);
+				ustrncpy(desc.source_name, file_name, sizeof(desc.source_name));
 				desc.durationInSeconds = alarm.ring_duration_in_second;
-				desc.volume = 57;
+				desc.volume = 10;
 				desc.onFinished = thread_alarm_on_finished;
-				desc.rate = 48000;
+				desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
 				desc.context = &alarm_led_id;
 
 				alarm.has_start_time = FALSE;
@@ -820,7 +709,7 @@ static void thread_dust(void * unused) {
 }
 
 
-static int light_m2,light_mean, light_cnt,light_log_sum,light_sf,light;
+static int light_m2,light_mean, light_cnt,light_log_sum,light_sf,light, rgb[3];
 static xSemaphoreHandle light_smphr;
 xSemaphoreHandle i2c_smphr;
 
@@ -847,6 +736,7 @@ uint8_t get_alpha_from_light()
 static int _is_light_off()
 {
 	static int last_light = -1;
+	static unsigned int last_light_time = 0;
 	const int light_off_threshold = 500;
 	int ret = 0;
 
@@ -854,11 +744,14 @@ static int _is_light_off()
 	if(last_light != -1)
 	{
 		int delta = last_light - light;
-		if(delta >= light_off_threshold && light < 1000)
+		if(xTaskGetTickCount() - last_light_time > 2000
+				&& delta >= light_off_threshold
+				&& light < 1000)
 		{
 			LOGI("light delta: %d, current %d, last %d\n", delta, light, last_light);
 			ret = 1;
 			light_mean = light; //so the led alpha will be at the lights off level
+			last_light_time = xTaskGetTickCount();
 		}
 	}
 
@@ -903,9 +796,8 @@ static void _on_wave(){
 }
 
 static void _on_hold(){
-	if(	cancel_alarm() ) {
-		stop_led_animation( 0, 33 );
-	}
+	stop_led_animation( 0, 33 );
+	cancel_alarm();
 	ble_proto_start_hold();
 }
 
@@ -930,12 +822,13 @@ int Cmd_gesture(int argc, char * argv[]) {
 void thread_fast_i2c_poll(void * unused)  {
 	unsigned int filter_buf[3];
 	unsigned int filter_idx=0;
+	int w,r,g,b,p;
 
 	gesture_init();
 	ProxSignal_Init();
 	ProxGesture_t gesture;
 
-	uint32_t delay = 50;
+	uint32_t delay = 100;
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
@@ -944,9 +837,12 @@ void thread_fast_i2c_poll(void * unused)  {
 		if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
 			vTaskDelay(1);
 
-			prox = median_filter(get_prox(), filter_buf, &filter_idx);
+			if( 0 != get_rgb_prox( &w,&r,&g,&b,&p ) ) {
+				goto fail_fast_i2c;
+			}
+			LOGP("%d,%d,%d,%d,%d\n", w,r,g,b,p );
 
-			LOGP( "%d\n", prox );
+			prox = median_filter(p, filter_buf, &filter_idx);
 
 			gesture = ProxSignal_UpdateChangeSignals(prox);
 
@@ -969,7 +865,10 @@ void thread_fast_i2c_poll(void * unused)  {
 			}
 
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-				light = get_light();
+				light = w;
+				rgb[0] = r;
+				rgb[1] = g;
+				rgb[2] = b;
 				light_log_sum += bitlog(light);
 				++light_cnt;
 
@@ -979,7 +878,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				if( light_m2 < 0 ) {
 					light_m2 = 0x7FFFFFFF;
 				}
-				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
+//				LOGI( "%d\t%d\t%d\t%d\t%d\n", delta, light_mean, light_m2, light_cnt, _is_light_off());
 				xSemaphoreGive(light_smphr);
 
 				if(light_cnt % 5 == 0 && led_is_idle(0) ) {
@@ -992,17 +891,18 @@ void thread_fast_i2c_poll(void * unused)  {
 			vTaskDelay(1);
 			xSemaphoreGiveRecursive(i2c_smphr);
 		} else {
+			fail_fast_i2c:
 			LOGW("failed to get i2c %d\n", __LINE__);
 		}
 		vTaskDelayUntil(&now, delay);
 	}
 }
 
-#define MAX_PERIODIC_DATA 30
-#define MAX_PILL_DATA 20
-#define MAX_BATCH_PILL_DATA 10
+#define MAX_PERIODIC_DATA 1
+#define MAX_PILL_DATA 1
+#define MAX_BATCH_PILL_DATA 1
 #define PILL_BATCH_WATERMARK 0
-#define MAX_BATCH_SIZE 15
+#define MAX_BATCH_SIZE 1
 #define ONE_HOUR_IN_MS ( 3600 * 1000 )
 
 xQueueHandle data_queue = 0;
@@ -1063,6 +963,7 @@ end:
 	}
 }
 #include "endpoints.h"
+#include "hlo_http.h"
 void thread_tx(void* unused) {
 	batched_periodic_data data_batched = {0};
 #ifdef UPLOAD_AP_INFO
@@ -1167,7 +1068,6 @@ void thread_tx(void* unused) {
 		} while (!wifi_status_get(HAS_IP));
 	}
 }
-
 #include "audio_types.h"
 
 void sample_sensor_data(periodic_data* data)
@@ -1230,8 +1130,11 @@ void sample_sensor_data(periodic_data* data)
 		data->audio_peak_energy_db = aud_data.peak_energy;
 
 		data->has_audio_peak_disturbance_energy_db = true;
-		data->audio_peak_disturbance_energy_db = aud_data.peak_energy;
-
+		if( aud_data.num_disturbances ) {
+			data->audio_peak_disturbance_energy_db = aud_data.peak_energy;
+		} else {
+			data->audio_peak_disturbance_energy_db = aud_data.peak_background_energy;
+		}
 		//LOGI("Uploading audio %u %u %u\r\n",data->audio_num_disturbances, data->audio_peak_background_energy_db, data->audio_peak_disturbance_energy_db );
 	}
 
@@ -1261,52 +1164,45 @@ void sample_sensor_data(periodic_data* data)
 
 			light_m2 = light_mean = light_cnt = light_log_sum = light_sf = 0;
 		}
+		data->has_rgb = true;
+		data->rgb.r = rgb[0];
+		data->rgb.g = rgb[1];
+		data->rgb.b = rgb[2];
 		
 		xSemaphoreGive(light_smphr);
 	}
 
+	{
+		int ir;
+		if( 0 == get_ir( &ir ) ) {
+			LOGI("ir %d\n", ir);
+			data->infrared = true;
+			data->infrared = ir;
+		}
+	}
+	{
 	// get temperature and humidity
-	uint8_t measure_time = 10;
-	int64_t humid_sum = 0;
-	int64_t temp_sum = 0;
+	uint32_t humid,press;
+	int32_t temp;
 
-	uint8_t humid_count = 0;
-	uint8_t temp_count = 0;
-
-	while(--measure_time) {
-		int humid,temp;
-
-		get_temp_humid(&temp, &humid);
-
-		if(humid != -1)
-		{
-			humid_sum += humid;
-			humid_count++;
-		}
-		if(temp != -1)
-		{
-			temp_sum += temp;
-			temp_count++;
-		}
-	}
-
-
-
-	if(humid_count == 0)
-	{
-		data->has_humidity = false;
-	}else{
-		data->has_humidity = true;
-		data->humidity = humid_sum / humid_count;
-	}
-
-
-	if(temp_count == 0)
-	{
-		data->has_temperature = false;
-	}else{
+	if( 0 == get_temp_press_hum(&temp, &press, &humid) ) {
+		data->humidity = humid;
+		data->temperature = temp;
+		data->pressure = press;
+		data->has_pressure = true;
 		data->has_temperature = true;
-		data->temperature = temp_sum / temp_count;
+		data->has_humidity = true;
+		{
+			int tvoc, eco2, current, voltage;
+			if( 0 == get_tvoc( &tvoc, &eco2, &current, &voltage, temp, humid )) {
+				LOGI("\nTVOC %d,%d,%d,%d,%d,%d,%d\n", data->unix_time, tvoc, eco2, current, voltage, temp, humid );
+				data->has_tvoc = true;
+				data->tvoc = tvoc;
+				data->has_co2 = true;
+				data->co2 = eco2;
+			}
+		}
+		}
 	}
 
 	int wave_count = gesture_get_wave_count();
@@ -1366,7 +1262,7 @@ void thread_sensor_poll(void* unused) {
 
 			Cmd_free(0,0);
 			send_top("free", strlen("free"));
-			Cmd_inttemp(0,0);
+			//Cmd_inttemp(0,0);
 
 			if( ( ++count % 60 ) == 0 ) {
 				Cmd_tasks(0,0);
@@ -1417,16 +1313,16 @@ int Cmd_tasks(int argc, char *argv[]) {
 
 #define SCAN_TABLE_SIZE   20
 
-static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
+static void SortByRSSI(SlWlanNetworkEntry_t* netEntries,
                                             unsigned char ucSSIDCount)
 {
-    Sl_WlanNetworkEntry_t tTempNetEntry;
+	SlWlanNetworkEntry_t tTempNetEntry;
     unsigned char ucCount, ucSwapped;
     do{
         ucSwapped = 0;
         for(ucCount =0; ucCount < ucSSIDCount - 1; ucCount++)
         {
-           if(netEntries[ucCount].rssi < netEntries[ucCount + 1].rssi)
+           if(netEntries[ucCount].Rssi < netEntries[ucCount + 1].Rssi)
            {
               tTempNetEntry = netEntries[ucCount];
               netEntries[ucCount] = netEntries[ucCount + 1];
@@ -1443,7 +1339,7 @@ int Cmd_rssi(int argc, char *argv[]) {
 	int antenna = 0; // 0 does not change the antenna
 	int duration = 1000;
 
-	Sl_WlanNetworkEntry_t g_netEntries[SCAN_TABLE_SIZE];
+	SlWlanNetworkEntry_t g_netEntries[SCAN_TABLE_SIZE];
 
 	if (argc == 2) {
 		duration = atoi(argv[1]);
@@ -1458,7 +1354,7 @@ int Cmd_rssi(int argc, char *argv[]) {
 
     LOGF( "SSID RSSI\n" );
 	for(i=0;i<lCountSSID;++i) {
-		LOGF( "%s %d\n", g_netEntries[i].ssid, g_netEntries[i].rssi );
+		LOGF( "%s %d\n", g_netEntries[i].Ssid, g_netEntries[i].Rssi );
 	}
 	return 0;
 }
@@ -1499,8 +1395,8 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 	//ENTROPY ! Sensors, timers, TI's mac address, so much randomness!!!11!!1!
 	int pos=0;
 	unsigned char mac[6];
-	unsigned char mac_len;
-	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+	unsigned short mac_len;
+	sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, NULL, &mac_len, mac);
 	memcpy(entropy_pool+pos, mac, 6);
 	pos+=6;
 	uint32_t now = xTaskGetTickCount();
@@ -1616,13 +1512,9 @@ void thread_spi(void * data) {
 			vTaskDelay(500);
 			continue;
 		}
-		if (xSemaphoreTake(spi_smphr, portMAX_DELAY) ) {
-			Cmd_spi_read(0, 0);
-			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
-		} else {
-			Cmd_spi_read(0, 0);
-			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
-		}
+		xSemaphoreTake(spi_smphr, 500);
+		Cmd_spi_read(0, 0);
+		MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 	}
 
 	/*
@@ -1744,14 +1636,13 @@ void init_download_task( int stack );
 
 void launch_tasks() {
 	checkFaults();
-	start_top_boot_watcher();
 
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
-	UARTprintf("*");
+
+
 #ifdef KIT_INCLUDE_FILE_UPLOAD
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask", 1024/4,NULL,1,NULL);
 #endif
@@ -1762,13 +1653,17 @@ void launch_tasks() {
 	UARTprintf("*");
 #if !ONLY_MID
 	UARTprintf("*");
-	xTaskCreate(thread_dust, "dustTask", 1024 / 4, NULL, 3, NULL);
+
+	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 1, NULL);
+	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
-	//long_poll_task_init( 4096 / 4 );
+	long_poll_task_init( 2560 / 4 );
+	downloadmanagertask_init(3072 / 4);
+
+
 #endif
 }
 
@@ -1776,6 +1671,7 @@ void launch_tasks() {
 int Cmd_boot(int argc, char *argv[]) {
 	if( !booted ) {
 		launch_tasks();
+		Cmd_led_clr(0,0);
 	}
 	return 0;
 }
@@ -1857,12 +1753,21 @@ int cmd_memfrag(int argc, char *argv[]) {
 	}
 	return 0;
 }
+static long always_slow(int dly){
+	vTaskDelay(dly);
+	return 0;
+}
+
 void
 vAssertCalled( const char * s );
 int Cmd_fault(int argc, char *argv[]) {
 	//*(volatile int*)0xFFFFFFFF = 0xdead;
 	//vAssertCalled("test");
 	assert(false);
+	return 0;
+}
+int Cmd_fault_slow(int argc, char * argv[]) {
+	//SL_SYNC(always_slow(atoi(argv[1])));
 	return 0;
 }
 int Cmd_test_realloc(int argc, char *argv[]) {
@@ -1900,27 +1805,34 @@ int Cmd_disableInterrupts(int argc, char *argv[]) {
 	}
 	return 0;
 }
+
+int Cmd_uptime(int argc, char *argv[]) {
+	LOGF("uptime %d\n", xTaskGetTickCount());
+	return 0;
+}
+
 #define ARR_LEN(x) (sizeof(x)/sizeof(x[0]))
 static void print_nwp_version() {
-	SlVersionFull ver;
-	uint8_t pConfigOpt, pConfigLen, i;
+	SlDeviceVersion_t ver;
+	uint8_t pConfigOpt;
+	short pConfigLen, i;
 
 	pConfigOpt = SL_DEVICE_GENERAL_VERSION;
 
-	pConfigLen = sizeof(SlVersionFull);
+	pConfigLen = sizeof(SlDeviceVersion_t);
 
-	if( 0 == sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,&pConfigOpt,&pConfigLen,(uint8_t *)(&ver)) ) {
+	if( 0 == sl_WlanGet(SL_DEVICE_GENERAL,&pConfigOpt,&pConfigLen,(uint8_t *)(&ver)) ) {
 		LOGI("FW " );
-		for(i=0;i<ARR_LEN(ver.ChipFwAndPhyVersion.FwVersion);++i) {
-			LOGI("%d.", ver.ChipFwAndPhyVersion.FwVersion[i] );
+		for(i=0;i<ARR_LEN(ver.FwVersion);++i) {
+			LOGI("%d.", ver.FwVersion[i] );
 		} LOGI("\n");
 
 		LOGI("PHY " );
-		for(i=0;i<ARR_LEN(ver.ChipFwAndPhyVersion.PhyVersion);++i) {
-			LOGI("%d.", ver.ChipFwAndPhyVersion.PhyVersion[i] );
+		for(i=0;i<ARR_LEN(ver.PhyVersion);++i) {
+			LOGI("%d.", ver.PhyVersion[i] );
 		} LOGI("\n");
 
-		LOGI("CHIP %x\n", ver.ChipFwAndPhyVersion.ChipId );
+		LOGI("CHIP %x\n", ver.ChipId );
 		LOGI("NWP " );
 		for(i=0;i<ARR_LEN(ver.NwpVersion);++i) {
 			LOGI("%d.", ver.NwpVersion[i] );
@@ -1935,21 +1847,68 @@ int Cmd_nwpinfo(int argc, char *argv[]) {
 }
 int Cmd_SyncID(int argc, char * argv[]);
 int Cmd_time_test(int argc, char * argv[]);
+int cmd_file_sync_upload(int argc, char *argv[]);
 
+int Cmd_read_temp_humid_old(int argc, char *argv[]);
+int Cmd_read_uv(int argc, char *argv[]);
+int Cmd_uvr(int argc, char *argv[]);
+int Cmd_uvw(int argc, char *argv[]);
+
+extern int ch;
+
+int cmd_vol(int argc, char *argv[]) {
+ set_volume(atoi(argv[1]), portMAX_DELAY);
+ return 0;
+}
+
+
+int cmd_ch(int argc, char *argv[]) {
+ ch = atoi(argv[1]);
+ return 0;
+}
+
+int cmd_codec(int argc, char *argv[]);
+int cmd_confidence(int argc, char *argv[]);
+
+
+int cmd_button(int argc, char *argv[]) {
+#define LED_GPIO_BASE_DOUT GPIOA2_BASE
+#define LED_GPIO_BIT_DOUT 0x80
+	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
+	while(1) {
+		LOGF("%d\r", fast);
+		vTaskDelay(100);
+	}
+}
+int Cmd_readlight(int argc, char *argv[]);
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
 // ==============================================================================
 tCmdLineEntry g_sCmdTable[] = {
-//    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
+		//    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
+		{ "b",      cmd_button,      " " },
+		{ "v",      cmd_vol,      " " },
+
+	    { "nn",      cmd_confidence,      " " },
+	    { "co",      cmd_codec,      " " },
+
 #if 0
 		{ "time_test", Cmd_time_test, "" },
 		{ "heapviz", Cmd_heapviz, "" },
 		{ "realloc", Cmd_test_realloc, "" },
-		{ "fault", Cmd_fault, "" },
+
 		{ "mac", Cmd_set_mac, "" },
 		{ "aes", Cmd_set_aes, "" },
 #endif
+		{ "hwver", Cmd_hwver, "" },
+
+		{ "ch", cmd_ch, "" },
+		{ "codec",codec_mode_sel,""},
+
+		{ "fault", Cmd_fault, "" },
+		{ "faults", Cmd_fault_slow, ""},
+
 		{ "free", Cmd_free, "" },
 		{ "connect", Cmd_connect, "" },
 		{ "disconnect", Cmd_disconnect, "" },
@@ -1958,7 +1917,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "time", Cmd_time, "" },
 		{ "status", Cmd_status, "" },
 
-    { "mnt",      Cmd_mnt,      "" },
+	    { "light",      Cmd_readlight,      "" },
+	    { "mnt",      Cmd_mnt,      "" },
     { "umnt",     Cmd_umnt,     "" },
     { "ls",       Cmd_ls,       "" },
     { "chdir",    Cmd_cd,       "" },
@@ -1969,15 +1929,23 @@ tCmdLineEntry g_sCmdTable[] = {
     { "write",    Cmd_write,    "" },
     { "mkfs",     Cmd_mkfs,     "" },
     { "pwd",      Cmd_pwd,      "" },
+
     { "cat",      Cmd_cat,      "" },
-	{"codec_Mic", get_codec_mic_NAU, "" },
+	{"codec_Mic", get_codec_mic_NAU, "" }, // TODO DKH
+
 #endif
 
-    {"inttemp", Cmd_inttemp, "" },
-		{ "humid", Cmd_readhumid, "" },
-		{ "temp", Cmd_readtemp,	"" },
-		{ "light", Cmd_readlight, "" },
-		{"prox", Cmd_readproximity, "" },
+    {"inttemp", Cmd_inttemp, "" }, //internal temperature
+	{ "thp", Cmd_read_temp_hum_press,	"" },
+	{ "tv", Cmd_meas_TVOC,	"" },
+
+	{ "uv", Cmd_read_uv, "" },
+	{ "light", Cmd_readlight, "" },
+#if 1
+    {"th-old", Cmd_read_temp_humid_old, "" },
+	{ "uvr", Cmd_uvr, "" },
+	{ "uvw", Cmd_uvw, "" },
+#endif
 
 #if ( configUSE_TRACE_FACILITY == 1 )
 		{ "tasks", Cmd_tasks, "" },
@@ -1992,15 +1960,17 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "get", Cmd_test_get, ""},
 #endif
 
-		{ "r", Cmd_record_buff,""}, //record sounds into SD card
-		{ "p", Cmd_play_buff, ""},//play sounds from SD card
-		{ "s",Cmd_stop_buff,""},
-		{ "oct",Cmd_do_octogram,""},
+		{ "pb", Cmd_pbstr, ""},
+		{ "hmac", Cmd_testhmac, ""},
+
+
+		{ "r", Cmd_AudioCapture,""}, //record sounds into SD card
+		{ "s",Cmd_audio_record_stop,""},
+		{ "x", Cmd_stream_transfer, ""},
+		{ "p", Cmd_AudioPlayback, ""},
 		{ "getoct",Cmd_get_octogram,""},
 		{ "aon",Cmd_audio_turn_on,""},
-		{ "aoff",Cmd_audio_turn_off,""},
 #if 0
-		{ "sl", Cmd_sl, "" }, // smart config
 		{ "mode", Cmd_mode, "" }, //set the ap/station mode
 
 		{ "spird", Cmd_spi_read,"" },
@@ -2024,10 +1994,10 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "topdfu", Cmd_topdfu, ""}, //update topboard firmware.
 		{ "factory_reset", Cmd_factory_reset, ""},//Factory reset from middle.
 #if 2
-		{ "download", Cmd_download, ""},//download test function.
 		{ "dtm", Cmd_top_dtm, "" },//Sends Direct Test Mode command
 #endif
 		{ "animate", Cmd_led_animate, ""},//Animates led
+
 #if 0
 		{ "uplog", Cmd_log_upload, ""},
 #endif
@@ -2040,6 +2010,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "testkey", Cmd_test_key, ""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
 		{ "country",Cmd_country,""},
+		{ "up",Cmd_uptime,""},
 		{ "sync", Cmd_sync, "" },
 		{ "boot",Cmd_boot,""},
 		{ "gesture_count",Cmd_get_gesture_count,""},
@@ -2053,13 +2024,12 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "scan",Cmd_scan_wifi,""},
 		{"future",Cmd_FutureTest,""},
 		{"ana", Cmd_analytics, ""},
-		{"dns", Cmd_setDns, ""},
 		{"noint", Cmd_disableInterrupts, ""},
-		{"nwp", Cmd_nwpinfo, ""},
-		{"resync", Cmd_SyncID, ""},
 #endif
-		{"g", Cmd_gesture, ""},
+		{"resync", Cmd_SyncID, ""},
+		{"nwp", Cmd_nwpinfo, ""},
 
+		{"g", Cmd_gesture, ""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -2067,13 +2037,15 @@ tCmdLineEntry g_sCmdTable[] = {
 #ifdef FILE_TEST
 		{ "test_files",Cmd_generate_user_testing_files,""},
 #endif
+		{"fs", cmd_file_sync_upload, ""},
+		{"nn",cmd_test_neural_net,""},
 		{ 0, 0, 0 } };
 
 
 // ==============================================================================
 // This is the UARTTask.  It handles command lines received from the RX IRQ.
 // ==============================================================================
-//void SDHostIntHandler();
+void SDHostIntHandler();
 extern xSemaphoreHandle g_xRxLineSemaphore;
 
 void UARTStdioIntHandler(void);
@@ -2122,30 +2094,30 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("*");
 	sl_sync_init();  // thread safe for all sl_* calls
+
 	sl_mode = sl_Start(NULL, NULL, NULL);
 	UARTprintf("*");
 	while (sl_mode != ROLE_STA) {
 		UARTprintf("+");
 		sl_WlanSetMode(ROLE_STA);
-		nwp_reset();
+		sl_mode = nwp_reset();
+		UARTprintf("mode switch\r\n");
 	}
 	UARTprintf("*");
 
 	//default to PCB_ANT
 	antsel(get_default_antenna());
 
-	// Set connection policy to Auto
-	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+	// Set connection policy to Auto, fast
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 1, 0, 0), NULL, 0);
 
 	UARTprintf("*");
+
 	unsigned char mac[6];
-	unsigned char mac_len;
-	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+	unsigned short mac_len;
+	sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, NULL, &mac_len, mac);
 	UARTprintf("*");
 
-	if (sl_mode == ROLE_AP || !wifi_status_get(0xFFFFFFFF)) {
-		//Cmd_sl(0, 0);
-	}
 	sl_NetAppStop(0x1f);
 	check_hw_version();
 	PinMuxConfig_hw_dep();
@@ -2159,23 +2131,25 @@ void vUARTTask(void *pvParameters) {
 	// Initialize the DMA Module
 	UDMAInit();
 	//sdhost dma interrupts
-	//MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
-	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
-			get_hw_ver()==EVT2?1000000:24000000);
+	MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
+	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST), 50000000);
+
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
 	vTaskDelay(10);
 	//INIT SPI
 	spi_init();
 
+
 	i2c_smphr = xSemaphoreCreateRecursiveMutex();
+
 	init_time_module(2560);
 
+
 	// Init sensors
-	init_humid_sensor();
+	init_tvoc();
 	init_temp_sensor();
 	init_light_sensor();
-	init_prox_sensor();
 
 	init_led_animation();
 
@@ -2195,25 +2169,66 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	SetupGPIOInterrupts();
 	CreateDefaultDirectories();
+	load_data_server();
 
-	xTaskCreate(AudioTask_Thread,"audioTask",3072/4,NULL,4,NULL);
+	/*******************************************************************************
+	*           AUDIO INIT START
+	********************************************************************************
+	*/
+
+	// Reset codec
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
+	vTaskDelay(10);
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
+
+	vTaskDelay(20);
+
+#ifdef CODEC_1P5_TEST
+	codec_test_commands();
+#endif
+
+	// Program codec
+	codec_init();
+
+	// McASP and DMA init
+	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
+
+	hlo_audio_init();
+
+	// Create audio tasks for playback and record
+	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
+	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
+
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
+
+
+	/*******************************************************************************
+	*           AUDIO INIT END
+	********************************************************************************
+	*/
+
 	UARTprintf("*");
-	init_download_task( 2048 / 4 );
-	networktask_init(4 * 1024 / 4);
+
+	init_download_task( 3072 / 4 );
+
+
+	networktask_init(3 * 1024 / 4);
 
 	load_serial();
 	load_aes();
 	load_device_id();
 	load_account_id();
-	load_data_server();
 	load_alarm();
 	pill_settings_init();
 	check_provision();
 
 	init_dust();
+
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 3, NULL);
-	xTaskCreate(thread_spi, "spiTask", 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
+
+
 #ifndef BUILD_SERVERS
 	uart_logger_init();
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
@@ -2221,15 +2236,17 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
+
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
+	start_top_boot_watcher();
 
 	if( on_charger ) {
 		launch_tasks();
 		vTaskDelete(NULL);
-		return;
+	//	return;
 	} else {
-		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
+	//	play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
 	}
 
 	UARTprintf("\n\nFreeRTOS %s, %08x, %s %02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -2239,6 +2256,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("> ");
 
 	/* remove anything we recieved before we were ready */
+	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
 
 	/* Loop forever */
 	while (1) {
@@ -2247,6 +2265,7 @@ void vUARTTask(void *pvParameters) {
 
 		if (UARTPeek('\r') != -1) {
 			/* Read data from the UART and process the command line */
+			memset( cCmdBuf, 0, sizeof(cCmdBuf) );
 			UARTgets(cCmdBuf, sizeof(cCmdBuf));
 			if (ustrlen(cCmdBuf) == 0) {
 				LOGI("> ");
@@ -2263,7 +2282,7 @@ void vUARTTask(void *pvParameters) {
 				LOGF("can't run %s, no mem!\n", cCmdBuf );
 			} else {
 				memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
-				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 3, NULL);
+				xTaskCreate(CmdLineProcess, "commandTask",  10*1024 / 4, args, 3, NULL);
 			}
         }
 	}

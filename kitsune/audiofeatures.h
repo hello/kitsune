@@ -20,8 +20,6 @@ void AudioFeatures_Init(AudioFeatureCallback_t fpCallback,AudioOncePerMinuteData
 /*  Expects AUDIO_FFT_SIZE samples in samplebuf  */
 void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount);
 
-void AudioFeatures_SetParams(uint16_t psd_min_energy);
-
 #ifdef __cplusplus
 }
 #endif

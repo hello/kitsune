@@ -5,7 +5,12 @@
 #include "debugutils/debuglog.h"
 #include <stdio.h>
 #include "hellomath.h"
+
+#ifdef USED_ON_DESKTOP
+#define LOGA(...)
+#else
 #include "uart_logger.h"
+#endif
 
 /*
    How is this all going to work? 
@@ -51,7 +56,13 @@
 #define STEADY_STATE_AVERAGING_PERIOD_2N (6)
 #define STEADY_STATE_AVERAGING_PERIOD (1 << STEADY_STATE_AVERAGING_PERIOD_2N)
 
-#define STARTUP_PERIOD_IN_MS (10000)
+#ifdef NO_EQUALIZATION
+    #define STARTUP_PERIOD_IN_MS (0)
+#else
+    //default
+    #define STARTUP_PERIOD_IN_MS (10000)
+#endif
+
 #define STARTUP_EQUALIZATION_COUNTS (STARTUP_PERIOD_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS)
 
 #define QFIXEDPOINT (12)
@@ -59,7 +70,7 @@
 #define TRUE (1)
 #define FALSE (0)
 
-#define MICROPHONE_NOISE_FLOOR_DB (34.7f)
+#define MICROPHONE_NOISE_FLOOR_DB (20.0f)
 
 
 /* Have fun tuning these magic numbers!
@@ -168,10 +179,6 @@ void AudioFeatures_Init(AudioFeatureCallback_t fpCallback,AudioOncePerMinuteData
 
 }
 
-void AudioFeatures_SetParams(uint16_t psd_min_energy) {
-    _data.psd_min_energy = psd_min_energy;
-}
-
 static int32_t GetAudioEnergyAsDBA(int16_t logenergy) {
 	int32_t dba = 0;
 
@@ -233,13 +240,11 @@ static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t
 		data.num_disturbances = 1;
 	}
 
-	if( data.num_disturbances || ( (samplecount & 0xff) == 0xff ) ) {
-		if (_data.fpOncePerMinuteDataCallback) {
-			data.peak_background_energy = GetAudioEnergyAsDBA(logTotalEnergyAvg);
-			data.peak_energy = GetAudioEnergyAsDBA(logTotalEnergy);
+	if (_data.fpOncePerMinuteDataCallback) {
+		data.peak_background_energy = GetAudioEnergyAsDBA(logTotalEnergyAvg);
+		data.peak_energy = GetAudioEnergyAsDBA(logTotalEnergy);
 
-			_data.fpOncePerMinuteDataCallback(&data);
-		}
+		_data.fpOncePerMinuteDataCallback(&data);
 	}
 
 
@@ -449,7 +454,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
     int16_t fr[AUDIO_FFT_SIZE]; //512K
     int16_t fi[AUDIO_FFT_SIZE]; //512K
     int16_t psd[PSD_SIZE];
-    int16_t dc;
+    int32_t dc;
     
     uint16_t i,j;
     uint8_t log2scaleOfRawSignal;
@@ -523,13 +528,23 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
         fr[i] = psd[i] - _data.lpfbuf[i];
     }
     
+    //remove mean of PSD before taking DCT
+    dc = 0;
+    for (i = 0; i < PSD_SIZE; i++) {
+        dc += fr[i];
+    }
+    
+    dc >>= PSD_SIZE_2N;
+    
+    for (i = 0; i < PSD_SIZE; i++) {
+        fr[i] -= (int16_t)dc;
+    }
+    
     DEBUG_LOG_S16("psd", NULL, fr, PSD_SIZE, samplecount, samplecount);
     
     //fft of 2^8 --> 256
     dct(fr,fi,PSD_SIZE_2N);
-    dc = fr[0];
     
-    DEBUG_LOG_S16("dc",NULL,&dc,1,samplecount,samplecount);
     //here they are
     for (j = 0; j < NUM_AUDIO_FEATURES; j++) {
         mfcc[j] = fr[j+1];
@@ -545,22 +560,20 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
             temp32 >>= 1;
             featavg[i] = (int16_t)temp32;
         }
-        
         Scale16VecTo8(featvec, featavg, NUM_AUDIO_FEATURES);
         VecNormalize8(featvec, NUM_AUDIO_FEATURES);
         
         //scale down to 4 bit numbers
         for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
-            temp32 = featvec[i];
-            temp32 += (1<<3);
-            temp32 >>= 4;
+            temp32 = featvec[i] / 16;
             _data.feats.feats4bit[i] = (int8_t)temp32;
         }
+
+        
         
         temp32 = _data.lastEnergy + logTotalEnergy;
         temp32 >>= 1;
         _data.feats.logenergy = (int16_t)temp32;
-        _data.feats.logenergyOverBackroundNoise = dc;
         
         //log this only when energy is significant
         if (dc > MIN_CLASSIFICATION_ENERGY) {

@@ -2,14 +2,24 @@
 #define _AUDIOTYPES_H_
 
 #include <stdint.h>
+#include "hlo_stream.h"
+#include "hlo_pipe.h"
+
+#include "codec_debug_config.h"
+
+#if (CODEC_ADC_32KHZ == 1)
+#define AUDIO_CAPTURE_PLAYBACK_RATE 32000
+#else
+#define AUDIO_CAPTURE_PLAYBACK_RATE 48000
+#endif
 
 //magic number, in no particular units, just from observation
-#define MIN_CLASSIFICATION_ENERGY (500)
+#define MIN_CLASSIFICATION_ENERGY (100)
 
 
 #define AUDIO_FFT_SIZE_2N (8)
 #define AUDIO_FFT_SIZE (1 << AUDIO_FFT_SIZE_2N)
-#define EXPECTED_AUDIO_SAMPLE_RATE_HZ (16000)
+#define EXPECTED_AUDIO_SAMPLE_RATE_HZ (AUDIO_CAPTURE_PLAYBACK_RATE)
 
 #define SAMPLE_RATE_IN_HZ (EXPECTED_AUDIO_SAMPLE_RATE_HZ / AUDIO_FFT_SIZE)
 #define SAMPLE_PERIOD_IN_MILLISECONDS  (1000 / SAMPLE_RATE_IN_HZ)
@@ -55,7 +65,6 @@ typedef struct {
 typedef struct {
 	int64_t samplecount;
     int16_t logenergy;
-    int16_t logenergyOverBackroundNoise;
     int8_t feats4bit[NUM_AUDIO_FEATURES];
 } AudioFeatures_t;
     
@@ -65,19 +74,15 @@ typedef struct {
  * Yes, some of these flags are mutually exclusive.  Others aren ot.
  */
 
-#define AUDIO_TRANSFER_FLAG_UPLOAD                 (1 << 0)
-#define AUDIO_TRANSFER_FLAG_DELETE_AFTER_UPLOAD    (1 << 1)
-#define AUDIO_TRANSFER_FLAG_DELETE_IMMEDIATELY     (1 << 2)
+#define AUDIO_TRANSFER_FLAG_AUTO_CLOSE_OUTPUT     (1 << 0) /* automatically close output stream when done */
 
-typedef enum {
-	startSaving,
-	stopSaving
-} EAudioTransferChangeState_t;
 
 typedef struct {
-	EAudioTransferChangeState_t change;
-	uint32_t flags;
-	int32_t rate;
+	uint32_t rate;
+	hlo_stream_t * opt_out;		/* optional output */
+	hlo_filter p;				/* the algorithm to run on the mic input */
+	uint32_t flag;				/* flag option, see @AUDIO_TRANSFER_FLAG_ */
+	void * ctx;					/* optional ctx pointer */
 } AudioCaptureDesc_t;
 
 /* ----------------- */

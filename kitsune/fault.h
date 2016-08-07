@@ -19,7 +19,6 @@ typedef struct {
 } faultInfo;
 
 void faultPrinter( faultInfo* f );
-//extern void FaultISR(void);
-void FaultISR( void ) __attribute__( ( naked ) );
+void FaultISR(void);
 
 #endif

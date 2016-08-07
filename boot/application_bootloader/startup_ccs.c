@@ -1,41 +1,31 @@
+/*
+ *   Copyright (C) 2015 Texas Instruments Incorporated
+ *
+ *   All rights reserved. Property of Texas Instruments Incorporated.
+ *   Restricted rights to use, duplicate or disclose this code are
+ *   granted through contract.
+ *
+ *   The program may not be used without the written permission of
+ *   Texas Instruments Incorporated or against the terms and conditions
+ *   stipulated in the agreement under which this program has been supplied,
+ *   and under no circumstances can it be used with non-TI connectivity device.
+ *   
+ */
+
 //*****************************************************************************
 // startup_ccs.c
 //
 // Startup code for use with TI's Code Composer Studio.
 //
-// Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/ 
-// 
-// 
-//  Redistribution and use in source and binary forms, with or without 
-//  modification, are permitted provided that the following conditions 
-//  are met:
-//
-//    Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.
-//
-//    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the 
-//    documentation and/or other materials provided with the   
-//    distribution.
-//
-//    Neither the name of Texas Instruments Incorporated nor the names of
-//    its contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
-//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
-//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
 //*****************************************************************************
+#ifdef USE_FREERTOS
+extern void vPortSVCHandler(void);
+extern void xPortPendSVHandler(void);
+extern void xPortSysTickHandler(void);
+#endif
 
+
+#ifndef USE_TIRTOS	/* if project uses TI-RTOS then no need to include startup file */
 //*****************************************************************************
 //
 // Forward declaration of the default fault handlers.
@@ -68,8 +58,8 @@ extern unsigned long __STACK_END;
 // the program if located at a start address other than 0.
 //
 //*****************************************************************************
-#pragma DATA_SECTION(g_pfnVectors, ".intvecs")
-void (* const g_pfnVectors[])(void) =
+#pragma DATA_SECTION(g_pfnVectors, ".resetVecs")
+void (* const g_pfnVectors[16])(void) =
 {
     (void (*)(void))((unsigned long)&__STACK_END),
                                             // The initial stack pointer
@@ -83,68 +73,20 @@ void (* const g_pfnVectors[])(void) =
     0,                                      // Reserved
     0,                                      // Reserved
     0,                                      // Reserved
+#ifdef USE_FREERTOS
+    vPortSVCHandler,                        // SVCall handler
+#else
     IntDefaultHandler,                      // SVCall handler
+#endif
     IntDefaultHandler,                      // Debug monitor handler
     0,                                      // Reserved
+#ifdef USE_FREERTOS
+    xPortPendSVHandler,                     // The PendSV handler
+    xPortSysTickHandler,                    // The SysTick handler
+#else
     IntDefaultHandler,                      // The PendSV handler
     IntDefaultHandler,                      // The SysTick handler
-    IntDefaultHandler,                      // GPIO Port A
-    IntDefaultHandler,                      // GPIO Port B
-    IntDefaultHandler,                      // GPIO Port C
-    IntDefaultHandler,                      // GPIO Port D
-    0,                                      // Reserved
-    IntDefaultHandler,                      // UART0 Rx and Tx
-    IntDefaultHandler,                      // UART1 Rx and Tx
-    0,                                      // Reserved
-    IntDefaultHandler,                      // I2C0 Master and Slave
-    0,0,0,0,0,                              // Reserved
-    IntDefaultHandler,                      // ADC Channel 0
-    IntDefaultHandler,                      // ADC Channel 1
-    IntDefaultHandler,                      // ADC Channel 2
-    IntDefaultHandler,                      // ADC Channel 3
-    IntDefaultHandler,                      // Watchdog Timer
-    IntDefaultHandler,                      // Timer 0 subtimer A                      
-    IntDefaultHandler,                      // Timer 0 subtimer B
-    IntDefaultHandler,                      // Timer 1 subtimer A
-    IntDefaultHandler,                      // Timer 1 subtimer B
-    IntDefaultHandler,                      // Timer 2 subtimer A
-    IntDefaultHandler,                      // Timer 2 subtimer B 
-    0,0,0,0,                                // Reserved
-    IntDefaultHandler,                      // Flash
-    0,0,0,0,0,                              // Reserved
-    IntDefaultHandler,                      // Timer 3 subtimer A
-    IntDefaultHandler,                      // Timer 3 subtimer B
-    0,0,0,0,0,0,0,0,0,                      // Reserved
-    IntDefaultHandler,                      // uDMA Software Transfer
-    IntDefaultHandler,                      // uDMA Error
-    0,0,0,0,0,0,0,0,0,0,                    // Reserved
-    0,0,0,0,0,0,0,0,0,0,                    // Reserved
-    0,0,0,0,0,0,0,0,0,0,                    // Reserved
-    0,0,0,0,0,0,0,0,0,0,                    // Reserved
-    0,0,0,0,0,0,0,0,0,0,                    // Reserved
-    0,0,0,0,0,0,0,0,0,0,                    // Reserved
-    0,0,0,0,0,0,0,0,0,0,                    // Reserved
-    0,0,0,0,0,0,0,0,0,0,                    // Reserved
-    0,0,0,0,0,0,0,0,0,0,                    // Reserved
-    0,0,0,0,0,0,0,0,0,0,                    // Reserved
-    IntDefaultHandler,                      // SHA
-    0,0,                                    // Reserved
-    IntDefaultHandler,                      // AES
-    0,                                      // Reserved
-    IntDefaultHandler,                      // DES
-    0,0,0,0,0,                              // Reserved
-    IntDefaultHandler,                      // SDHost
-    0,                                      // Reserved
-    IntDefaultHandler,                      // I2S
-    0,                                      // Reserved
-    IntDefaultHandler,                      // Camera
-    0,0,0,0,0,0,0,                          // Reserved
-    IntDefaultHandler,                      // NWP to APPS Interrupt
-    IntDefaultHandler,                      // Power, Reset and Clock module
-    0,0,                                    // Reserved
-    IntDefaultHandler,                      // Shared SPI
-    IntDefaultHandler,                      // Generic SPI
-    IntDefaultHandler,                      // Link SPI
+#endif
 };
 
 //*****************************************************************************
@@ -192,112 +134,16 @@ NmiSR(void)
 // for examination by a debugger.
 //
 //*****************************************************************************
-typedef struct {
-
-    unsigned long magic;
-    unsigned long version;
-    unsigned long faultStatus;
-    unsigned long busFaultAddr;
-    unsigned long mmuAddr;
-    unsigned long exceptionFrame[8];
-/* only whole words here ! */
-} faultInfo;
-
-#define SHUTDOWN_MEM ((void*)((0x20004000-sizeof(faultInfo))))
-#define SHUTDOWN_MAGIC 0xDEAD0BAD
-
-#include "hw_types.h"
-#include "hw_nvic.h"
-
-void
-FaultDecoder(unsigned long *pulExceptionFrame)
+static void
+FaultISR(void)
 {
-    unsigned int i;
-
-    faultInfo * f = (faultInfo*)SHUTDOWN_MEM;
-
-
     //
-    // Read the fault status register.
+    // Enter an infinite loop.
     //
-    f->faultStatus = HWREG(NVIC_FAULT_STAT);
-    //
-    // Check for any bits set in the bus fault field.  Print a human
-    // readable string for any bits that are set.
-    //
-    if(f->faultStatus & 0x0000ff00)
+    while(1)
     {
-        if(f->faultStatus & NVIC_FAULT_STAT_BFARV)
-        {
-            f->busFaultAddr = HWREG(NVIC_FAULT_ADDR);
-        }
     }
-
-    //
-    // Check for any bits set in the memory fault field.  Print a human
-    // readable string for any bits that are set.
-    //
-    if(f->faultStatus & 0x000000ff)
-    {
-        if(f->faultStatus & NVIC_FAULT_STAT_MMARV)
-        {
-            f->mmuAddr = HWREG(NVIC_MM_ADDR);
-        }
-    }
-
-    for( i=0;i<8;++i )
-        f->exceptionFrame[i] = pulExceptionFrame[i];
-
-    f->magic = SHUTDOWN_MAGIC;
-
-    while(1) {}
 }
-
-//*****************************************************************************
-//
-// This is the fault handler that will find the start of the exception
-// frame and pass it to the fault decoder.
-//
-//*****************************************************************************
-#if defined(gcc) || defined(sourcerygxx) || defined(codered)
-void __attribute__((naked))
-FaultISR(void)
-{
-    __asm("    mov     r0, sp\n"
-          "    bl      FaultDecoder\n"
-          "    bx      lr");
-}
-#endif
-#if defined(ewarm)
-void
-FaultISR(void)
-{
-    __asm("    mov     r0, sp\n"
-          "    bl      FaultDecoder\n"
-          "    bx      lr");
-}
-#endif
-#if defined(rvmdk) || defined (__ARMCC_VERSION)
-__asm void
-FaultISR(void)
-{
-    mov     r0, sp
-    bl      __cpp(FaultDecoder)
-    bx      lr
-}
-#endif
-#if 1//defined(ccs)
-#endif // #if defined (CCS)
-
-
-void
-FaultISR(void)
-{
-    __asm("loop1?: mov     r0, sp\n"
-          "    bl      FaultDecoder\n"
-          "    bx      lr");
-}
-
 
 //*****************************************************************************
 //
@@ -336,3 +182,4 @@ IntDefaultHandler(void)
     {
     }
 }
+#endif
