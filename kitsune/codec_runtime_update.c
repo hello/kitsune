@@ -64,7 +64,8 @@ static const control_t control[MAX_CONTROL_BLOCKS] = {
 	{ADC_ADAPTIVE_COEFFICIENT_BANK,    2, 40, 1}, //RAW_MIC_SELECT (1,2,3)
 	{ADC_ADAPTIVE_COEFFICIENT_BANK,    2, 44, 1}, //sound source localization vs AEC (1,2)
 	{DAC_ADAPTIVE_COEFFICIENT_BANK_1,  1,  8, 1}, //AEC_SELECT_IN (1,2,3,4)
-	{DAC_ADAPTIVE_COEFFICIENT_BANK_1,  1, 16, 1} //AEC_MODE_SELECT (1,2,3)
+	{DAC_ADAPTIVE_COEFFICIENT_BANK_1,  1, 16, 1}, //AEC_MODE_SELECT (1,2,3)
+	{DAC_ADAPTIVE_COEFFICIENT_BANK_1,  1, 12, 1}
 };
 
 
@@ -241,27 +242,31 @@ int32_t codec_test_runtime_prop_update(void){
 
 #include <string.h>
 #include <stdlib.h>
+#include "hellomath.h"
 int codec_mode_sel(int argc, char *argv[]) {
-	if (strcmp(argv[1],"raw") == 0) {
-		//pipe raw mic through instead of AEC of anything
-		int mic = atoi(argv[2]);
-		codec_update_minidsp_mux(MUX_SELECT_AEC_MODE,1); //turn off AEC
-		codec_update_minidsp_mux(MUX_SELECT_AEC_INPUT,4); //set AEC input to raw mic
-		codec_update_minidsp_mux(MUX_SELECT_MIC_RAW,mic); //select mic we are interested in
+	int val = atoi(argv[2]);
+	if (strcmp(argv[1],"micraw") == 0) {
+		codec_update_minidsp_mux(MUX_SELECT_MIC_RAW,val);
 	}
-	else if (strcmp(argv[1],"aec") == 0) {
-		int input = atoi(argv[2]);
-		codec_update_minidsp_mux(MUX_SELECT_AEC_MODE,2); //turn on AEC
-		codec_update_minidsp_mux(MUX_SELECT_AEC_INPUT,input); //set AEC input to input channel (1-3 are beams, 4 is the output of of one of the mics)
+	else if (strcmp(argv[1],"sslvsaec") == 0) {
+		codec_update_minidsp_mux(MUX_SELECT_SSL_VS_AEC,val);
 
-		if (argc > 3) {
-			int rawinput = atoi(argv[3]);
-			codec_update_minidsp_mux(MUX_SELECT_MIC_RAW,rawinput); //select mic we are interested in
-		}
 	}
-	else if (strcmp(argv[1],"ssl") == 0) {
-		//turn off AEC output and do sound source localization instead
-		codec_update_minidsp_mux(MUX_SELECT_SSL_VS_AEC,2);
+	else if (strcmp(argv[1],"aecinput") == 0) {
+		codec_update_minidsp_mux(MUX_SELECT_AEC_INPUT,val);
+
+	}
+	else if (strcmp(argv[1],"aecmode") == 0) {
+		codec_update_minidsp_mux(MUX_SELECT_AEC_MODE,val);
+	}
+	else if (strcmp(argv[1],"vol") == 0) {
+		int expval = FixedPointExp2Q10(val * 1024);
+		expval = (expval * 419430) >> 10;
+		codec_update_minidsp_mux(VOLUME_SELECT,expval);
+
+	}
+	else {
+		return -1;
 	}
 
 	return 0;
