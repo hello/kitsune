@@ -260,8 +260,9 @@ int codec_mode_sel(int argc, char *argv[]) {
 		codec_update_minidsp_mux(MUX_SELECT_AEC_MODE,val);
 	}
 	else if (strcmp(argv[1],"vol") == 0) {
-		int expval = FixedPointExp2Q10(val * 1024);
-		expval = (expval * 419430) >> 10;
+		//input is dB (i.e. -20dB is 1/100)
+		uint32_t expval = FixedPointExp2Q10(val * 236);
+		expval = (uint32_t)(((uint64_t)(expval * 419430)) >> 10);
 		codec_update_minidsp_mux(VOLUME_SELECT,expval);
 
 	}
