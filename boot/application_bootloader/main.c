@@ -677,6 +677,7 @@ int main()
   // Start slhost to get NVMEM service
   //
   sl_Start(NULL, NULL, NULL);
+  sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(0, 0, 0, 0), NULL, 0);
 
   //
   // Open Boot info file for reading
