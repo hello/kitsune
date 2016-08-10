@@ -1854,14 +1854,31 @@ int Cmd_read_uv(int argc, char *argv[]);
 int Cmd_uvr(int argc, char *argv[]);
 int Cmd_uvw(int argc, char *argv[]);
 
+extern int ch;
+
+int cmd_vol(int argc, char *argv[]) {
+ set_volume(atoi(argv[1]), portMAX_DELAY);
+ return 0;
+}
+
+
+int cmd_ch(int argc, char *argv[]) {
+ ch = atoi(argv[1]);
+ return 0;
+}
+
+int cmd_codec(int argc, char *argv[]);
+int cmd_confidence(int argc, char *argv[]);
+
 
 int cmd_button(int argc, char *argv[]) {
-
 #define LED_GPIO_BASE_DOUT GPIOA2_BASE
 #define LED_GPIO_BIT_DOUT 0x80
 	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
-
-LOGF("button %d\n", fast);
+	while(1) {
+		LOGF("%d\r", fast);
+		vTaskDelay(100);
+	}
 }
 int Cmd_readlight(int argc, char *argv[]);
 // ==============================================================================
@@ -1870,7 +1887,11 @@ int Cmd_readlight(int argc, char *argv[]);
 // ==============================================================================
 tCmdLineEntry g_sCmdTable[] = {
 		//    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
-    { "b",      cmd_button,      " " },
+		{ "b",      cmd_button,      " " },
+		{ "v",      cmd_vol,      " " },
+
+	    { "nn",      cmd_confidence,      " " },
+	    { "co",      cmd_codec,      " " },
 
 #if 0
 		{ "time_test", Cmd_time_test, "" },
@@ -1881,6 +1902,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "aes", Cmd_set_aes, "" },
 #endif
 		{ "hwver", Cmd_hwver, "" },
+
+		{ "ch", cmd_ch, "" },
 
 		{ "fault", Cmd_fault, "" },
 		{ "faults", Cmd_fault_slow, ""},
@@ -2029,6 +2052,7 @@ long nwp_reset();
 
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
+
 	bool on_charger = false;
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
@@ -2070,8 +2094,11 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("*");
 	sl_sync_init();  // thread safe for all sl_* calls
+	wifi_status_init();
 
 	sl_mode = sl_Start(NULL, NULL, NULL);
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(0, 0, 0, 0), NULL, 0);
+
 	UARTprintf("*");
 	while (sl_mode != ROLE_STA) {
 		UARTprintf("+");
@@ -2085,7 +2112,6 @@ void vUARTTask(void *pvParameters) {
 	antsel(get_default_antenna());
 
 	// Set connection policy to Auto, fast
-	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 1, 0, 0), NULL, 0);
 
 	UARTprintf("*");
 
@@ -2101,11 +2127,10 @@ void vUARTTask(void *pvParameters) {
 	// SDCARD INITIALIZATION
 	// Enable MMCHS, Reset MMCHS, Configure MMCHS, Configure card clock, mount
 	hello_fs_init(); //sets up thread safety for accessing the file system
+
 	MAP_PRCMPeripheralClkEnable(PRCM_SDHOST, PRCM_RUN_MODE_CLK);
 	MAP_PRCMPeripheralReset(PRCM_SDHOST);
 	MAP_SDHostInit(SDHOST_BASE);
-	// Initialize the DMA Module
-	UDMAInit();
 	//sdhost dma interrupts
 	MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
 	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST), 24000000);
@@ -2220,9 +2245,9 @@ void vUARTTask(void *pvParameters) {
 	if( on_charger ) {
 		launch_tasks();
 		vTaskDelete(NULL);
-		return;
+	//	return;
 	} else {
-		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
+	//	play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
 	}
 
 	UARTprintf("\n\nFreeRTOS %s, %08x, %s %02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -2232,6 +2257,9 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("> ");
 
 	/* remove anything we recieved before we were ready */
+	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
+
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 
 	/* Loop forever */
 	while (1) {
@@ -2257,7 +2285,7 @@ void vUARTTask(void *pvParameters) {
 				LOGF("can't run %s, no mem!\n", cCmdBuf );
 			} else {
 				memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
-				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 3, NULL);
+				xTaskCreate(CmdLineProcess, "commandTask",  10*1024 / 4, args, 3, NULL);
 			}
         }
 	}

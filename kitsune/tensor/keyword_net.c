@@ -1,8 +1,8 @@
 #include "keyword_net.h"
-#include "model_may25_lstm_small_okay_sense_tiny.c"
+#include "model_may25_lstm_small_okay_sense_tiny_727.c"
 #include "tinytensor_features.h"
 #include "tinytensor_memory.h"
-#include "uartstdio.h"
+#include "uart_logger.h"
 
 typedef struct {
 	KeywordCallback_t on_start;
@@ -19,6 +19,7 @@ typedef struct {
     uint8_t keyword_on_states[NUM_KEYWORDS];
 
     CallbackItem_t callbacks[NUM_KEYWORDS];
+    uint32_t counter;
 
 } KeywordNetContext_t;
 
@@ -30,6 +31,7 @@ static void feats_callback(void * p, int8_t * feats) {
 	Tensor_t * out;
 	Tensor_t temp_tensor;
 	uint32_t i;
+	int j;
 
 	temp_tensor.dims[0] = 1;
 	temp_tensor.dims[1] = 1;
@@ -42,6 +44,29 @@ static void feats_callback(void * p, int8_t * feats) {
 
 
 	out = tinytensor_eval_stateful_net(&context->net, &context->state, &temp_tensor);
+
+	if (context->counter++ < 20) {
+		out->delete_me(out);
+		return;
+	}
+	if(context->counter % 50 ==0){
+		Weight_t max = out->x[1];
+		uint32_t maxj = 1;
+		for (j = 2; j < out->dims[3]; j++) {
+			max = max > out->x[j] ? max : out->x[j];
+			maxj = j;
+		}
+
+		for(j = 0 ; j < 10; j++){
+			if(max >= j * 12 ){
+				DISP("X");
+			}else{
+				DISP("_");
+			}
+		}
+		DISP("%03d\r", out->x[1]);
+	}
+
 
 	//evaluate output
 	for (i = 0; i < NUM_KEYWORDS; i++) {
@@ -129,13 +154,13 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 
 	keyword_net_register_callback(0,okay_sense,20,0,0);
 
-	UARTprintf("start test\n\n");
+	DISP("start test\n\n");
 
 	for (i = 0; i < 1024; i++) {
 		keyword_net_add_audio_samples(samples,256);
 	}
 
-	UARTprintf("\n\nstop test %d\n\n", xTaskGetTickCount() - start);
+	DISP("\n\nstop test %d\n\n", xTaskGetTickCount() - start);
 
 	keyword_net_deinitialize();
 

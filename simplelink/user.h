@@ -31,6 +31,8 @@ extern "C" {
 typedef unsigned int   _SlFd_t;
 
 
+
+
 #define SL_TIMESTAMP_TICKS_IN_10_MILLISECONDS     (_u32)(800000)
 #define SL_TIMESTAMP_MAX_VALUE                    0xFFFFFFFF /* 32-bit timer counter */
 
@@ -642,6 +644,8 @@ typedef unsigned int   _SlFd_t;
  ******************************************************************************
 */
 
+#define SL_PLATFORM_MULTI_THREADED
+
 #ifdef SL_PLATFORM_MULTI_THREADED
 #include "osi.h"
 
@@ -1198,7 +1202,7 @@ typedef unsigned int   _SlFd_t;
 
 
 
-// TODO #define slcb_SocketTriggerEventHandler SimpleLinkSocketTriggerEventHandler
+#define slcb_SocketTriggerEventHandler SimpleLinkSocketTriggerEventHandler
 
 
 /*!

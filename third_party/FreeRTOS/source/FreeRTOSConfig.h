@@ -111,7 +111,7 @@
 #define configUSE_COUNTING_SEMAPHORES	1
 #define configUSE_ALTERNATIVE_API		1
 
-#define configMAX_PRIORITIES			( 5UL )
+#define configMAX_PRIORITIES			( 10UL )
 #define configMAX_CO_ROUTINE_PRIORITIES ( 2 )
 #define configQUEUE_REGISTRY_SIZE		10
 

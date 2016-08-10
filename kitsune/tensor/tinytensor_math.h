@@ -38,22 +38,30 @@ static inline int32_t accumulate(const uint32_t n, const Weight_t * in1, const W
     int32_t accumulator = 0;
     int16_t nloop = n;
     nloop = n;
-    
-    while (nloop > 0) {
-        int n = (nloop + 7) / 8;
-        switch (nloop % 8) {
-        case 0: do { accumulator += *in1++ * *in2++; --nloop;
-        case 7:      accumulator += *in1++ * *in2++; --nloop;
-        case 6:      accumulator += *in1++ * *in2++; --nloop;
-        case 5:      accumulator += *in1++ * *in2++; --nloop;
-        case 4:      accumulator += *in1++ * *in2++; --nloop;
-        case 3:      accumulator += *in1++ * *in2++; --nloop;
-        case 2:      accumulator += *in1++ * *in2++; --nloop;
-        case 1:      accumulator += *in1++ * *in2++; --nloop;
+    {
+        int n = (nloop + 15) / 16;
+
+        switch (nloop % 16) {
+        case 0: do { accumulator += *in1++ * *in2++;
+        case 15:     accumulator += *in1++ * *in2++;
+        case 14:     accumulator += *in1++ * *in2++;
+        case 13:     accumulator += *in1++ * *in2++;
+        case 12:     accumulator += *in1++ * *in2++;
+        case 11:     accumulator += *in1++ * *in2++;
+        case 10:     accumulator += *in1++ * *in2++;
+        case 9:      accumulator += *in1++ * *in2++;
+        case 8:      accumulator += *in1++ * *in2++;
+        case 7:      accumulator += *in1++ * *in2++;
+        case 6:      accumulator += *in1++ * *in2++;
+        case 5:      accumulator += *in1++ * *in2++;
+        case 4:      accumulator += *in1++ * *in2++;
+        case 3:      accumulator += *in1++ * *in2++;
+        case 2:      accumulator += *in1++ * *in2++;
+        case 1:      accumulator += *in1++ * *in2++;
+
         } while (--n > 0);
         }
     }
-    
     return accumulator;
     
 }
