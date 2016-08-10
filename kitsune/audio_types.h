@@ -7,11 +7,8 @@
 
 #include "codec_debug_config.h"
 
-#if (CODEC_ADC_32KHZ == 1)
 #define AUDIO_CAPTURE_PLAYBACK_RATE 32000
-#else
-#define AUDIO_CAPTURE_PLAYBACK_RATE 48000
-#endif
+
 
 //magic number, in no particular units, just from observation
 #define MIN_CLASSIFICATION_ENERGY (100)
