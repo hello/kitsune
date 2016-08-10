@@ -2125,7 +2125,7 @@ void vUARTTask(void *pvParameters) {
 	MAP_SDHostInit(SDHOST_BASE);
 	//sdhost dma interrupts
 	MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
-	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST), 50000000);
+	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST), 24000000);
 
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
