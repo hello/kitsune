@@ -7,9 +7,6 @@
 
 #include "codec_debug_config.h"
 
-#define AUDIO_CAPTURE_PLAYBACK_RATE 32000
-
-
 //magic number, in no particular units, just from observation
 #define MIN_CLASSIFICATION_ENERGY (100)
 
