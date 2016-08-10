@@ -18,6 +18,7 @@
 //steam return codes
 #define HLO_STREAM_ERROR		-1
 #define HLO_STREAM_EOF			-2
+#define HLO_INVALID_CHANNEL     -3
 
 #define HLO_STREAM_NULL_OBJ		-20
 #define HLO_STREAM_NO_IMPL		-21

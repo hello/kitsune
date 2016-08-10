@@ -14,6 +14,9 @@ extern tCircularBuffer *pRxBuffer;
 
 #define MODESWITCH_TIMEOUT_MS 500
 
+#define MAX_READ_SAMPLES_BYTES (512)
+#define NUM_SAMPLES_IN_PACKET (4)
+
 static xSemaphoreHandle lock;
 static hlo_stream_t * master;
 
@@ -157,39 +160,73 @@ static int16_t _ez_lpf(int16_t now, int16_t prev){
 	return (int16_t)(((int32_t)now + prev)/2);
 }
 int ch = 1;
-static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
+static int _read_record_quad_to_mono(void * ctx, void * buf, size_t n_bytes_to_return){
 	int i;
-	static int16_t last;
-	if(size % 2){//buffer must be in multiple of 2 bytes
+	int ret;
+	int packets_to_read;
+	size_t num_bytes_to_read_from_stream;
+
+	const static uint32_t packet_size_bytes = NUM_SAMPLES_IN_PACKET * sizeof(int16_t);
+
+	uint8_t samples_buf[MAX_READ_SAMPLES_BYTES];
+	size_t bytes_to_read;
+
+	int16_t * iter = (int16_t*)buf; //output
+	int16_t * p;
+
+	if(n_bytes_to_return % 2){//buffer must be in multiple of 2 bytes
 		LOGE("audio buffer alignment error\r\n");
 		return HLO_STREAM_ERROR;
 	}
-	int16_t * iter = (int16_t*)buf;
-	for(i = 0; i < size/2; i++){
-		uint8_t samples[2 * 4];
-		int ret = _read_record_mono(ctx, samples, sizeof(samples));
+
+	num_bytes_to_read_from_stream = n_bytes_to_return * NUM_SAMPLES_IN_PACKET; //four streams, means 4x the bytes to read
+
+	if (ch < 0 || ch > 3) {
+		return HLO_INVALID_CHANNEL;
+	}
+
+
+	while(num_bytes_to_read_from_stream > 0){
+
+		//DISP("num_byte_to_read=%d\r\n",n_bytes_to_read);
+
+		//bytes to read should be our samples buf size, or the number of bytes left -- whichever is smaller
+		bytes_to_read = min(MAX_READ_SAMPLES_BYTES,num_bytes_to_read_from_stream);
+
+		//get samples from circular buffer
+		ret = _read_record_mono(ctx, samples_buf, bytes_to_read);
+
+		//handle errors
 		if(ret <= 0){
 			return ret;
-		}else if(ret != sizeof(samples)){
+		}
+		else if(ret != bytes_to_read){
+			DISP("ret=%d,intended=%d\r\n",ret,bytes_to_read);
 			return HLO_STREAM_ERROR;
 		}
-	//	*iter = _ez_lpf(_quad_to_mono((int16_t*)samples), last);
-	//	*iter = _ez_lpf(_select_channel((int16_t*)samples, 3), last);
-	//	*iter = _select_channel((int16_t*)samples, 3);
 
-		if (ch > 3) {
-			if (xTaskGetTickCount() - last_play > 100) {
-				*iter = _quad_to_mono((int16_t*) samples);
-			} else {
-				*iter = _select_channel((int16_t*) samples, ch);
-			}
-		} else {
-			*iter = _select_channel((int16_t*) samples, ch);
+
+		//decrement the number of bytes to read
+		num_bytes_to_read_from_stream -= bytes_to_read;
+
+		//turn quad stream into mono stream, based off of channel selection
+		packets_to_read = bytes_to_read / packet_size_bytes;
+		p = (int16_t *)&samples_buf[0];
+
+		for (i = 0; i < packets_to_read; i++) {
+
+			//copy
+			*iter = p[ch];
+
+			//update pointers
+			p += NUM_SAMPLES_IN_PACKET;
+			iter++;
 		}
-		last = *iter;
-		iter++;
+
 	}
-	return (int)size;
+
+	return n_bytes_to_return;
+
 }
 // TODO might need two functions for close of capture and playback?
 static int _close(void * ctx){
@@ -468,7 +505,7 @@ static int _read_energy(void * ctx, void * buf, size_t size){
 			stream->reduced += abs(stream->eng - stream->last_eng)<<1;
 
 			stream->lp += ( stream->reduced - stream->lp ) >> 3;
-			DISP("%d\t\t\r", stream->eng);
+			DISP("%03d\t\t\r", stream->eng);
 
 			stream->last_eng = stream->eng;
 
