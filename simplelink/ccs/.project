@@ -66,6 +66,11 @@
 			<locationURI>PARENT-1-PROJECT_LOC/source/netcfg.c</locationURI>
 		</link>
 		<link>
+			<name>netutil.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/source/netutil.c</locationURI>
+		</link>
+		<link>
 			<name>nonos.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/source/nonos.c</locationURI>

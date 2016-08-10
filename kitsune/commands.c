@@ -2048,6 +2048,7 @@ long nwp_reset();
 
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
+
 	bool on_charger = false;
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
@@ -2089,6 +2090,7 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("*");
 	sl_sync_init();  // thread safe for all sl_* calls
+	wifi_status_init();
 
 	sl_mode = sl_Start(NULL, NULL, NULL);
 	UARTprintf("*");
@@ -2120,9 +2122,6 @@ void vUARTTask(void *pvParameters) {
 	// SDCARD INITIALIZATION
 	// Enable MMCHS, Reset MMCHS, Configure MMCHS, Configure card clock, mount
 	hello_fs_init(); //sets up thread safety for accessing the file system
-	// Initialize the DMA Module
-	UDMAInit();
-	//sdhost dma interrupts
 
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
