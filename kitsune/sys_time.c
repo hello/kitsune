@@ -125,8 +125,7 @@ time_t get_sl_time() {
 	memset(&sl_tm, 0, sizeof(sl_tm));
 	uint8_t cfg = SL_DEVICE_GENERAL_DATE_TIME;
 	uint8_t sz = sizeof(SlDateTime_t);
-	sl_WlanGet(SL_DEVICE_GENERAL, &cfg, &sz,
-			(unsigned char * )(&sl_tm));
+    sl_DeviceGet(SL_DEVICE_GENERAL,&cfg, &sz,(_u8 *)(&sl_tm));
 
 	dt.tm_mday = sl_tm.tm_day;
 	dt.tm_hour = sl_tm.tm_hour;
@@ -152,16 +151,21 @@ void set_sl_time(time_t unix_timestamp_sec) {
     sl_tm.tm_sec = dt->tm_sec;
     sl_tm.tm_year = dt->tm_year + 1900;
 
-	sl_WlanSet(SL_DEVICE_GENERAL,
-			SL_DEVICE_GENERAL_DATE_TIME,
-			  sizeof(SlDateTime_t),(unsigned char *)(&sl_tm));
+	_u8 persistent = 1;
+	sl_DeviceSet(SL_DEVICE_GENERAL,
+               SL_DEVICE_GENERAL_PERSISTENT,
+               sizeof(_u8),
+               (_u8 *)(&persistent));
+    sl_DeviceSet(SL_DEVICE_GENERAL,
+              SL_DEVICE_GENERAL_DATE_TIME,
+              sizeof(SlDateTime_t),
+              (_u8 *)(&sl_tm));
+
+
 	memset(&sl_tm, 0, sizeof(sl_tm));
 	uint8_t cfg = SL_DEVICE_GENERAL_DATE_TIME;
 	uint8_t sz = sizeof(SlDateTime_t);
-	sl_WlanGet(SL_DEVICE_GENERAL,
-			  &cfg,
-			  &sz,
-			  (unsigned char *)(&sl_tm));
+    sl_DeviceGet(SL_DEVICE_GENERAL,&cfg, &sz,(_u8 *)(&sl_tm));
 
     LOGI("IN Day %d,Mon %d,Year %d,Hour %d,Min %d,Sec %d\n",sl_tm.tm_day,sl_tm.tm_mon,sl_tm.tm_year, sl_tm.tm_hour,sl_tm.tm_min,sl_tm.tm_sec);
 }
@@ -442,8 +446,7 @@ int Cmd_time_test(int argc, char * argv[]) {
 			memset(&sl_tm, 0, sizeof(sl_tm));
 			uint8_t cfg = SL_DEVICE_GENERAL_DATE_TIME;
 			uint8_t sz = sizeof(SlDateTime_t);
-			sl_WlanGet(SL_DEVICE_GENERAL, &cfg, &sz,
-					(unsigned char * )(&sl_tm));
+		    sl_DeviceGet(SL_DEVICE_GENERAL,&cfg, &sz,(_u8 *)(&sl_tm));
 
 			dt.tm_mday = mon_len[m];
 			dt.tm_hour = 23;

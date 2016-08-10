@@ -1392,16 +1392,8 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 		return -1;
 	}
 
-	//ENTROPY ! Sensors, timers, TI's mac address, so much randomness!!!11!!1!
+	//ENTROPY !
 	int pos=0;
-	unsigned char mac[6];
-	unsigned short mac_len;
-	sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, NULL, &mac_len, mac);
-	memcpy(entropy_pool+pos, mac, 6);
-	pos+=6;
-	uint32_t now = xTaskGetTickCount();
-	memcpy(entropy_pool+pos, &now, 4);
-	pos+=4;
 	for(; pos < 32; ++pos){
 		unsigned int dust = get_dust();
 		entropy_pool[pos] ^= (uint8_t)dust;
@@ -1821,7 +1813,7 @@ static void print_nwp_version() {
 
 	pConfigLen = sizeof(SlDeviceVersion_t);
 
-	if( 0 == sl_WlanGet(SL_DEVICE_GENERAL,&pConfigOpt,&pConfigLen,(uint8_t *)(&ver)) ) {
+	if( 0 == sl_DeviceGet(SL_DEVICE_GENERAL,&pConfigOpt,&pConfigLen,(uint8_t *)(&ver)) ) {
 		LOGI("FW " );
 		for(i=0;i<ARR_LEN(ver.FwVersion);++i) {
 			LOGI("%d.", ver.FwVersion[i] );
@@ -2257,7 +2249,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("> ");
 
 	/* remove anything we recieved before we were ready */
-	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
+//	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
 
 	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 
