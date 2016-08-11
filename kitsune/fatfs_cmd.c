@@ -446,10 +446,12 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					}
 					break;
 				}
+#if 0
 				case 'n':
 				case 'N':
 					rstr = hlo_stream_nn_keyword_recognition( rstr, 80 );
 					break;
+#endif
 				case 't':
 				case 'T':
 					rstr = hlo_stream_en( rstr, NULL );
@@ -501,9 +503,9 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					}
 					DISP("Output Opt rate is %d\r\n", opt_rate);
 					if(opt_rate){
-						rstr = hlo_audio_open_mono(opt_rate,30,HLO_AUDIO_PLAYBACK);
+						rstr = hlo_audio_open_mono(opt_rate,50,HLO_AUDIO_PLAYBACK);
 					}else{
-						rstr = hlo_audio_open_mono(48000,30,HLO_AUDIO_PLAYBACK);
+						rstr = hlo_audio_open_mono(48000,50,HLO_AUDIO_PLAYBACK);
 					}
 				}
 				break;

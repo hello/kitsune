@@ -206,8 +206,9 @@ PinMuxConfig(void)
     //
     // Configure PIN_62 for GPIOInput // TODO DKH This may need to be set as output
     //
-    MAP_PinTypeGPIO(PIN_62, PIN_MODE_0, false);
-    MAP_GPIODirModeSet(GPIOA0_BASE, 0x80, GPIO_DIR_MODE_IN);
+//    MAP_PinTypeGPIO(PIN_62, PIN_MODE_0, false);
+ //   MAP_GPIODirModeSet(GPIOA0_BASE, 0x80, GPIO_DIR_MODE_IN);
+    MAP_PinTypeUART(PIN_62, PIN_MODE_1); //special TI debug logs
 
     //
     // Configure PIN_63 for MCASP0 McAFSX

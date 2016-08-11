@@ -26,6 +26,8 @@ static uint8_t audio_record_started=0;
 xSemaphoreHandle record_isr_sem;
 xSemaphoreHandle playback_isr_sem;;
 
+static volatile uint32_t last_play;
+
 #define LOCK() xSemaphoreTakeRecursive(lock,portMAX_DELAY)
 #define UNLOCK() xSemaphoreGiveRecursive(lock)
 
@@ -69,6 +71,7 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 			return 0;
 		}*/
 	}
+	last_play = xTaskGetTickCount();
 	int written = min(PING_PONG_CHUNK_SIZE, size);
 	if(written > 0){
 		return FillBuffer(pRxBuffer, (unsigned char*) (buf), written);
@@ -134,7 +137,7 @@ static int16_t _quad_to_mono(int16_t * samples){
 	//naive approach to pick the strongest number between samples
 	//probably causes a lot of distortion
 	int n1 = abs(samples[1]);
-	int n2 = abs(samples[2]);
+	int n2 = abs(samples[0]);
 	int n3 = abs(samples[3]);
 	if( n1 >= n2 ){
 		if(n1 >= n3){
@@ -144,7 +147,7 @@ static int16_t _quad_to_mono(int16_t * samples){
 		}
 	}else{
 		if(n2 >= n3){
-			return  samples[2];
+			return  samples[0];
 		}else{
 			return samples[3];
 		}
@@ -173,8 +176,16 @@ static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 	//	*iter = _ez_lpf(_quad_to_mono((int16_t*)samples), last);
 	//	*iter = _ez_lpf(_select_channel((int16_t*)samples, 3), last);
 	//	*iter = _select_channel((int16_t*)samples, 3);
-	//	*iter = _quad_to_mono((int16_t*)samples);
-		*iter = _select_channel((int16_t*)samples, ch);
+
+		if (ch > 3) {
+			if (xTaskGetTickCount() - last_play > 100) {
+				*iter = _quad_to_mono((int16_t*) samples);
+			} else {
+				*iter = _select_channel((int16_t*) samples, ch);
+			}
+		} else {
+			*iter = _select_channel((int16_t*) samples, ch);
+		}
 		last = *iter;
 		iter++;
 	}
@@ -365,19 +376,24 @@ static int _read_sr_cnv(void * ctx, void * buf, size_t size){
 	int16_t * i16buf = (int16_t*)buf;
 
 	if( stream->dir == DOWNSAMPLE ) {
+		if( size == 1 ) {
+			size = 2;
+		}
 		size /=  sizeof(int16_t);
 		if( size % 2 ) {
 			size += 1;
 		}
-		int ret = hlo_stream_read( stream->base, (uint8_t*)buf, 2*size );
-		if( ret < 0 ) return ret;
+		int ret = hlo_stream_transfer_all(FROM_STREAM, stream->base, (uint8_t*)buf, 2*size, 4);
+		if( ret < 0 ) {
+			return ret;
+		}
 
 		int isize = ret / sizeof(int16_t);
 		_downsample(i16buf, isize);
 		return ret/2;
 	} else {
 		//read half
-		int ret = hlo_stream_read( stream->base, (uint8_t*)buf, size/2 );
+		int ret = hlo_stream_transfer_all(FROM_STREAM, stream->base, (uint8_t*)buf, size/2, 4);
 		if( ret < 0 ) return ret;
 
 		int isize = ret / sizeof(int16_t);
@@ -460,7 +476,7 @@ static int _read_energy(void * ctx, void * buf, size_t size){
 
 			if( stream->brk &&
 					((stream->ctr_tot > NSAMPLES*100
-							&& stream->lp <= 100)
+							&& stream->lp <= 50)
 							||stream->ctr_tot > NSAMPLES*800)  ){
 				//DISP("\n") ;
 				return HLO_STREAM_EOF;

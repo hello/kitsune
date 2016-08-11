@@ -311,11 +311,11 @@ extern "C"
 /*****************************************************************************/
 /* Macro declarations for Host Driver version                                */
 /*****************************************************************************/
-#define SL_DRIVER_VERSION   "2.0.0.53"
+#define SL_DRIVER_VERSION   "2.0.0.56"
 #define SL_MAJOR_VERSION_NUM    2L
 #define SL_MINOR_VERSION_NUM    0L
 #define SL_VERSION_NUM          0L
-#define SL_SUB_VERSION_NUM      53L
+#define SL_SUB_VERSION_NUM      56L
 
 
 /*****************************************************************************/

@@ -132,6 +132,8 @@ extern xSemaphoreHandle playback_isr_sem;;
 #define swap_endian(x) *(x) = ((*(x)) << 8) | ((*(x)) >> 8);
 static volatile unsigned long qqbufsz=0;
 
+
+__attribute__((section(".ramcode")))
 void DMAPingPongCompleteAppCB_opt()
 {
     unsigned long ulPrimaryIndexTx = 0x4, ulAltIndexTx = 0x24;

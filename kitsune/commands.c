@@ -1392,16 +1392,8 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 		return -1;
 	}
 
-	//ENTROPY ! Sensors, timers, TI's mac address, so much randomness!!!11!!1!
+	//ENTROPY !
 	int pos=0;
-	unsigned char mac[6];
-	unsigned short mac_len;
-	sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, NULL, &mac_len, mac);
-	memcpy(entropy_pool+pos, mac, 6);
-	pos+=6;
-	uint32_t now = xTaskGetTickCount();
-	memcpy(entropy_pool+pos, &now, 4);
-	pos+=4;
 	for(; pos < 32; ++pos){
 		unsigned int dust = get_dust();
 		entropy_pool[pos] ^= (uint8_t)dust;
@@ -1821,7 +1813,7 @@ static void print_nwp_version() {
 
 	pConfigLen = sizeof(SlDeviceVersion_t);
 
-	if( 0 == sl_WlanGet(SL_DEVICE_GENERAL,&pConfigOpt,&pConfigLen,(uint8_t *)(&ver)) ) {
+	if( 0 == sl_DeviceGet(SL_DEVICE_GENERAL,&pConfigOpt,&pConfigLen,(uint8_t *)(&ver)) ) {
 		LOGI("FW " );
 		for(i=0;i<ARR_LEN(ver.FwVersion);++i) {
 			LOGI("%d.", ver.FwVersion[i] );
@@ -1868,15 +1860,17 @@ int cmd_ch(int argc, char *argv[]) {
 }
 
 int cmd_codec(int argc, char *argv[]);
+int cmd_confidence(int argc, char *argv[]);
 
 
 int cmd_button(int argc, char *argv[]) {
-
 #define LED_GPIO_BASE_DOUT GPIOA2_BASE
 #define LED_GPIO_BIT_DOUT 0x80
 	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
-
-LOGF("button %d\n", fast);
+	while(1) {
+		LOGF("%d\r", fast);
+		vTaskDelay(100);
+	}
 }
 int Cmd_readlight(int argc, char *argv[]);
 // ==============================================================================
@@ -1887,6 +1881,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		//    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
 		{ "b",      cmd_button,      " " },
 		{ "v",      cmd_vol,      " " },
+
+	    { "nnc",      cmd_confidence,      " " },
 	    { "co",      cmd_codec,      " " },
 
 #if 0
@@ -2049,6 +2045,7 @@ long nwp_reset();
 
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
+
 	bool on_charger = false;
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
@@ -2090,8 +2087,11 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("*");
 	sl_sync_init();  // thread safe for all sl_* calls
+	wifi_status_init();
 
 	sl_mode = sl_Start(NULL, NULL, NULL);
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(0, 0, 0, 0), NULL, 0);
+
 	UARTprintf("*");
 	while (sl_mode != ROLE_STA) {
 		UARTprintf("+");
@@ -2105,7 +2105,6 @@ void vUARTTask(void *pvParameters) {
 	antsel(get_default_antenna());
 
 	// Set connection policy to Auto, fast
-	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 1, 0, 0), NULL, 0);
 
 	UARTprintf("*");
 
@@ -2121,14 +2120,13 @@ void vUARTTask(void *pvParameters) {
 	// SDCARD INITIALIZATION
 	// Enable MMCHS, Reset MMCHS, Configure MMCHS, Configure card clock, mount
 	hello_fs_init(); //sets up thread safety for accessing the file system
+
 	MAP_PRCMPeripheralClkEnable(PRCM_SDHOST, PRCM_RUN_MODE_CLK);
 	MAP_PRCMPeripheralReset(PRCM_SDHOST);
 	MAP_SDHostInit(SDHOST_BASE);
-	// Initialize the DMA Module
-	UDMAInit();
 	//sdhost dma interrupts
 	MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
-	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST), 50000000);
+	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST), 24000000);
 
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
@@ -2252,7 +2250,9 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("> ");
 
 	/* remove anything we recieved before we were ready */
-	//xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
+	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
+
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 
 	/* Loop forever */
 	while (1) {
