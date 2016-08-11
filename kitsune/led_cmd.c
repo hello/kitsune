@@ -78,15 +78,7 @@ int led_init(void){
 	}
 	return 0;
 }
-#include "hw_types.h"
-#include "hw_gpio.h"
-__attribute__((section(".ramcode")))
-static inline void
-_pin_write(unsigned long ulPort, unsigned char ucPins, unsigned char ucVal)
-{
-    HWREG(ulPort + (GPIO_O_GPIO_DATA + (ucPins << 2))) = ucVal;
-}
-__attribute__((section(".ramcode")))
+
 static void led_slow(led_color_t * color) {
 	int i;
 	led_color_t * end = &color[NUM_LED];
@@ -95,36 +87,26 @@ static void led_slow(led_color_t * color) {
 		for (i = 0; i < 24; ++i) {
 			if ((color->rgb << i) & 0x800000) {
 				//1
-				_pin_write(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_SLOW);
-				UtilsDelay(6);
-				_pin_write(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
-				/*if (i != 23) {
-					UtilsDelay(1);//5
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_SLOW);
+				UtilsDelay(5);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
+				if (i != 23) {
+					UtilsDelay(5);
 				} else {
-					//UtilsDelay(4);//4
-				}*/
-			//	UtilsDelay(1);
-				//__asm( " nop");//__asm( " nop");//__asm( " nop");__asm( " nop");
-					//		__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					UtilsDelay(4);
+				}
+
 			} else {
 				//0
-				_pin_write(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_SLOW);
-			/*	__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_SLOW);
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				*/
-				UtilsDelay(1);
-					//	__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				//__asm( " nop");__asm( " nop");
-				_pin_write(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
-				//__asm( " nop");__asm( " nop"); __asm( " nop");__asm( " nop");
-				UtilsDelay(4);
-				//__asm( " nop");
-				/*if (i != 23) {
-					UtilsDelay(5);//5
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
+				if (i != 23) {
+					UtilsDelay(5);
 				} else {
-					UtilsDelay(2);//2
-				}*/
+					UtilsDelay(2);
+				}
 			}
 		}
 		if (++color > end) {
