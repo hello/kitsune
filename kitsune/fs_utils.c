@@ -10,6 +10,8 @@
 #include "uart_logger.h"
 
 #include "fs_utils.h"
+#include "fs.h"
+
 
 int fs_get( char * file, void * data, int max_rd, int * len ) {
 	long hndl = -1;
@@ -40,13 +42,13 @@ int fs_save( char* file, void* data, int len) {
 	SlFsFileInfo_t info;
 
 	sl_FsGetInfo((unsigned char*)file, tok, &info);
-
-	if ( hndl = sl_FsOpen((unsigned char*)file, SL_FS_WRITE, &tok) < 0) {
-		LOGI("error opening file, trying to create\n");
-
-		if (hndl = sl_FsOpen((unsigned char*)file,
-				SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 65535 ), &tok) < 0) {
-			LOGI("error opening for write\n");
+	hndl = sl_FsOpen((unsigned char*)file, SL_FS_WRITE, &tok);
+	if (hndl < 0) {
+		LOGI("error opening file, trying to create %d\n", hndl);
+		hndl = sl_FsOpen((unsigned char*)file,
+				SL_FS_CREATE|SL_FS_OVERWRITE | SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 65535 ), &tok);
+		if (hndl < 0) {
+			LOGI("error opening for write %d\n", hndl);
 			return -1;
 		}else{
 			sl_FsWrite(hndl, 0, data, 1);  // Dummy write, we don't care about the result

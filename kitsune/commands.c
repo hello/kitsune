@@ -113,6 +113,7 @@
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
 
 
+#include "tensor/keyword_net.h"
 #include "hlo_proto_tools.h"
 
 //******************************************************************************
@@ -228,14 +229,13 @@ int Cmd_fs_write(int argc, char *argv[]) {
 
 	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
 
-	if (hndl = sl_FsOpen((unsigned char*)argv[1],
-			SL_FS_WRITE, &tok) < 0 ) {
-		LOGF("error opening file, trying to create\n");
-
-		if ( hndl = sl_FsOpen((unsigned char*)argv[1],
-				SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 65535 ),
-				&tok) < 0 ) {
-			LOGF("error opening for write\n");
+	hndl = sl_FsOpen((unsigned char*)argv[1], SL_FS_WRITE, &tok);
+	if (hndl < 0) {
+		LOGI("error opening file, trying to create %d\n", hndl);
+		hndl = sl_FsOpen((unsigned char*)argv[1],
+				SL_FS_CREATE|SL_FS_OVERWRITE | SL_FS_CREATE_SECURE | SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 65535 ), &tok);
+		if (hndl < 0) {
+			LOGF("error opening for write %d\n", hndl);
 			return -1;
 		}
 	}
