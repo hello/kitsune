@@ -118,22 +118,6 @@ void SimpleLinkHttpServerCallback(SlNetAppHttpServerEvent_t *pHttpEvent,
     // Unused in this application
 }
 
-//*****************************************************************************
-//
-//! This function handles socket events indication
-//!
-//! \param[in]      pSock - Pointer to Socket Event Info
-//!
-//! \return None
-//!
-//*****************************************************************************
-void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
-{
-    //
-    // This application doesn't work w/ socket - Events are not expected
-    //
-}
-
 static uint8_t _connected_ssid[MAX_SSID_LEN];
 
 
@@ -1113,6 +1097,43 @@ int stop_connection(int * sock) {
     return *sock;
 }
 
+
+void
+SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
+{
+    char *caName;
+
+    if(SL_SOCKET_ASYNC_EVENT == pSock->Event)
+    {
+        DISP("[SocketEvent] an event received on socket %d\r\n",pSock->SocketAsyncEvent.SockAsyncData.Sd);
+        switch(pSock->SocketAsyncEvent.SockAsyncData.Type)
+        {
+        case SL_SSL_NOTIFICATION_WRONG_ROOT_CA:
+             caName = (char *) pvPortMalloc(pSock->SocketAsyncEvent.SockAsyncData.Val + 1);
+            if (caName == NULL)
+                    {
+            		DISP("Buffer allocation failed\n\r");
+                           return;
+                    }
+            memcpy(caName,
+                                 pSock->SocketAsyncEvent.SockAsyncData.pExtraInfo,
+                                 pSock->SocketAsyncEvent.SockAsyncData.Val);
+
+            caName[pSock->SocketAsyncEvent.SockAsyncData.Val] = 0;
+
+            DISP("[SocketEvent] Used wrong CA to verify the peer. please use %s\r\n",caName);
+
+            vPortFree (caName);
+
+            break;
+        default:
+            break;
+        }
+    }
+
+}
+
+
 int start_connection(int * sock, char * host, security_type sec) {
     sockaddr sAddr;
     timeval tv;
@@ -1132,7 +1153,7 @@ int start_connection(int * sock, char * host, security_type sec) {
 			*sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
 
 			LOGI("SSL\n");
-			#define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
+			#define SL_SSL_CA_CERT_FILE_NAME "/cert/digi.cer"
 			// configure the socket as SSLV3.0
 			// configure the socket as RSA with RC4 128 SHA
 			// setup certificate

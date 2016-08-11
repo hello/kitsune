@@ -1882,7 +1882,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "b",      cmd_button,      " " },
 		{ "v",      cmd_vol,      " " },
 
-	    { "nn",      cmd_confidence,      " " },
+	    { "nnc",      cmd_confidence,      " " },
 	    { "co",      cmd_codec,      " " },
 
 #if 0
@@ -2249,7 +2249,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("> ");
 
 	/* remove anything we recieved before we were ready */
-//	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
+	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
 
 	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 

@@ -156,7 +156,7 @@ static int16_t _quad_to_mono(int16_t * samples){
 static int16_t _ez_lpf(int16_t now, int16_t prev){
 	return (int16_t)(((int32_t)now + prev)/2);
 }
-int ch = 1;
+int ch = 2;
 static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 	int i;
 	static int16_t last;
@@ -384,7 +384,9 @@ static int _read_sr_cnv(void * ctx, void * buf, size_t size){
 			size += 1;
 		}
 		int ret = hlo_stream_transfer_all(FROM_STREAM, stream->base, (uint8_t*)buf, 2*size, 4);
-		if( ret < 0 ) return ret;
+		if( ret < 0 ) {
+			return ret;
+		}
 
 		int isize = ret / sizeof(int16_t);
 		_downsample(i16buf, isize);

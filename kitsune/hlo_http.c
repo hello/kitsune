@@ -109,8 +109,8 @@ exit:
 }
 static int _close_sock(void * ctx){
 	int sock = (int)ctx;
-	//close(sock);
-	nwp_reset();
+	close(sock);
+	//nwp_reset();
 	return 0;
 }
 static int _read_sock(void * ctx, void * buf, size_t size){

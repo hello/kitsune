@@ -646,7 +646,10 @@ static int CreateDefaultBootInfo(sBootInfo_t *psBootInfo)
     return -1;
 }
 
+void SimpleLinkSocketTriggerEventHandler(SlSockTriggerEvent_t	*pSlTriggerEvent)
+{
 
+}
 //*****************************************************************************
 //
 //! Main function

@@ -214,6 +214,32 @@ extern uint8_t get_alpha_from_light();
 #include "protobuf/response.pb.h"
 #include "hlo_http.h"
 extern bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
+
+#include "tensor/keyword_net.h"
+typedef struct{
+	hlo_stream_t * base;
+	uint8_t keyword_detected;
+	uint8_t threshold;
+	uint16_t reserved;
+	uint32_t timeout;
+}nn_keyword_ctx_t;
+
+static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
+	if (keyword == okay_sense) {
+		DISP("OKAY SENSE\r\n");
+	}
+}
+static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
+	if (keyword == okay_sense) {
+		DISP("Keyword Done\r\n");
+	}
+
+	if(ctx){
+		((nn_keyword_ctx_t *)ctx)->keyword_detected++;
+	}
+}
+
+
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
 	int ret = 0;
@@ -222,25 +248,30 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	bool light_open = false;
 	bool brk = false;
 
-	memset(samples, 0xa3, sizeof(samples));
-	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 320, 4)) > 0 ){ //todo why do I need double?
-		if( !light_open ) {
-			input = hlo_light_stream( input );
-			input = hlo_stream_en( input, &brk );
-			light_open = true;
-		}
+	keyword_net_initialize();
+	nn_keyword_ctx_t nn_ctx = {0};
+	keyword_net_register_callback(&nn_ctx,okay_sense,80,_voice_begin_keyword,_voice_finish_keyword);
 
-		ret = hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
-		if ( ret <  0){
-			break;
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
+		if( nn_ctx.keyword_detected ) {
+			if( !light_open ) {
+				input = hlo_light_stream( input );
+				input = hlo_stream_en( input, &brk );
+				light_open = true;
+			}
+			ret = hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
+			if ( ret <  0 ) {
+				break;
+			}
+			if(brk) {
+				break;
+			}
+		} else {
+			keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
+			brk = false;
 		}
 		BREAK_ON_SIG(signal);
 
-		if(brk) {
-			break;
-		}
-
-		memset(samples, 0xa3, sizeof(samples));
 	}
 
 	{//now play the swirling thing when we get response
@@ -284,7 +315,18 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 			int ret;
 			while(1){
+#if 0
+				ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4);
+				if( ret < 0 ) {
+					break;
+				}
+				keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
+				if( nn_ctx.keyword_detected > 1 ) {
+					break;
+				}
+#endif
 				ret = hlo_stream_transfer_between(output,aud,samples,sizeof(samples),4);
+
 				if(ret < 0){
 					break;
 				}
@@ -294,6 +336,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		hlo_stream_close(aud);
 	}
 #endif
+	keyword_net_deinitialize();
 
 	stop_led_animation(portMAX_DELAY, 18);
 	return ret;
@@ -336,18 +379,8 @@ int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * outp
 	stop_led_animation( 0, 33 );
 	return ret;
 }
-#include "tensor/keyword_net.h"
-typedef struct{
-	hlo_stream_t * base;
-	uint8_t keyword_detected;
-	uint8_t threshold;
-	uint16_t reserved;
-	uint32_t timeout;
-}nn_keyword_ctx_t;
-
 static void _begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	play_led_animation_solid(254, 254, 254, 254 ,1, 18,3);
-
 	if (keyword == okay_sense) {
 		DISP("OKAY SENSE\r\n");
 	}
@@ -380,6 +413,7 @@ int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * outpu
 	keyword_net_deinitialize();
 	return 0;
 }
+#if 0
 static int _close_nn_stream(void * ctx){
 	nn_keyword_ctx_t * nn = (nn_keyword_ctx_t*)ctx;
 	hlo_stream_t * base = nn->base;
@@ -388,23 +422,18 @@ static int _close_nn_stream(void * ctx){
 	return hlo_stream_close(base);
 }
 static int _read_nn_stream(void * ctx, void * buf, size_t size){
+	int ret = HLO_STREAM_ERROR;
 	nn_keyword_ctx_t * nn = (nn_keyword_ctx_t*)ctx;
 	if(nn->keyword_detected == 1){
 		return hlo_stream_read(nn->base, buf, size);
 	}else{
-		int16_t samples[320]; //todo why do I need double?
-
-		int ret = hlo_stream_transfer_all(FROM_STREAM, nn->base, (uint8_t*)samples, 320, 4);
-
-		if(ret % 2){//alignment error
-			return HLO_STREAM_ERROR;
-		}else if(ret > 0){
-			keyword_net_add_audio_samples(samples, ret/sizeof(int16_t));
-		}else if(ret < 0){
+		ret = hlo_stream_read(nn->base, buf, size);
+		if(ret < 0){
 			return ret;
 		}
-		return 0;
+		keyword_net_add_audio_samples(buf, ret/sizeof(int16_t));
 	}
+	return ret;
 }
 
 hlo_stream_t * hlo_stream_nn_keyword_recognition(hlo_stream_t * base, uint8_t threshold){
@@ -427,8 +456,8 @@ hlo_stream_t * hlo_stream_nn_keyword_recognition(hlo_stream_t * base, uint8_t th
 		keyword_net_deinitialize();
 	}
 	return ret;
-
 }
+#endif
 ////-----------------------------------------
 //commands
 static uint8_t _can_has_sig_stop(void){
@@ -531,8 +560,6 @@ void AudioControlTask(void * unused) {
 		hlo_stream_t * in;
 		in = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,60,HLO_AUDIO_RECORD);
 		in = hlo_stream_sr_cnv( in, DOWNSAMPLE );
-		in = hlo_stream_nn_keyword_recognition( in, confidence );
-
 
 		hlo_stream_t * out;
 		out = hlo_http_post("dev-speech.hello.is/upload/audio?r=16000", NULL);
