@@ -1,5 +1,5 @@
 #include "keyword_net.h"
-#include "model_may25_lstm_small_okay_sense_tiny.c"
+#include "model_may25_lstm_small_okay_sense_tiny_727.c"
 #include "tinytensor_features.h"
 #include "tinytensor_memory.h"
 #include "uart_logger.h"
@@ -50,14 +50,21 @@ static void feats_callback(void * p, int8_t * feats) {
 		return;
 	}
 	if(context->counter % 50 ==0){
+		Weight_t max = out->x[1];
+		uint32_t maxj = 1;
+		for (j = 2; j < out->dims[3]; j++) {
+			max = max > out->x[j] ? max : out->x[j];
+			maxj = j;
+		}
+
 		for(j = 0 ; j < 10; j++){
-			if( out->x[1] >= j * 12 ){
+			if(max >= j * 12 ){
 				DISP("X");
 			}else{
 				DISP("_");
 			}
 		}
-		DISP("%d\r", out->x[1]);
+		DISP("%03d\r", out->x[1]);
 	}
 
 
@@ -137,26 +144,30 @@ void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples) {
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "stdlib.h"
+
 int cmd_test_neural_net(int argc, char * argv[]) {
-	int16_t samples[256];
-	uint32_t start = xTaskGetTickCount();
-	int i;
+    int16_t samples[256];
+    uint32_t start = xTaskGetTickCount();
+    int i;
 
-	memset(samples,0,sizeof(samples));
-	keyword_net_initialize();
+    for (i = 0; i < 256; i++) {
+        samples[i] = rand();
+    }
+    keyword_net_initialize();
 
-	keyword_net_register_callback(0,okay_sense,20,0,0);
+    keyword_net_register_callback(0,okay_sense,70,0,0);
 
-	DISP("start test\n\n");
+    DISP("start test\n\n");
 
-	for (i = 0; i < 1024; i++) {
-		keyword_net_add_audio_samples(samples,256);
-	}
+    for (i = 0; i < 1024; i++) {
+        keyword_net_add_audio_samples(samples,256);
+    }
 
-	DISP("\n\nstop test %d\n\n", xTaskGetTickCount() - start);
+    DISP("\n\nstop test %d\n\n", xTaskGetTickCount() - start);
 
-	keyword_net_deinitialize();
+    keyword_net_deinitialize();
 
-	return 0;
+    return 0;
 
 }

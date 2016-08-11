@@ -206,8 +206,9 @@ PinMuxConfig(void)
     //
     // Configure PIN_62 for GPIOInput // TODO DKH This may need to be set as output
     //
-    MAP_PinTypeGPIO(PIN_62, PIN_MODE_0, false);
-    MAP_GPIODirModeSet(GPIOA0_BASE, 0x80, GPIO_DIR_MODE_IN);
+//    MAP_PinTypeGPIO(PIN_62, PIN_MODE_0, false);
+ //   MAP_GPIODirModeSet(GPIOA0_BASE, 0x80, GPIO_DIR_MODE_IN);
+    MAP_PinTypeUART(PIN_62, PIN_MODE_1); //special TI debug logs
 
     //
     // Configure PIN_63 for MCASP0 McAFSX
@@ -235,7 +236,7 @@ PinMuxConfig(void)
 	//DVT uses camera clock for codec's master clock
 	MAP_PRCMPeripheralClkEnable(PRCM_CAMERA, PRCM_RUN_MODE_CLK);
 	HWREG(0x44025000) = 0x0000;
-	MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,12000000ul); // 12MHz
+	MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,15000000ul); // 15MHz
 
 	// Configure PIN_02 for CAMERA0 CAM_pXCLK
     PinModeSet(PIN_02,PIN_MODE_4);
