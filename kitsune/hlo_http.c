@@ -79,7 +79,7 @@ static int _start_connection(unsigned long ip, security_type sec){
 			{
 				char dummy;
 				LOGI("Setting ignore cert store... %d\n",
-						sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECURE_DISABLE_CERTIFICATE_STORE, &dummy, sizeof(dummy) ));
+						sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_DISABLE_CERTIFICATE_STORE, &dummy, sizeof(dummy) ));
 			}
 		 }else{
 			 sAddr = _get_addr(ip, 80);
