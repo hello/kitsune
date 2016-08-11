@@ -83,9 +83,9 @@ static int32_t codec_write_cram(control_blocks_t type, uint32_t* data){
 
 	if( (type >= MAX_CONTROL_BLOCKS ) || (!data)) return -1;
 
-	codec_set_page(control[type].page);
-
 	codec_set_book(control[type].book);
+
+	codec_set_page(control[type].page);
 
 	cmd[0] = control[type].reg;
 
@@ -116,9 +116,9 @@ static int32_t codec_switch_buffer(uint8_t bank){
 	unsigned char cmd[2];
 	char send_stop = 1;
 
-	codec_set_page(0);
-
 	codec_set_book(bank);
+
+	codec_set_page(0);
 
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 	// Write one to switch buffer
@@ -154,9 +154,9 @@ static int32_t codec_read_cram(control_blocks_t type, uint32_t* data){
 
 	if( (type >= MAX_CONTROL_BLOCKS ) || (!data)) return -1;
 
-	codec_set_page(control[type].page);
-
 	codec_set_book(control[type].book);
+
+	codec_set_page(control[type].page);
 
 	cmd[0] = control[type].reg;
 

@@ -858,12 +858,14 @@ int32_t set_volume(int v, unsigned int dly) {
 	v <<= 10;
 	v /= 560;
 
+	UARTprintf("Volume: %d\n",v);
+
 	if( xSemaphoreTakeRecursive(i2c_smphr, dly)) {
+
+		codec_set_book(0);
 
 		//	w 30 00 00 # Select Page 0
 		codec_set_page(1);
-
-		codec_set_book(0);
 
 		cmd[0] = 46;
 		cmd[1] = v;
@@ -879,10 +881,12 @@ int32_t set_volume(int v, unsigned int dly) {
 
 int cmd_codec(int argc, char *argv[]) {
 	unsigned char cmd[2];
-	if( xSemaphoreTakeRecursive(i2c_smphr, 1000)) {
-		codec_set_page(atoi(argv[1]));
+	if( xSemaphoreTakeRecursive(i2c_smphr, 1000))
 
 		codec_set_book(atoi(argv[2]));
+
+		codec_set_page(atoi(argv[1]));
+
 		cmd[0] = atoi(argv[3]);
 		cmd[1] = atoi(argv[4]);
 		I2C_IF_Write(Codec_addr, cmd, 2, 1);
@@ -898,11 +902,11 @@ static void codec_sw_reset(void)
 	const TickType_t delay = 10 / portTICK_PERIOD_MS;
 	int ret;
 
-	// w 30 00 00 # Initialize to Page 0
-	codec_set_page(0);
-
 	//w 30 7f 00 # Initialize to Book 0
 	codec_set_book(0);
+
+	// w 30 00 00 # Initialize to Page 0
+	codec_set_page(0);
 
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 
@@ -938,6 +942,8 @@ void codec_set_book(uint32_t book)
 {
 	char send_stop = 1;
 	unsigned char cmd[2];
+
+	codec_set_page(0);
 
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 
@@ -1004,10 +1010,10 @@ void codec_mute_spkr(void)
 	char send_stop = 1;
 	unsigned char cmd[2];
 
+	codec_set_book(0);
+
 	//	w 30 00 00 # Select Page 0
 	codec_set_page(1);
-
-	codec_set_book(0);
 
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 		cmd[0] = 48;
@@ -1026,10 +1032,10 @@ void codec_unmute_spkr(void)
 
 	set_volume(0, portMAX_DELAY);
 
+	codec_set_book(0);
+
 	//	w 30 00 00 # Select Page 0
 	codec_set_page(1);
-
-	codec_set_book(0);
 
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 		cmd[0] = 48;
@@ -1144,10 +1150,10 @@ static int codec_after_init_test(void){
 
 	// Check if adaptive mode enabled
 
+	codec_set_book(40);
+
 	//	w 30 00 00 # Select Page 0
 	codec_set_page(0);
-
-	codec_set_book(40);
 
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
@@ -1162,10 +1168,10 @@ static int codec_after_init_test(void){
 
 	xSemaphoreGiveRecursive(i2c_smphr);
 
+	codec_set_book(0);
+
 	//	w 30 00 00 # Select Page 0
 	codec_set_page(0);
-
-	codec_set_book(0);
 
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
@@ -1213,10 +1219,10 @@ static int codec_after_init_test(void){
 
 	UARTprintf("[0][0][%u]: %X  \r\n", cmd[0], cmd[1]);
 
+	codec_set_book(0);
+
 	//	w 30 00 00 # Select Page 1
 	codec_set_page(1);
-
-	codec_set_book(0);
 
 	// Read register in [0][1][51]
 	cmd[0] = 51;
