@@ -233,7 +233,7 @@ int Cmd_fs_write(int argc, char *argv[]) {
 	if (hndl < 0) {
 		LOGI("error opening file, trying to create %d\n", hndl);
 		hndl = sl_FsOpen((unsigned char*)argv[1],
-				SL_FS_CREATE|SL_FS_OVERWRITE | SL_FS_CREATE_SECURE | SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 65535 ), &tok);
+				SL_FS_CREATE|SL_FS_OVERWRITE | SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 65535 ), &tok);
 		if (hndl < 0) {
 			LOGF("error opening for write %d\n", hndl);
 			return -1;
