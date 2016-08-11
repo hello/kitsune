@@ -1041,6 +1041,51 @@ void codec_unmute_spkr(void)
 
 }
 
+void codec_power_spkr(uint8_t power_up)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	codec_set_book(0);
+	codec_set_page(1);
+
+	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
+		cmd[0] = 45;
+
+		if (power_up) {
+			cmd[1] = 0x02;
+			set_volume(40, portMAX_DELAY);
+		}
+		else {
+			cmd[1] = 0x00;
+		}
+
+		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+}
+
+int cmd_pwr_speaker(int argc, char * argv[]) {
+	if (argc >= 2) {
+		if (strcmp(argv[1],"up") == 0) {
+			codec_power_spkr(1);
+		}
+
+		if (strcmp(argv[1],"down") == 0) {
+			codec_power_spkr(0);
+		}
+
+		return 0;
+	}
+
+	return -1;
+}
+
+
+
+
 
 int32_t codec_init(void)
 {
