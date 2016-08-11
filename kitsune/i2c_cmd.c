@@ -881,7 +881,7 @@ bool set_volume(int v, unsigned int dly) {
 
 int cmd_codec(int argc, char *argv[]) {
 	unsigned char cmd[2];
-	if( xSemaphoreTakeRecursive(i2c_smphr, 1000))
+	if( xSemaphoreTakeRecursive(i2c_smphr, 1000)){
 
 		codec_set_book(atoi(argv[2]));
 
