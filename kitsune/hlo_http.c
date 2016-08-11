@@ -76,6 +76,11 @@ static int _start_connection(unsigned long ip, security_type sec){
 				 //TODO hook this to BLE
 				 //ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
 			 }
+			{
+				char dummy;
+				LOGI("Setting ignore cert store... %d\n",
+						sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECURE_DISABLE_CERTIFICATE_STORE, &dummy, sizeof(dummy) ));
+			}
 		 }else{
 			 sAddr = _get_addr(ip, 80);
 			 sock = socket(AF_INET, SOCK_STREAM, SL_IPPROTO_TCP);

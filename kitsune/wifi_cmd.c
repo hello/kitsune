@@ -1174,9 +1174,9 @@ int start_connection(int * sock, char * host, security_type sec) {
 			ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
 			}
 			{
-				char buf[8];
+				char dummy;
 				LOGI("Setting ignore cert store... %d\n",
-						sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECURE_DISABLE_CERTIFICATE_STORE, buf, sizeof(buf) ));
+						sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECURE_DISABLE_CERTIFICATE_STORE, &dummy, sizeof(dummy) ));
 			}
 
         } else {
