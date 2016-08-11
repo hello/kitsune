@@ -49,7 +49,7 @@ static sockaddr _get_addr(unsigned long ip, uint16_t port){
 	 sAddr.sa_data[5] = (char) (ip & 0xff);
 	 return sAddr;
 }
-#define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
+#define SL_SSL_CA_CERT_FILE_NAME "/cert/digi.der"
 static int _start_connection(unsigned long ip, security_type sec){
 	int sock = -1;
 	if( ip ){
