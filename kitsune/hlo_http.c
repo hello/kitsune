@@ -75,11 +75,11 @@ static int _start_connection(unsigned long ip, security_type sec){
 				 LOGI( "error setting ssl options\r\n" );
 				 //TODO hook this to BLE
 				 //ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
-			 }
+			}
 			{
-				char dummy;
+				char buf[8];
 				LOGI("Setting ignore cert store... %d\n",
-						sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_DISABLE_CERTIFICATE_STORE, &dummy, sizeof(dummy) ));
+						sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECURE_DISABLE_CERTIFICATE_STORE, buf, sizeof(buf) ));
 			}
 		 }else{
 			 sAddr = _get_addr(ip, 80);
