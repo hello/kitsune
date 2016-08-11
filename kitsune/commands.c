@@ -1849,8 +1849,7 @@ int Cmd_uvw(int argc, char *argv[]);
 extern int ch;
 
 int cmd_vol(int argc, char *argv[]) {
- set_volume(atoi(argv[1]), portMAX_DELAY);
- return 0;
+ return set_volume(atoi(argv[1]), portMAX_DELAY);;
 }
 
 

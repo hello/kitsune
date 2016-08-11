@@ -846,7 +846,7 @@ static void codec_sw_reset(void);
  * On the codec, this gain has 117 levels between 0db to -78.3db
  * The input v to the function varies from 0-64.
  */
-bool set_volume(int v, unsigned int dly) {
+int32_t set_volume(int v, unsigned int dly) {
 
 	char send_stop = 1;
 	unsigned char cmd[2];
@@ -869,9 +869,9 @@ bool set_volume(int v, unsigned int dly) {
 		cmd[1] = v;
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 		xSemaphoreGiveRecursive(i2c_smphr);
-		return true;
+		return 0;
 	} else {
-		return false;
+		return -1;
 	}
 
 }
