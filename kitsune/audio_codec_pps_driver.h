@@ -10,6 +10,7 @@ typedef struct{
 #define KITSUNE_CODE 1
 #define ENABLE_DSP_SYNC_MODE 0
 #define NDAC_POWER_UP_LATER 0
+#define PLL_HIGH 1
 
 #define Codec_addr                           (0x18U)
 
@@ -58,9 +59,14 @@ static const reg_value REG_Section_program[] = {
     {  1,0x01},
 //			# reg[0][0][4] = 0x33                        ; ADC_CLKIN = PLL_MCLK, DAC_CLKIN = PLL_MCLK
     {  4,0x33},
-//			# reg[0][0][5] = 0x00                        ; PLL_CLKIN = MCLK1
+//			# reg[0][0][5] = 0x00                        ; PLL_CLKIN = MCLK1,
+#if PLL_HIGH==1
+    {  5,0x40},
+#else
     {  5,0x00},
-#if (KITSUNE_CODE==1)
+#endif
+
+	#if (KITSUNE_CODE==1)
 //			# reg[0][0][6] = 0x91                        ; P=1, R=1
     {  6,(1 << 7) | (PLL_P << 4) | (PLL_R << 0)},
 //			# reg[0][0][7]  = 0x08             ; P=1, R=1, J=8
