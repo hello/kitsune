@@ -23,6 +23,7 @@ static unsigned int initial_vol;
 static unsigned int initial_gain;
 static uint8_t audio_playback_reference=0;
 static uint8_t audio_record_started=0;
+static uint8_t audio_started = 0; // TODO DKH
 xSemaphoreHandle record_isr_sem;
 xSemaphoreHandle playback_isr_sem;;
 
@@ -254,8 +255,13 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 	}else{
 		LOGW("Unsupported Audio Mode, returning default stream\r\n");
 	}
+
+	if(!audio_started){
+		Audio_Start();
+		audio_started = 1;
+	}
 	UNLOCK();
-	Audio_Start();
+
 	return ret;
 }
 
