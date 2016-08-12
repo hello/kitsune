@@ -464,7 +464,7 @@ static int _read_energy(void * ctx, void * buf, size_t size){
 		if( ++stream->ctr > NSAMPLES ) {
 			stream->eng = fxd_sqrt(stream->eng/NSAMPLES);
 
-			stream->reduced = 7 * stream->reduced >> 3;
+			stream->reduced = 15 * stream->reduced >> 4;
 			stream->reduced += abs(stream->eng - stream->last_eng)<<1;
 
 			stream->lp += ( stream->reduced - stream->lp ) >> 3;
@@ -507,6 +507,7 @@ hlo_stream_t * hlo_stream_en( hlo_stream_t * base, bool * brk ){
 		return NULL;
 	}
 	memset(stream, 0, sizeof(*stream) );
+	stream->lp = 200;
 	stream->base = base;
 	stream->brk = brk;
 	DISP("open en\n") ;
