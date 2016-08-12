@@ -552,7 +552,7 @@ void AudioControlTask(void * unused) {
 		DISP("starting new stream\n");
 		audio_sig_stop = 0;
 
-		while( get_audio_state().playing_audio || !wifi_status_get(HAS_IP) ) {
+		while( !wifi_status_get(HAS_IP) ) {
 			vTaskDelay(1000);
 		}
 
