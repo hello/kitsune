@@ -134,7 +134,6 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 	// Setup the Audio In/Out
     MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA);
 
-    set_volume(vol, portMAX_DELAY);
 	return 0;
 
 }
