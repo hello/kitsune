@@ -1163,7 +1163,7 @@ int start_connection(int * sock, char * host, security_type sec) {
 #else
 			unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
 #endif
-			if( sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
+			if(	sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
 				sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
 				sl_SetSockOpt(*sock, SL_SOL_SOCKET, \
 									   SL_SO_SECURE_FILES_CA_FILE_NAME, \
@@ -1173,6 +1173,12 @@ int start_connection(int * sock, char * host, security_type sec) {
 			LOGI( "error setting ssl options\r\n" );
 			ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
 			}
+			{
+				char buf[8];
+				LOGI("Setting ignore cert store... %d\n",
+						sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECURE_DISABLE_CERTIFICATE_STORE, buf, sizeof(buf) ));
+			}
+
         } else {
 			*sock = socket(AF_INET, SOCK_STREAM, SL_IPPROTO_TCP);
         }

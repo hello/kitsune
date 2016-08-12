@@ -49,7 +49,7 @@ static sockaddr _get_addr(unsigned long ip, uint16_t port){
 	 sAddr.sa_data[5] = (char) (ip & 0xff);
 	 return sAddr;
 }
-#define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
+#define SL_SSL_CA_CERT_FILE_NAME "/cert/digi.der"
 static int _start_connection(unsigned long ip, security_type sec){
 	int sock = -1;
 	if( ip ){
@@ -75,7 +75,12 @@ static int _start_connection(unsigned long ip, security_type sec){
 				 LOGI( "error setting ssl options\r\n" );
 				 //TODO hook this to BLE
 				 //ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
-			 }
+			}
+			{
+				char buf[8];
+				LOGI("Setting ignore cert store... %d\n",
+						sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_DISABLE_CERTIFICATE_STORE, buf, sizeof(buf) ));
+			}
 		 }else{
 			 sAddr = _get_addr(ip, 80);
 			 sock = socket(AF_INET, SOCK_STREAM, SL_IPPROTO_TCP);

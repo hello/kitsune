@@ -822,7 +822,7 @@ static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
     //
     // Initialize boot info file create flag
     //
-    ulBootInfoCreateFlag  = SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 256 );
+    ulBootInfoCreateFlag  = SL_FS_CREATE|SL_FS_OVERWRITE | SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 256 );
 
 	if (hndl = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, SL_FS_WRITE, &ulBootInfoToken) < 0) {
 		LOGI("error opening file, trying to create\n");

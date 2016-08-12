@@ -86,6 +86,7 @@ UtilsDelay(unsigned long ulCount)
 // compiler from doing funny things with the optimizer.
 //
 #if defined(ccs)
+__attribute__((section(".ramcode")))
     __asm("    .sect \".text:UtilsDelay\"\n"
           "    .clink\n"
           "    .thumbfunc UtilsDelay\n"

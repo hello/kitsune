@@ -113,6 +113,7 @@
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
 
 
+#include "tensor/keyword_net.h"
 #include "hlo_proto_tools.h"
 
 //******************************************************************************
@@ -228,14 +229,13 @@ int Cmd_fs_write(int argc, char *argv[]) {
 
 	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
 
-	if (hndl = sl_FsOpen((unsigned char*)argv[1],
-			SL_FS_WRITE, &tok) < 0 ) {
-		LOGF("error opening file, trying to create\n");
-
-		if ( hndl = sl_FsOpen((unsigned char*)argv[1],
-				SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 65535 ),
-				&tok) < 0 ) {
-			LOGF("error opening for write\n");
+	hndl = sl_FsOpen((unsigned char*)argv[1], SL_FS_WRITE, &tok);
+	if (hndl < 0) {
+		LOGI("error opening file, trying to create %d\n", hndl);
+		hndl = sl_FsOpen((unsigned char*)argv[1],
+				SL_FS_CREATE|SL_FS_OVERWRITE | SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 65535 ), &tok);
+		if (hndl < 0) {
+			LOGF("error opening for write %d\n", hndl);
 			return -1;
 		}
 	}
@@ -1860,6 +1860,7 @@ int cmd_ch(int argc, char *argv[]) {
 
 int cmd_codec(int argc, char *argv[]);
 int cmd_confidence(int argc, char *argv[]);
+int cmd_pwr_speaker(int argc, char * argv[]);
 
 
 int cmd_button(int argc, char *argv[]) {
@@ -1883,6 +1884,7 @@ tCmdLineEntry g_sCmdTable[] = {
 
 	    { "nnc",      cmd_confidence,      " " },
 	    { "co",      cmd_codec,      " " },
+		{"spkr",cmd_pwr_speaker,""},
 
 #if 0
 		{ "time_test", Cmd_time_test, "" },
@@ -2237,9 +2239,9 @@ void vUARTTask(void *pvParameters) {
 	if( on_charger ) {
 		launch_tasks();
 		vTaskDelete(NULL);
-	//	return;
+		return;
 	} else {
-	//	play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
+		//play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
 	}
 
 	UARTprintf("\n\nFreeRTOS %s, %08x, %s %02x:%02x:%02x:%02x:%02x:%02x\n",

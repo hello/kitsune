@@ -57,6 +57,8 @@ extern "C"
 // API Function prototypes
 //
 //*****************************************************************************
+
+__attribute__((section(".ramcode")))
 extern void UtilsDelay(unsigned long ulCount);
 
 
