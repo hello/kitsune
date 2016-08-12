@@ -525,7 +525,7 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 	}
 
 
-	LOGI("Stream transfer exited with code %d\r\n", ret);
+	LOGI("Cmd Stream transfer exited with code %d\r\n", ret);
 	hlo_stream_close(in);
 	hlo_stream_close(out);
 	return 0;
@@ -572,7 +572,7 @@ void AudioControlTask(void * unused) {
 		if(in && out){
 			ret = hlo_filter_voice_command(in,out,NULL, _can_has_sig_stop);
 		}
-		LOGI("Stream transfer exited with code %d\r\n", ret);
+		LOGI("Task Stream transfer exited with code %d\r\n", ret);
 
 		hlo_stream_close(in);
 		hlo_stream_close(out);
