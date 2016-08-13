@@ -1,7 +1,7 @@
 #include "tinytensor_fullyconnected_layer.h"
 #include "tinytensor_memory.h"
 #include "tinytensor_math.h"
-#include <assert.h>
+#include "kit_assert.h"
 
 static void get_fullyconnectged_output_size(const void * context,uint32_t * dims,const uint32_t * input_dims) {
     const FullyConnectedLayer_t * layer = (const FullyConnectedLayer_t *)context;
