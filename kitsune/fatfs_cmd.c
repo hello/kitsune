@@ -1060,6 +1060,7 @@ void file_download_task( void * params ) {
 				strncpy( buf, serial_flash_path, 64 );
 				strncat(buf, serial_flash_name, 64 );
 
+				//TODO get max size from protobuf and set it here
 				sf_str = open_serial_flash(buf, HLO_STREAM_WRITE);
 
 				while(1){
