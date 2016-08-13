@@ -256,6 +256,7 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 		LOGW("Unsupported Audio Mode, returning default stream\r\n");
 	}
 
+	// also gain and volume needs to be separate arguments if its done this way
 	if(!audio_started){
 		if(!audio_record_started){
 			_open_record(playback_sr,0);
