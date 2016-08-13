@@ -246,7 +246,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	int16_t samples[NSAMPLES];
 
 	bool light_open = false;
-	bool brk = false;
 
 	keyword_net_initialize();
 	nn_keyword_ctx_t nn_ctx = {0};
@@ -256,19 +255,15 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		if( nn_ctx.keyword_detected ) {
 			if( !light_open ) {
 				input = hlo_light_stream( input );
-				input = hlo_stream_en( input, &brk );
+				input = hlo_stream_en( input );
 				light_open = true;
 			}
 			ret = hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
 			if ( ret <  0 ) {
 				break;
 			}
-			if(brk) {
-				break;
-			}
 		} else {
 			keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
-			brk = false;
 		}
 		BREAK_ON_SIG(signal);
 
