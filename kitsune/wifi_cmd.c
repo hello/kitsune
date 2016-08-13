@@ -836,7 +836,7 @@ void load_aes() {
 	*/
 }
 #include "netcfg.h"
-static void _set_mac_to_device_id() {
+void set_mac_to_device_id() {
 	unsigned char mac[6] = {0x5c,0x6b,0x4f,0,0,0};
 	unsigned short mac_len;
 
@@ -856,7 +856,6 @@ void load_device_id() {
 		LOGE("failed to read device id file\n");
 		return;
 	}
-	_set_mac_to_device_id();
 	/*
 	UARTprintf("device id loaded from file: ");
 	int i;
