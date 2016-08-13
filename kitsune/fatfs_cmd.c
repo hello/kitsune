@@ -740,10 +740,10 @@ signed long hexToi(unsigned char *ptr)
 /******************************************************************************
    Image file names
 *******************************************************************************/
-#define IMG_BOOT_INFO           "/sys/mcubootinfo.bin"
-#define IMG_FACTORY_DEFAULT     "/sys/mcuimg1.bin"
-#define IMG_USER_1              "/sys/mcuimg2.bin"
-#define IMG_USER_2              "/sys/mcuimg3.bin"
+#define IMG_BOOT_INFO           "/ota/mcubootinfo.bin"
+#define IMG_FACTORY_DEFAULT     "/ota/mcuimg1.bin"
+#define IMG_USER_1              "/ota/mcuimg2.bin"
+#define IMG_USER_2              "/ota/mcuimg3.bin"
 
 /******************************************************************************
    Image status
@@ -1063,6 +1063,7 @@ void file_download_task( void * params ) {
 					}
 					DISP("x");
 				}
+				hlo_stream_close(sf_str);
 
                 if (strcmp(buf, "/top/update.bin") == 0) {
                     if (download_info.has_sha1) {
