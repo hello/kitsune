@@ -846,7 +846,7 @@ static void codec_sw_reset(void);
  * On the codec, this gain has 117 levels between 0db to -78.3db
  * The input v to the function varies from 0-64.
  */
-bool set_volume(int v, unsigned int dly) {
+int32_t set_volume(int v, unsigned int dly) {
 
 	char send_stop = 1;
 	unsigned char cmd[2];
@@ -871,9 +871,9 @@ bool set_volume(int v, unsigned int dly) {
 		cmd[1] = v;
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 		xSemaphoreGiveRecursive(i2c_smphr);
-		return true;
+		return 0;
 	} else {
-		return false;
+		return -1;
 	}
 
 }
@@ -1349,3 +1349,93 @@ static int codec_after_init_test(void){
 
 	return 0;
 }
+
+/******************************************************************************
+ * MIC TEST CODE START
+ ******************************************************************************/
+#define TEST_SAMPLES_PER_CHANNEL 1024
+#define TOTAL_CHANNELS 4
+
+typedef struct{
+	int32_t average;
+	int32_t deviation;
+}mic_test_results_t;
+typedef struct{
+	int16_t samples[TEST_SAMPLES_PER_CHANNEL*TOTAL_CHANNELS];
+	mic_test_results_t results[TOTAL_CHANNELS];
+	uint32_t index;
+}mic_test_t;
+
+static mic_test_t mic_test_data;
+
+static int mic_test_write(void * ctx, const void * buf, size_t size){
+	// DISP("Mic test write %d, index: %d\r\n", size, mic_test_data.index);
+
+	memcpy(&mic_test_data.samples[mic_test_data.index], buf, size);
+
+	mic_test_data.index += size;
+	vTaskDelay(2);
+	return size;
+}
+static int mic_test_read(void * ctx, void * buf, size_t size){
+	DISP("mic test read %d\r\n", size);
+	vTaskDelay(2);
+	return size;
+}
+static hlo_stream_vftbl_t mic_test_stream_impl = {
+		.read = mic_test_read,
+		.write = mic_test_write,
+};
+hlo_stream_t * mic_test_stream_open(void){
+	static hlo_stream_t * mic_test_stream;
+
+	mic_test_data.index = 0;
+	if(!mic_test_stream){
+		mic_test_stream = hlo_stream_new(&mic_test_stream_impl,NULL,HLO_STREAM_READ_WRITE);
+	}
+	return mic_test_stream;
+}
+
+int32_t mic_test_deviation(void)
+{
+	uint32_t index;
+	uint32_t ch;
+
+	for(index=0;index<TOTAL_CHANNELS;index++){
+		mic_test_data.results[index].average = 0;
+	}
+
+	// Compute average
+	for(index=0;index<TEST_SAMPLES_PER_CHANNEL*TOTAL_CHANNELS;index++){
+		ch = index % TOTAL_CHANNELS;
+		mic_test_data.results[ch].average += mic_test_data.samples[index];
+	}
+
+	for(index=0;index<TOTAL_CHANNELS;index++){
+		mic_test_data.results[index].average /= TEST_SAMPLES_PER_CHANNEL;
+		DISP("Average %d: %d\n",index, mic_test_data.results[index].average);
+	}
+
+	for(index=0;index<TOTAL_CHANNELS;index++){
+		mic_test_data.results[index].deviation = 0;
+	}
+
+	// Compute deviation
+	for(index=0;index<TEST_SAMPLES_PER_CHANNEL*TOTAL_CHANNELS;index++){
+		ch=index%TOTAL_CHANNELS;
+		mic_test_data.results[ch].deviation += abs((mic_test_data.samples[index] - mic_test_data.results[ch].average));
+		// DISP("%d - %d = %d\n", mic_test_data.samples[index], mic_test_data.results[ch].average, mic_test_data.results[ch].deviation);
+		vTaskDelay(5);
+	}
+
+	for(index=0;index<TOTAL_CHANNELS;index++){
+		mic_test_data.results[index].deviation /= TEST_SAMPLES_PER_CHANNEL;
+		DISP("Deviation %d: %d\n",index, mic_test_data.results[index].deviation);
+	}
+
+	return 0;
+}
+/******************************************************************************
+ * MIC TEST CODE END
+ ******************************************************************************/
+

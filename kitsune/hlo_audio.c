@@ -23,6 +23,7 @@ static unsigned int initial_vol;
 static unsigned int initial_gain;
 static uint8_t audio_playback_reference=0;
 static uint8_t audio_record_started=0;
+static uint8_t audio_started = 0; // TODO DKH
 xSemaphoreHandle record_isr_sem;
 xSemaphoreHandle playback_isr_sem;;
 
@@ -239,23 +240,39 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 	if(direction == HLO_AUDIO_PLAYBACK){
 		playback_sr = sr;
 		initial_vol = vol;
+//		if( !audio_playback_reference ) {
+//			_open_playback(playback_sr,0);
+//			audio_playback_reference  += 1;	//todo reference count playback stream to stop audio tx interrupt
+//			set_volume(vol, portMAX_DELAY);
+//		}
+	}else if(direction == HLO_AUDIO_RECORD){
+		record_sr = sr;
+		initial_gain = vol;
+//		if(!audio_record_started){
+//			_open_record(playback_sr,0);
+//			audio_record_started = 1;
+//		}
+	}else{
+		LOGW("Unsupported Audio Mode, returning default stream\r\n");
+	}
+
+	// also gain and volume needs to be separate arguments if its done this way
+	if(!audio_started){
+		if(!audio_record_started){
+			_open_record(playback_sr,0);
+			audio_record_started = 1;
+		}
 		if( !audio_playback_reference ) {
 			_open_playback(playback_sr,0);
 			audio_playback_reference  += 1;	//todo reference count playback stream to stop audio tx interrupt
 			set_volume(vol, portMAX_DELAY);
 		}
-	}else if(direction == HLO_AUDIO_RECORD){
-		record_sr = sr;
-		initial_gain = vol;
-		if(!audio_record_started){
-			_open_record(playback_sr,0);
-			audio_record_started = 1;
-		}
-	}else{
-		LOGW("Unsupported Audio Mode, returning default stream\r\n");
+
+		Audio_Start();
+		audio_started = 1;
 	}
 	UNLOCK();
-	Audio_Start();
+
 	return ret;
 }
 

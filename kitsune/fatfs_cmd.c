@@ -422,6 +422,7 @@ char* strsep( char** stringp, const char* delim )
 #include "hlo_http.h"
 #include "audio_types.h"
 #include "hlo_audio_tools.h"
+hlo_stream_t * mic_test_stream_open(void);
 #define BUF_SIZE 64
 hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 	hlo_stream_t * rstr = NULL;
@@ -502,9 +503,9 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					}
 					DISP("Output Opt rate is %d\r\n", opt_rate);
 					if(opt_rate){
-						rstr = hlo_audio_open_mono(opt_rate,50,HLO_AUDIO_PLAYBACK);
+						rstr = hlo_audio_open_mono(opt_rate,4,HLO_AUDIO_PLAYBACK);
 					}else{
-						rstr = hlo_audio_open_mono(48000,50,HLO_AUDIO_PLAYBACK);
+						rstr = hlo_audio_open_mono(48000,4,HLO_AUDIO_PLAYBACK);
 					}
 				}
 				break;
@@ -523,6 +524,10 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 				case 'F':
 					global_filename(p+1);
 					rstr = fs_stream_open(path_buff, HLO_STREAM_WRITE);
+					break;
+				case 'm':
+				case 'M':
+					rstr = mic_test_stream_open();
 					break;
 				default:
 					rstr = random_stream_open();
