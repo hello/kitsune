@@ -240,23 +240,33 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 	if(direction == HLO_AUDIO_PLAYBACK){
 		playback_sr = sr;
 		initial_vol = vol;
-		if( !audio_playback_reference ) {
-			_open_playback(playback_sr,0);
-			audio_playback_reference  += 1;	//todo reference count playback stream to stop audio tx interrupt
-			set_volume(vol, portMAX_DELAY);
-		}
+//		if( !audio_playback_reference ) {
+//			_open_playback(playback_sr,0);
+//			audio_playback_reference  += 1;	//todo reference count playback stream to stop audio tx interrupt
+//			set_volume(vol, portMAX_DELAY);
+//		}
 	}else if(direction == HLO_AUDIO_RECORD){
 		record_sr = sr;
 		initial_gain = vol;
-		if(!audio_record_started){
-			_open_record(playback_sr,0);
-			audio_record_started = 1;
-		}
+//		if(!audio_record_started){
+//			_open_record(playback_sr,0);
+//			audio_record_started = 1;
+//		}
 	}else{
 		LOGW("Unsupported Audio Mode, returning default stream\r\n");
 	}
 
 	if(!audio_started){
+		if(!audio_record_started){
+			_open_record(playback_sr,0);
+			audio_record_started = 1;
+		}
+		if( !audio_playback_reference ) {
+			_open_playback(playback_sr,0);
+			audio_playback_reference  += 1;	//todo reference count playback stream to stop audio tx interrupt
+			set_volume(vol, portMAX_DELAY);
+		}
+
 		Audio_Start();
 		audio_started = 1;
 	}
