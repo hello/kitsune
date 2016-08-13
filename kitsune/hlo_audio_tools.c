@@ -570,7 +570,7 @@ void AudioControlTask(void * unused) {
 		}
 
 		if(in && out){
-			ret = hlo_filter_voice_command(in,out,NULL, _can_has_sig_stop);
+			ret = hlo_filter_voice_command(in,out,NULL, NULL);
 		}
 		LOGI("Task Stream transfer exited with code %d\r\n", ret);
 
