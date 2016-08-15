@@ -9,6 +9,9 @@
 #include "hlo_audio.h"
 #include <stdbool.h>
 #include <string.h>
+#include "hlo_proto_tools.h"
+#include "crypto.h"
+#include "wifi_cmd.h"
 ////-------------------------------------------
 //The feature/extractor processor we used in sense 1.0
 //
@@ -244,12 +247,18 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 #define NSAMPLES 512
 	int ret = 0;
 	int16_t samples[NSAMPLES];
+	uint8_t hmac[SHA1_SIZE] = {0};
 
 	bool light_open = false;
 
 	keyword_net_initialize();
 	nn_keyword_ctx_t nn_ctx = {0};
 	keyword_net_register_callback(&nn_ctx,okay_sense,80,_voice_begin_keyword,_voice_finish_keyword);
+
+	//wrap output in hmac stream
+	uint8_t key[AES_BLOCKSIZE];
+	get_aes(key);
+	hlo_stream_t * hmac_payload_str = hlo_hmac_stream(output, key, sizeof(key) );
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
 		if( nn_ctx.keyword_detected ) {
@@ -258,7 +267,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				input = hlo_stream_en( input );
 				light_open = true;
 			}
-			ret = hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
+			ret = hlo_stream_transfer_all(INTO_STREAM, hmac_payload_str,  (uint8_t*)samples, ret, 4);
 			if ( ret <  0 ) {
 				break;
 			}
@@ -268,6 +277,10 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		BREAK_ON_SIG(signal);
 
 	}
+
+	// grab the running hmac and drop it in the stream
+	get_hmac( hmac, hmac_payload_str );
+	ret = hlo_stream_transfer_all(INTO_STREAM, output, hmac, sizeof(hmac), 4);
 
 	{//now play the swirling thing when we get response
 			play_led_wheel(get_alpha_from_light(),254,0,254,2,18,0);
