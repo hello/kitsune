@@ -259,6 +259,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	uint8_t key[AES_BLOCKSIZE];
 	get_aes(key);
 	hlo_stream_t * hmac_payload_str = hlo_hmac_stream(output, key, sizeof(key) );
+	assert(hmac_payload_str);
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
 		if( nn_ctx.keyword_detected ) {
@@ -281,6 +282,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	// grab the running hmac and drop it in the stream
 	get_hmac( hmac, hmac_payload_str );
 	ret = hlo_stream_transfer_all(INTO_STREAM, output, hmac, sizeof(hmac), 4);
+	hlo_stream_close(hmac_payload_str);
 
 	{//now play the swirling thing when we get response
 			play_led_wheel(get_alpha_from_light(),254,0,254,2,18,0);
