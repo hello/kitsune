@@ -440,9 +440,9 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					}
 					DISP("Input Opt rate is %d\r\n", opt_rate);
 					if(opt_rate){
-						rstr = hlo_audio_open_mono(opt_rate,60,HLO_AUDIO_RECORD);
+						rstr = hlo_audio_open_mono(opt_rate,0,60,HLO_AUDIO_RECORD);
 					}else{
-						rstr = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,60,HLO_AUDIO_RECORD);
+						rstr = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,0,60,HLO_AUDIO_RECORD);
 					}
 					break;
 				}
@@ -503,9 +503,9 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					}
 					DISP("Output Opt rate is %d\r\n", opt_rate);
 					if(opt_rate){
-						rstr = hlo_audio_open_mono(opt_rate,4,HLO_AUDIO_PLAYBACK);
+						rstr = hlo_audio_open_mono(opt_rate,4,0,HLO_AUDIO_PLAYBACK);
 					}else{
-						rstr = hlo_audio_open_mono(48000,4,HLO_AUDIO_PLAYBACK);
+						rstr = hlo_audio_open_mono(48000,4,0,HLO_AUDIO_PLAYBACK);
 					}
 				}
 				break;

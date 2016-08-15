@@ -234,7 +234,7 @@ void hlo_audio_init(void){
 }
 
 bool set_volume(int v, unsigned int dly);
-hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction){
+hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint8_t gain, uint32_t direction){
 	hlo_stream_t * ret = master;
 	LOCK();
 	if(direction == HLO_AUDIO_PLAYBACK){
@@ -247,7 +247,7 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 //		}
 	}else if(direction == HLO_AUDIO_RECORD){
 		record_sr = sr;
-		initial_gain = vol;
+		initial_gain = gain;
 //		if(!audio_record_started){
 //			_open_record(playback_sr,0);
 //			audio_record_started = 1;
@@ -256,6 +256,7 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 		LOGW("Unsupported Audio Mode, returning default stream\r\n");
 	}
 
+	// TODO DKH if this works, then it can be done once on power up
 	// also gain and volume needs to be separate arguments if its done this way
 	if(!audio_started){
 		if(!audio_record_started){

@@ -308,7 +308,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 #else
 	if(ret >= 0 || ret == HLO_STREAM_EOF ){
 		DISP("\r\n===========\r\n");
-		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 44,HLO_AUDIO_PLAYBACK);
+		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 44,0,HLO_AUDIO_PLAYBACK);
 			DISP("Playback Audio\r\n");
 			output = hlo_stream_sr_cnv( output, UPSAMPLE );
 			//hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
@@ -558,7 +558,7 @@ void AudioControlTask(void * unused) {
 
 
 		hlo_stream_t * in;
-		in = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,60,HLO_AUDIO_RECORD);
+		in = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,4, 60,HLO_AUDIO_RECORD);
 		in = hlo_stream_sr_cnv( in, DOWNSAMPLE );
 
 		hlo_stream_t * out;
