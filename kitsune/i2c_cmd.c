@@ -1060,7 +1060,7 @@ void codec_power_spkr(uint8_t power_up)
 
 		if (power_up) {
 			cmd[1] = 0x02;
-			set_volume(40, portMAX_DELAY);
+			set_volume(0, portMAX_DELAY);
 		}
 		else {
 			cmd[1] = 0x00;
