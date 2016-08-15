@@ -236,10 +236,8 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint8_t gain, uint3
 	hlo_stream_t * ret = master;
 	LOCK();
 	if(direction == HLO_AUDIO_PLAYBACK){
-		playback_sr = sr;
 		initial_vol = vol;
 	}else if(direction == HLO_AUDIO_RECORD){
-		record_sr = sr;
 		initial_gain = gain;
 	}else{
 		LOGW("Unsupported Audio Mode, returning default stream\r\n");
