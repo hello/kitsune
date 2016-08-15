@@ -104,7 +104,7 @@ static int _close_sf(void * ctx){
 	sl_FsClose(sf->hndl, 0, 0, 0);
 	return 0;
 }
-hlo_stream_t * open_serial_flash( char * filepath, uint32_t options){
+hlo_stream_t * open_serial_flash( char * filepath, uint32_t options, uint32_t max_size){
 	long hndl, tok;
 	int ret;
 	SlFsFileInfo_t info;
@@ -135,7 +135,7 @@ hlo_stream_t * open_serial_flash( char * filepath, uint32_t options){
 		}
 		uint8_t data[1] = {0};
 		if((hndl = sl_FsOpen((const uint8_t*)filepath,
-				  SL_FS_CREATE|SL_FS_OVERWRITE | SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 307200 ),
+				  SL_FS_CREATE|SL_FS_OVERWRITE | SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( max_size ),
 				(_u32*)&tok)) < 0){
 			return NULL;
 		}

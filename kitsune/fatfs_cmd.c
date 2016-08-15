@@ -484,7 +484,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					}
 					break;
 				case '~':
-					rstr = open_serial_flash(p+1, HLO_STREAM_READ);
+					rstr = open_serial_flash(p+1, HLO_STREAM_READ, 65536);
 					break;
 				default:
 					LOGE("stream missing\n");
@@ -518,7 +518,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					rstr = uart_stream();
 					break;
 				case '~':
-					rstr = open_serial_flash(p+1, HLO_STREAM_WRITE);
+					rstr = open_serial_flash(p+1, HLO_STREAM_WRITE, 65536);
 					break;
 				case 'f':
 				case 'F':
@@ -1061,7 +1061,7 @@ void file_download_task( void * params ) {
 				strncat(buf, serial_flash_name, 64 );
 
 				//TODO get max size from protobuf and set it here
-				sf_str = open_serial_flash(buf, HLO_STREAM_WRITE);
+				sf_str = open_serial_flash(buf, HLO_STREAM_WRITE, download_info.has_file_size ? download_info.file_size : 300 * 1024);
 
 				while(1){
 					if(hlo_stream_transfer_between( http_str, sf_str, (uint8_t*)buf, sizeof(buf), 4 ) < 0){
