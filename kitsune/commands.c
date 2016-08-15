@@ -914,6 +914,7 @@ extern volatile bool top_got_device_id;
 extern volatile portTickType last_upload_time;
 int send_top(char * s, int n) ;
 void load_device_id();
+void set_mac_to_device_id();
 bool is_test_boot();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
@@ -2108,6 +2109,8 @@ void vUARTTask(void *pvParameters) {
 	// Set connection policy to Auto, fast
 
 	UARTprintf("*");
+	load_device_id();
+	set_mac_to_device_id();
 
 	unsigned char mac[6];
 	unsigned short mac_len;
@@ -2211,7 +2214,6 @@ void vUARTTask(void *pvParameters) {
 
 	load_serial();
 	load_aes();
-	load_device_id();
 	load_account_id();
 	load_alarm();
 	pill_settings_init();

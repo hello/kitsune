@@ -835,6 +835,17 @@ void load_aes() {
 	UARTprintf("\n");
 	*/
 }
+#include "netcfg.h"
+void set_mac_to_device_id() {
+	unsigned char mac[6] = {0x5c,0x6b,0x4f,0,0,0};
+	unsigned short mac_len;
+
+	mac[3] = device_id[DEVICE_ID_SZ-3];
+	mac[4] = device_id[DEVICE_ID_SZ-2];
+	mac[5] = device_id[DEVICE_ID_SZ-1];
+	sl_NetCfgSet(SL_NETCFG_MAC_ADDRESS_SET, 1, SL_MAC_ADDR_LEN, mac);
+	nwp_reset();
+}
 void load_device_id() {
 	int r;
 

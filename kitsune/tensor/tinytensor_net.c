@@ -2,7 +2,7 @@
 #include "tinytensor_math.h"
 #include "tinytensor_tensor.h"
 #include "tinytensor_memory.h"
-#include <assert.h>
+#include "kit_assert.h"
 
 /*
    core neural net evalution code

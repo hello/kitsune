@@ -442,7 +442,6 @@ typedef struct{
 	int32_t eng;
 	int32_t ctr;
 	int32_t ctr_tot;
-	bool * brk;
 }energy_stream_t;
 
 static int _write_energy(void * ctx, const void * buf, size_t size){
@@ -475,11 +474,8 @@ static int _read_energy(void * ctx, void * buf, size_t size){
 
 			stream->last_eng = stream->eng;
 
-			if( stream->brk &&
-					((stream->ctr_tot > NSAMPLES*100
-							&& stream->lp <= 50)
-							||stream->ctr_tot > NSAMPLES*800)  ){
-				//DISP("\n") ;
+			if( (stream->ctr_tot > NSAMPLES*100 && stream->lp <= 50)
+					|| stream->ctr_tot > NSAMPLES*800 ){
 				return HLO_STREAM_EOF;
 			}
 			stream->ctr = 0;
@@ -496,7 +492,7 @@ static int _close_energy(void * ctx){
 	vPortFree(stream);
 	return 0;
 }
-hlo_stream_t * hlo_stream_en( hlo_stream_t * base, bool * brk ){
+hlo_stream_t * hlo_stream_en( hlo_stream_t * base ){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
 		.write = _write_energy,
 		.read = _read_energy,
@@ -511,7 +507,6 @@ hlo_stream_t * hlo_stream_en( hlo_stream_t * base, bool * brk ){
 	}
 	memset(stream, 0, sizeof(*stream) );
 	stream->base = base;
-	stream->brk = brk;
 	DISP("open en\n") ;
 
 	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);

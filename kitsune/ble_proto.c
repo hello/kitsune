@@ -703,10 +703,12 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 
 				set_ble_mode(BLE_NORMAL);
 
+#if 0
 				if(command->has_aes_key && should_burn_top_key()){
 					save_aes(command->aes_key.bytes);
 					LOGF("topkey burned\n");
 				}
+#endif
 
 				top_got_device_id = true;
 
