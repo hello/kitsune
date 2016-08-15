@@ -837,24 +837,24 @@ void load_aes() {
 }
 #include "netcfg.h"
 void set_mac_to_device_id() {
-	unsigned char mac[6] = {0x5c,0x6b,0x4f,0,0,0};
-	unsigned short mac_len;
-
-	mac[3] = device_id[DEVICE_ID_SZ-3];
-	mac[4] = device_id[DEVICE_ID_SZ-2];
-	mac[5] = device_id[DEVICE_ID_SZ-1];
-	sl_NetCfgSet(SL_NETCFG_MAC_ADDRESS_SET, 1, SL_MAC_ADDR_LEN, mac);
-	nwp_reset();
+	if( load_device_id() ) {
+		unsigned char mac[6] = {0x5c,0x6b,0x4f,0,0,0};
+		mac[3] = device_id[DEVICE_ID_SZ-3];
+		mac[4] = device_id[DEVICE_ID_SZ-2];
+		mac[5] = device_id[DEVICE_ID_SZ-1];
+		sl_NetCfgSet(SL_NETCFG_MAC_ADDRESS_SET, 1, SL_MAC_ADDR_LEN, mac);
+		nwp_reset();
+	}
 }
-void load_device_id() {
+bool load_device_id() {
 	int r;
 
-	fs_get( DEVICE_ID_LOC, device_id, DEVICE_ID_SZ, &r );
+	int ret = fs_get( DEVICE_ID_LOC, device_id, DEVICE_ID_SZ, &r );
 	device_id[DEVICE_ID_SZ] = 0;
 
-	if (r != DEVICE_ID_SZ) {
+	if (r != DEVICE_ID_SZ || ret < 0) {
 		LOGE("failed to read device id file\n");
-		return;
+		return false;
 	}
 	/*
 	UARTprintf("device id loaded from file: ");
@@ -866,6 +866,7 @@ void load_device_id() {
 
 	UARTprintf("\n");
 	*/
+	return true;
 }
 
 static void _on_morpheus_command_success(void * structdata){

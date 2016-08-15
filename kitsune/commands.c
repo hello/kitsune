@@ -2109,7 +2109,6 @@ void vUARTTask(void *pvParameters) {
 	// Set connection policy to Auto, fast
 
 	UARTprintf("*");
-	load_device_id();
 	set_mac_to_device_id();
 
 	unsigned char mac[6];
