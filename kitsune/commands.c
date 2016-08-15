@@ -1205,7 +1205,7 @@ void sample_sensor_data(periodic_data* data)
 		}
 		}
 	}
-
+	return;
 	int wave_count = gesture_get_wave_count();
 	if(wave_count > 0)
 	{
@@ -1279,6 +1279,7 @@ void thread_sensor_poll(void* unused) {
 
 		vTaskDelayUntil(&now, 60 * configTICK_RATE_HZ);
 	}
+
 
 
 
@@ -1804,6 +1805,36 @@ int Cmd_uptime(int argc, char *argv[]) {
 	return 0;
 }
 
+static void _runcmd(const char * c) {
+	char * commandstr = pvPortMalloc(512);
+	memcpy(commandstr, c, 512);
+	xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, commandstr, 3, NULL);
+	vTaskDelay(1000);
+}
+int Cmd_cmd(int argc, char *argv[]) {
+
+	vTaskDelay(10000);
+	_runcmd("animate trippy");
+	_runcmd("x $r $a");
+	_runcmd("^ dtm");
+	_runcmd("dtm code 80fc");
+	_runcmd("rdiotxstart 1 0 6 1 0 0 100 10000 1 be be be be be be");
+
+	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
+	periodic_data data = { 0 };
+	int w, r, g, b, p;
+
+	//sample the sensors
+	while (1) {
+		portTickType now = xTaskGetTickCount();
+		get_rgb_prox(&w, &r, &g, &b, &p);
+		sample_sensor_data(&data);
+		vTaskDelayUntil(&now, 1000);
+	}
+
+	return 0;
+}
+
 #define ARR_LEN(x) (sizeof(x)/sizeof(x[0]))
 static void print_nwp_version() {
 	SlDeviceVersion_t ver;
@@ -2033,6 +2064,7 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 		{"fs", cmd_file_sync_upload, ""},
 		{"nn",cmd_test_neural_net,""},
+		{"c",Cmd_cmd,""},
 		{ 0, 0, 0 } };
 
 
@@ -2237,6 +2269,8 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	start_top_boot_watcher();
+
+	Cmd_cmd(0,0);
 
 	if( on_charger ) {
 		launch_tasks();

@@ -241,7 +241,7 @@ uint32_t fetch_ntp_time_from_ntp() {
 			&request,
 			&pb_cb, &sock, SOCKET_SEC_NONE ) != 0 && ++retries < MAX_RETRIES ) {
 		if( !is_time_good ) { //request top...
-			send_top("time", strlen("time"));
+			//send_top("time", strlen("time"));
 		}
 
 		if( retries < 5 ) {
@@ -302,13 +302,13 @@ static void time_task( void * params ) { //exists to get the time going and cach
 
 					usnprintf( cmdbuf, sizeof(cmdbuf), "time %u\r\n", ntp_time);
 					LOGI("sending %s\r\n", cmdbuf);
-					send_top(cmdbuf, strlen(cmdbuf));
+					//send_top(cmdbuf, strlen(cmdbuf));
 				}
 				xSemaphoreGive(time_smphr);
 			}
 		}
 		if( !is_time_good ) { //request top...
-			send_top("time", strlen("time"));
+			//send_top("time", strlen("time"));
 			vTaskDelay(10000);
 		}
 

@@ -364,7 +364,7 @@ void main()
   I2C_IF_Open(I2C_MASTER_MODE_FST);
 
   /* Create the UART processing task. */
-  xTaskCreate( vUARTTask, "UARTTask", 1024/(sizeof(portSTACK_TYPE)), NULL, 3, NULL );
+  xTaskCreate( vUARTTask, "UARTTask", 5*1024/(sizeof(portSTACK_TYPE)), NULL, 3, NULL );
 
 #if 1
   start_wdt();
