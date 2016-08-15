@@ -208,7 +208,6 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 //playback sample app
 static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop){
 	int ret;
-	uint8_t chunk[512]; //arbitrary
 
 	ramp_ctx_t vol = (ramp_ctx_t){
 		.current = 0,

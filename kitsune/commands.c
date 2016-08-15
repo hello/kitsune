@@ -264,7 +264,7 @@ int Cmd_fs_read(int argc, char *argv[]) {
 #define minval( a,b ) a < b ? a : b
 #define BUF_SZ 600
 	unsigned long tok=0;
-	long hndl, err, bytes, i;
+	long hndl, bytes, i;
 	SlFsFileInfo_t info;
 	char buffer[BUF_SZ];
 
@@ -1746,10 +1746,12 @@ int cmd_memfrag(int argc, char *argv[]) {
 	}
 	return 0;
 }
+#if 0
 static long always_slow(int dly){
 	vTaskDelay(dly);
 	return 0;
 }
+#endif
 
 void
 vAssertCalled( const char * s );
