@@ -2236,6 +2236,9 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	start_top_boot_watcher();
 
+#define DEMO
+
+#ifndef DEMO
 	if( on_charger ) {
 		launch_tasks();
 		vTaskDelete(NULL);
@@ -2243,6 +2246,11 @@ void vUARTTask(void *pvParameters) {
 	} else {
 		//play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
 	}
+#else
+	/* remove anything we recieved before we were ready */
+	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
+	Cmd_boot(0,0);
+#endif
 
 	UARTprintf("\n\nFreeRTOS %s, %08x, %s %02x:%02x:%02x:%02x:%02x:%02x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
@@ -2250,8 +2258,6 @@ void vUARTTask(void *pvParameters) {
 	print_nwp_version();
 	UARTprintf("> ");
 
-	/* remove anything we recieved before we were ready */
-	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
 
 	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 

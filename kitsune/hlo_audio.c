@@ -190,9 +190,11 @@ static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 	}
 	return (int)size;
 }
+bool set_volume(int v, unsigned int dly);
 // TODO might need two functions for close of capture and playback?
 static int _close(void * ctx){
 	DISP("Closing stream\n");
+	//set_volume(0, portMAX_DELAY);
 
 #if 0
 	Audio_Stop();
@@ -231,7 +233,6 @@ void hlo_audio_init(void){
 
 }
 
-bool set_volume(int v, unsigned int dly);
 hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint8_t gain, uint32_t direction){
 	hlo_stream_t * ret = master;
 	LOCK();
@@ -248,10 +249,10 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint8_t gain, uint3
 	if(!audio_started){
 		_open_record(gain);
 		_open_playback(vol);
-		set_volume(vol, portMAX_DELAY);
 
 		Audio_Start();
 		audio_started = 1;
+		set_volume(vol, portMAX_DELAY);
 	}
 	UNLOCK();
 
