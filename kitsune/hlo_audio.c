@@ -33,8 +33,8 @@ static volatile uint32_t last_play;
 ////------------------------------
 // playback stream driver
 
-static int _open_playback(uint32_t sr, uint8_t vol){
-	if(InitAudioPlayback(vol, sr)){
+static int _open_playback(uint8_t vol){
+	if(InitAudioPlayback(vol)){
 		return -1;
 	}
 	DISP("Open playback\r\n");
@@ -81,8 +81,8 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 ////------------------------------
 //record stream driver
 //bool set_mic_gain(int v, unsigned int dly) ;
-static int _open_record(uint32_t sr, uint32_t gain){
-	if(InitAudioCapture(sr)){
+static int _open_record(uint32_t gain){
+	if(InitAudioCapture()){
 		return -1;
 	}
 	DISP("Open record\r\n");
@@ -246,8 +246,8 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint8_t gain, uint3
 	}
 
 	if(!audio_started){
-		_open_record(playback_sr,0);
-		_open_playback(playback_sr,0);
+		_open_record(gain);
+		_open_playback(vol);
 		set_volume(vol, portMAX_DELAY);
 
 		Audio_Start();
