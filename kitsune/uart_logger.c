@@ -667,8 +667,7 @@ void uart_logger_task(void * params){
 		log_local_enable = 1;
 	}
 
-	// TODO DKH
-	// xTaskCreate(uart_block_saver_task, "log saver task",   UART_LOGGER_THREAD_STACK_SIZE / 4 , NULL, 2, NULL);
+	xTaskCreate(uart_block_saver_task, "log saver task",   UART_LOGGER_THREAD_STACK_SIZE / 4 , NULL, 2, NULL);
 
 	while(1){
 		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);

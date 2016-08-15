@@ -1924,8 +1924,6 @@ tCmdLineEntry g_sCmdTable[] = {
     { "pwd",      Cmd_pwd,      "" },
 
     { "cat",      Cmd_cat,      "" },
-	{"codec_Mic", get_codec_mic_NAU, "" }, // TODO DKH
-
 #endif
 
     {"inttemp", Cmd_inttemp, "" }, //internal temperature

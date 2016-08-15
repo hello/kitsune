@@ -21,9 +21,7 @@ static unsigned long record_sr;
 static unsigned long playback_sr;
 static unsigned int initial_vol;
 static unsigned int initial_gain;
-static uint8_t audio_playback_started=0;
-static uint8_t audio_record_started=0;
-static uint8_t audio_started = 0; // TODO DKH
+static uint8_t audio_started = 0;
 xSemaphoreHandle record_isr_sem;
 xSemaphoreHandle playback_isr_sem;;
 
