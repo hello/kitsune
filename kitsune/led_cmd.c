@@ -125,6 +125,16 @@ static void led_array(led_color_t * colors, int delay) {
 	unsigned long ulInt;
 	//
 
+	// Temporarily turn off interrupts.
+	//
+	vTaskDelay(_clamp(delay,0,500)); //just to be sure...
+	ulInt = MAP_IntMasterDisable();
+	MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
+	led_slow(colors);
+	if (!ulInt) {
+		MAP_IntMasterEnable();
+	}
+	vTaskDelay(0);
 }
 static void led_brightness_all(led_color_t * colors, unsigned int brightness ) {
 	int l;

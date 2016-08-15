@@ -126,7 +126,6 @@ static void i2c_int() {
 }
 
 void checki2c() {
-	return ;
 	int pulses = 0;
 
 	//
@@ -176,7 +175,7 @@ static int
 I2CTransact(unsigned long ulCmd)
 {
 	int rval = SUCCESS;
-	return rval;
+//	unsigned long prio = uxTaskPriorityGet(NULL);
 
 	I2CMasterIntClearEx(I2C_BASE,I2C_MASTER_INT_DATA);
 	i2c_task =  xTaskGetCurrentTaskHandle();
@@ -230,7 +229,6 @@ I2C_IF_Write(unsigned char ucDevAddr,
          unsigned char ucLen, 
          unsigned char ucStop)
 {
-	return SUCCESS;
     RETERR_IF_TRUE(pucData == NULL);
     RETERR_IF_TRUE(ucLen == 0);
     //
@@ -303,7 +301,6 @@ I2C_IF_Read(unsigned char ucDevAddr,
         unsigned char *pucData,
         unsigned char ucLen)
 {
-	return SUCCESS;
     unsigned long ulCmdID;
 
     RETERR_IF_TRUE(pucData == NULL);
@@ -402,7 +399,6 @@ I2C_IF_ReadFrom(unsigned char ucDevAddr,
             unsigned char *pucRdDataBuf,
             unsigned char ucRdLen)
 {
-	return SUCCESS;
     //
     // Write the register address to be read from.
     // Stop bit implicitly assumed to be 0.
@@ -435,7 +431,6 @@ I2C_IF_ReadFrom(unsigned char ucDevAddr,
 int 
 I2C_IF_Open(unsigned long ulMode)
 {
-	return SUCCESS;
     //
     // Enable I2C Peripheral
     //           
@@ -483,7 +478,6 @@ I2C_IF_Open(unsigned long ulMode)
 int 
 I2C_IF_Close()
 {
-	return SUCCESS;
     //
     // Power OFF the I2C peripheral
     //

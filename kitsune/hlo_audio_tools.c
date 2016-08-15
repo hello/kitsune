@@ -303,8 +303,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 #else
 	if(ret >= 0 || ret == HLO_STREAM_EOF ){
 		DISP("\r\n===========\r\n");
-		//hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 64,HLO_AUDIO_PLAYBACK);
-		hlo_stream_t * aud = random_stream_open();
+		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 44,HLO_AUDIO_PLAYBACK);
 			DISP("Playback Audio\r\n");
 			output = hlo_stream_sr_cnv( output, UPSAMPLE );
 			//hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
