@@ -49,7 +49,6 @@ static sockaddr _get_addr(unsigned long ip, uint16_t port){
 	 sAddr.sa_data[5] = (char) (ip & 0xff);
 	 return sAddr;
 }
-#define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
 static int _start_connection(unsigned long ip, security_type sec){
 	int sock = -1;
 	if( ip ){
@@ -60,22 +59,30 @@ static int _start_connection(unsigned long ip, security_type sec){
 			 if(sock <= 0){
 				 goto exit;
 			 }
-			 unsigned char method = SL_SO_SEC_METHOD_TLSV1_2;
-#ifdef USE_SHA2
-			 unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256;
-#else
-			 unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
-#endif
-			 if( sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
-			 				sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
-			 				sl_SetSockOpt(sock, SL_SOL_SOCKET, \
-			 									   SL_SO_SECURE_FILES_CA_FILE_NAME, \
-			 									   SL_SSL_CA_CERT_FILE_NAME, \
-			 									   strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0  ){
-				 LOGI( "error setting ssl options\r\n" );
-				 //TODO hook this to BLE
-				 //ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
-			 }
+			#define SL_SSL_CA_CERT_FILE_NAME "/cert/digi.cer"
+			// configure the socket as SSLV3.0
+			// configure the socket as RSA with RC4 128 SHA
+			// setup certificate
+			unsigned char method = SL_SO_SEC_METHOD_TLSV1_2;
+			#ifdef USE_SHA2
+			unsigned int cipher = SL_WLAN_SEC_MASK_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256;
+			#else
+			unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
+			#endif
+			if(	sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
+				sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
+				sl_SetSockOpt(sock, SL_SOL_SOCKET, \
+									   SL_SO_SECURE_FILES_CA_FILE_NAME, \
+									   SL_SSL_CA_CERT_FILE_NAME, \
+									   strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0  )
+			{
+			LOGI( "error setting ssl options\r\n" );
+			}
+			{
+				char buf[8];
+				LOGI("Setting ignore cert store... %d\n",
+						sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_DISABLE_CERTIFICATE_STORE, buf, sizeof(buf) ));
+			}
 		 }else{
 			 sAddr = _get_addr(ip, 80);
 			 sock = socket(AF_INET, SOCK_STREAM, SL_IPPROTO_TCP);

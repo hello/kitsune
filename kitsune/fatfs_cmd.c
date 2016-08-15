@@ -422,6 +422,7 @@ char* strsep( char** stringp, const char* delim )
 #include "hlo_http.h"
 #include "audio_types.h"
 #include "hlo_audio_tools.h"
+hlo_stream_t * mic_test_stream_open(void);
 #define BUF_SIZE 64
 hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 	hlo_stream_t * rstr = NULL;
@@ -445,13 +446,15 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					}
 					break;
 				}
+#if 0
 				case 'n':
 				case 'N':
 					rstr = hlo_stream_nn_keyword_recognition( rstr, 80 );
 					break;
+#endif
 				case 't':
 				case 'T':
-					rstr = hlo_stream_en( rstr, NULL );
+					rstr = hlo_stream_en( rstr );
 					break;
 				case 'c':
 					rstr = hlo_stream_sr_cnv( rstr, DOWNSAMPLE );
@@ -500,9 +503,9 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					}
 					DISP("Output Opt rate is %d\r\n", opt_rate);
 					if(opt_rate){
-						rstr = hlo_audio_open_mono(opt_rate,30,HLO_AUDIO_PLAYBACK);
+						rstr = hlo_audio_open_mono(opt_rate,4,HLO_AUDIO_PLAYBACK);
 					}else{
-						rstr = hlo_audio_open_mono(48000,30,HLO_AUDIO_PLAYBACK);
+						rstr = hlo_audio_open_mono(48000,4,HLO_AUDIO_PLAYBACK);
 					}
 				}
 				break;
@@ -521,6 +524,10 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 				case 'F':
 					global_filename(p+1);
 					rstr = fs_stream_open(path_buff, HLO_STREAM_WRITE);
+					break;
+				case 'm':
+				case 'M':
+					rstr = mic_test_stream_open();
 					break;
 				default:
 					rstr = random_stream_open();
@@ -738,10 +745,10 @@ signed long hexToi(unsigned char *ptr)
 /******************************************************************************
    Image file names
 *******************************************************************************/
-#define IMG_BOOT_INFO           "/sys/mcubootinfo.bin"
-#define IMG_FACTORY_DEFAULT     "/sys/mcuimg1.bin"
-#define IMG_USER_1              "/sys/mcuimg2.bin"
-#define IMG_USER_2              "/sys/mcuimg3.bin"
+#define IMG_BOOT_INFO           "/ota/mcubootinfo.bin"
+#define IMG_FACTORY_DEFAULT     "/ota/mcuimg1.bin"
+#define IMG_USER_1              "/ota/mcuimg2.bin"
+#define IMG_USER_2              "/ota/mcuimg3.bin"
 
 /******************************************************************************
    Image status
@@ -815,7 +822,7 @@ static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
     //
     // Initialize boot info file create flag
     //
-    ulBootInfoCreateFlag  = SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 256 );
+    ulBootInfoCreateFlag  = SL_FS_CREATE|SL_FS_OVERWRITE | SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 256 );
 
 	if (hndl = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, SL_FS_WRITE, &ulBootInfoToken) < 0) {
 		LOGI("error opening file, trying to create\n");
@@ -1053,6 +1060,7 @@ void file_download_task( void * params ) {
 				strncpy( buf, serial_flash_path, 64 );
 				strncat(buf, serial_flash_name, 64 );
 
+				//TODO get max size from protobuf and set it here
 				sf_str = open_serial_flash(buf, HLO_STREAM_WRITE);
 
 				while(1){
@@ -1061,6 +1069,7 @@ void file_download_task( void * params ) {
 					}
 					DISP("x");
 				}
+				hlo_stream_close(sf_str);
 
                 if (strcmp(buf, "/top/update.bin") == 0) {
                     if (download_info.has_sha1) {

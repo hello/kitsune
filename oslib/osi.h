@@ -48,10 +48,9 @@ extern "C" {
 #define STACK_LEN          (SPAWN_TASK_STACK)
 #endif
 
-
+#define OSI_OK 0
 typedef enum
 {
-  OSI_OK = 0,
   OSI_FAILURE = -1,
   OSI_OPERATION_FAILED = -2,
   OSI_ABORTED = -3,

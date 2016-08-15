@@ -23,9 +23,11 @@ typedef struct {
 
 } KeywordNetContext_t;
 
+__attribute__((section(".ramcode")))
 static KeywordNetContext_t _context;
 
 
+__attribute__((section(".ramcode")))
 static void feats_callback(void * p, int8_t * feats) {
 	KeywordNetContext_t * context = (KeywordNetContext_t *)p;
 	Tensor_t * out;
@@ -112,6 +114,7 @@ static void feats_callback(void * p, int8_t * feats) {
 
 }
 
+__attribute__((section(".ramcode")))
 void keyword_net_initialize(void) {
 	MEMSET(&_context,0,sizeof(_context));
 
@@ -122,12 +125,14 @@ void keyword_net_initialize(void) {
 	tinytensor_features_initialize(&_context,feats_callback);
 }
 
+__attribute__((section(".ramcode")))
 void keyword_net_deinitialize(void) {
 	tinytensor_features_deinitialize();
 
 	tinytensor_free_states(&_context.state,&_context.net);
 }
 
+__attribute__((section(".ramcode")))
 void keyword_net_register_callback(void * target_context, Keyword_t keyword, int8_t threshold,KeywordCallback_t on_start, KeywordCallback_t on_end) {
 
 	_context.callbacks[keyword].on_start = on_start;
@@ -137,22 +142,27 @@ void keyword_net_register_callback(void * target_context, Keyword_t keyword, int
 
 }
 
+__attribute__((section(".ramcode")))
 void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples) {
 	tinytensor_features_add_samples(samples,nsamples);
 }
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "stdlib.h"
 
+__attribute__((section(".ramcode")))
 int cmd_test_neural_net(int argc, char * argv[]) {
 	int16_t samples[256];
 	uint32_t start = xTaskGetTickCount();
 	int i;
 
-	memset(samples,0,sizeof(samples));
+	for (i = 0; i < 256; i++) {
+		samples[i] = rand();
+	}
 	keyword_net_initialize();
 
-	keyword_net_register_callback(0,okay_sense,20,0,0);
+	keyword_net_register_callback(0,okay_sense,70,0,0);
 
 	DISP("start test\n\n");
 

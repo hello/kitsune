@@ -79,6 +79,7 @@ int led_init(void){
 	return 0;
 }
 
+__attribute__((section(".ramcode")))
 static void led_slow(led_color_t * color) {
 	int i;
 	led_color_t * end = &color[NUM_LED];
@@ -115,6 +116,7 @@ static void led_slow(led_color_t * color) {
 	}
 }
 
+__attribute__((section(".ramcode")))
 static void set_low() {
 	MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
 }

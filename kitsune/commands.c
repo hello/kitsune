@@ -113,6 +113,7 @@
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
 
 
+#include "tensor/keyword_net.h"
 #include "hlo_proto_tools.h"
 
 //******************************************************************************
@@ -228,14 +229,13 @@ int Cmd_fs_write(int argc, char *argv[]) {
 
 	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
 
-	if (hndl = sl_FsOpen((unsigned char*)argv[1],
-			SL_FS_WRITE, &tok) < 0 ) {
-		LOGF("error opening file, trying to create\n");
-
-		if ( hndl = sl_FsOpen((unsigned char*)argv[1],
-				SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 65535 ),
-				&tok) < 0 ) {
-			LOGF("error opening for write\n");
+	hndl = sl_FsOpen((unsigned char*)argv[1], SL_FS_WRITE, &tok);
+	if (hndl < 0) {
+		LOGI("error opening file, trying to create %d\n", hndl);
+		hndl = sl_FsOpen((unsigned char*)argv[1],
+				SL_FS_CREATE|SL_FS_OVERWRITE | SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 65535 ), &tok);
+		if (hndl < 0) {
+			LOGF("error opening for write %d\n", hndl);
 			return -1;
 		}
 	}
@@ -914,6 +914,7 @@ extern volatile bool top_got_device_id;
 extern volatile portTickType last_upload_time;
 int send_top(char * s, int n) ;
 void load_device_id();
+void set_mac_to_device_id();
 bool is_test_boot();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
@@ -1392,16 +1393,8 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 		return -1;
 	}
 
-	//ENTROPY ! Sensors, timers, TI's mac address, so much randomness!!!11!!1!
+	//ENTROPY !
 	int pos=0;
-	unsigned char mac[6];
-	unsigned short mac_len;
-	sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, NULL, &mac_len, mac);
-	memcpy(entropy_pool+pos, mac, 6);
-	pos+=6;
-	uint32_t now = xTaskGetTickCount();
-	memcpy(entropy_pool+pos, &now, 4);
-	pos+=4;
 	for(; pos < 32; ++pos){
 		unsigned int dust = get_dust();
 		entropy_pool[pos] ^= (uint8_t)dust;
@@ -1821,7 +1814,7 @@ static void print_nwp_version() {
 
 	pConfigLen = sizeof(SlDeviceVersion_t);
 
-	if( 0 == sl_WlanGet(SL_DEVICE_GENERAL,&pConfigOpt,&pConfigLen,(uint8_t *)(&ver)) ) {
+	if( 0 == sl_DeviceGet(SL_DEVICE_GENERAL,&pConfigOpt,&pConfigLen,(uint8_t *)(&ver)) ) {
 		LOGI("FW " );
 		for(i=0;i<ARR_LEN(ver.FwVersion);++i) {
 			LOGI("%d.", ver.FwVersion[i] );
@@ -1857,8 +1850,7 @@ int Cmd_uvw(int argc, char *argv[]);
 extern int ch;
 
 int cmd_vol(int argc, char *argv[]) {
- set_volume(atoi(argv[1]), portMAX_DELAY);
- return 0;
+ return set_volume(atoi(argv[1]), portMAX_DELAY);;
 }
 
 
@@ -1868,15 +1860,18 @@ int cmd_ch(int argc, char *argv[]) {
 }
 
 int cmd_codec(int argc, char *argv[]);
+int cmd_confidence(int argc, char *argv[]);
+int cmd_pwr_speaker(int argc, char * argv[]);
 
 
 int cmd_button(int argc, char *argv[]) {
-
 #define LED_GPIO_BASE_DOUT GPIOA2_BASE
 #define LED_GPIO_BIT_DOUT 0x80
 	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
-
-LOGF("button %d\n", fast);
+	while(1) {
+		LOGF("%d\r", fast);
+		vTaskDelay(100);
+	}
 }
 int Cmd_readlight(int argc, char *argv[]);
 // ==============================================================================
@@ -1887,7 +1882,10 @@ tCmdLineEntry g_sCmdTable[] = {
 		//    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
 		{ "b",      cmd_button,      " " },
 		{ "v",      cmd_vol,      " " },
+
+	    { "nnc",      cmd_confidence,      " " },
 	    { "co",      cmd_codec,      " " },
+		{"spkr",cmd_pwr_speaker,""},
 
 #if 0
 		{ "time_test", Cmd_time_test, "" },
@@ -1965,6 +1963,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "p", Cmd_AudioPlayback, ""},
 		{ "getoct",Cmd_get_octogram,""},
 		{ "aon",Cmd_audio_turn_on,""},
+		{ "mictest", Cmd_mic_test,""},
 #if 0
 		{ "mode", Cmd_mode, "" }, //set the ap/station mode
 
@@ -2093,6 +2092,8 @@ void vUARTTask(void *pvParameters) {
 	wifi_status_init();
 
 	sl_mode = sl_Start(NULL, NULL, NULL);
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(0, 0, 0, 0), NULL, 0);
+
 	UARTprintf("*");
 	while (sl_mode != ROLE_STA) {
 		UARTprintf("+");
@@ -2109,6 +2110,8 @@ void vUARTTask(void *pvParameters) {
 	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(0, 0, 0, 0), NULL, 0);
 
 	UARTprintf("*");
+	load_device_id();
+	set_mac_to_device_id();
 
 	unsigned char mac[6];
 	unsigned short mac_len;
@@ -2170,7 +2173,6 @@ void vUARTTask(void *pvParameters) {
 
 	load_serial();
 	load_aes();
-	load_device_id();
 	load_account_id();
 	load_alarm();
 	pill_settings_init();
@@ -2198,9 +2200,9 @@ void vUARTTask(void *pvParameters) {
 	if( on_charger ) {
 		launch_tasks();
 		vTaskDelete(NULL);
-	//	return;
+		return;
 	} else {
-	//	play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
+		//play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
 	}
 
 	UARTprintf("\n\nFreeRTOS %s, %08x, %s %02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -2210,7 +2212,9 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("> ");
 
 	/* remove anything we recieved before we were ready */
-	//xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
+	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
+
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 
 	/* Loop forever */
 	while (1) {

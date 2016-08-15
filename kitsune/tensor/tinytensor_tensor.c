@@ -1,7 +1,7 @@
 #include "tinytensor_tensor.h"
 #include "tinytensor_memory.h"
 
-#include <assert.h>
+#include "kit_assert.h"
 
 void delete_tensor(void * context) {
     Tensor_t * p = (Tensor_t *) context;

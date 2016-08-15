@@ -118,22 +118,6 @@ void SimpleLinkHttpServerCallback(SlNetAppHttpServerEvent_t *pHttpEvent,
     // Unused in this application
 }
 
-//*****************************************************************************
-//
-//! This function handles socket events indication
-//!
-//! \param[in]      pSock - Pointer to Socket Event Info
-//!
-//! \return None
-//!
-//*****************************************************************************
-void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
-{
-    //
-    // This application doesn't work w/ socket - Events are not expected
-    //
-}
-
 static uint8_t _connected_ssid[MAX_SSID_LEN];
 
 
@@ -851,6 +835,17 @@ void load_aes() {
 	UARTprintf("\n");
 	*/
 }
+#include "netcfg.h"
+void set_mac_to_device_id() {
+	unsigned char mac[6] = {0x5c,0x6b,0x4f,0,0,0};
+	unsigned short mac_len;
+
+	mac[3] = device_id[DEVICE_ID_SZ-3];
+	mac[4] = device_id[DEVICE_ID_SZ-2];
+	mac[5] = device_id[DEVICE_ID_SZ-1];
+	sl_NetCfgSet(SL_NETCFG_MAC_ADDRESS_SET, 1, SL_MAC_ADDR_LEN, mac);
+	nwp_reset();
+}
 void load_device_id() {
 	int r;
 
@@ -1113,6 +1108,43 @@ int stop_connection(int * sock) {
     return *sock;
 }
 
+
+void
+SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
+{
+    char *caName;
+
+    if(SL_SOCKET_ASYNC_EVENT == pSock->Event)
+    {
+        DISP("[SocketEvent] an event received on socket %d\r\n",pSock->SocketAsyncEvent.SockAsyncData.Sd);
+        switch(pSock->SocketAsyncEvent.SockAsyncData.Type)
+        {
+        case SL_SSL_NOTIFICATION_WRONG_ROOT_CA:
+             caName = (char *) pvPortMalloc(pSock->SocketAsyncEvent.SockAsyncData.Val + 1);
+            if (caName == NULL)
+                    {
+            		DISP("Buffer allocation failed\n\r");
+                           return;
+                    }
+            memcpy(caName,
+                                 pSock->SocketAsyncEvent.SockAsyncData.pExtraInfo,
+                                 pSock->SocketAsyncEvent.SockAsyncData.Val);
+
+            caName[pSock->SocketAsyncEvent.SockAsyncData.Val] = 0;
+
+            DISP("[SocketEvent] Used wrong CA to verify the peer. please use %s\r\n",caName);
+
+            vPortFree (caName);
+
+            break;
+        default:
+            break;
+        }
+    }
+
+}
+
+
 int start_connection(int * sock, char * host, security_type sec) {
     sockaddr sAddr;
     timeval tv;
@@ -1132,7 +1164,7 @@ int start_connection(int * sock, char * host, security_type sec) {
 			*sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
 
 			LOGI("SSL\n");
-			#define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
+			#define SL_SSL_CA_CERT_FILE_NAME "/cert/digi.cer"
 			// configure the socket as SSLV3.0
 			// configure the socket as RSA with RC4 128 SHA
 			// setup certificate
@@ -1142,7 +1174,7 @@ int start_connection(int * sock, char * host, security_type sec) {
 #else
 			unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
 #endif
-			if( sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
+			if(	sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
 				sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
 				sl_SetSockOpt(*sock, SL_SOL_SOCKET, \
 									   SL_SO_SECURE_FILES_CA_FILE_NAME, \
@@ -1152,6 +1184,12 @@ int start_connection(int * sock, char * host, security_type sec) {
 			LOGI( "error setting ssl options\r\n" );
 			ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
 			}
+			{
+				char buf[8];
+				LOGI("Setting ignore cert store... %d\n",
+						sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECURE_DISABLE_CERTIFICATE_STORE, buf, sizeof(buf) ));
+			}
+
         } else {
 			*sock = socket(AF_INET, SOCK_STREAM, SL_IPPROTO_TCP);
         }
