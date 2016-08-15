@@ -665,7 +665,6 @@ int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p ) {
 	   Reading these 8 bytes consecutively (0x94 - 0x9A) ensures that
 	    the data is concurrent.
 	*/
-start_rgb:
 	if( !haz_tmg4903() ) {
 		LOGE("can't find TMG4903\n");
 		xSemaphoreGiveRecursive(i2c_smphr);
@@ -766,12 +765,11 @@ int init_uv(bool als) {
 
 	return 0;
 }
-
-int Cmd_read_uv(int argc, char *argv[]) {
+int read_zopt(zopt_mode selection) {
 	static int use_als;
 
-	if( use_als != (atoi(argv[1]) == 1) ) {
-		use_als  = (atoi(argv[1]) == 1);
+	if( use_als != (selection==ZOPT_ALS) ) {
+		use_als  = (selection==ZOPT_ALS);
 		if( init_uv( use_als ) ) {
 			LOGF("UV FAIL\n");
 			return -1;
@@ -787,8 +785,11 @@ int Cmd_read_uv(int argc, char *argv[]) {
 	(I2C_IF_Read(0x53, (uint8_t*)&v, 3));
 	xSemaphoreGiveRecursive(i2c_smphr);
 
-	LOGF("%d\n", v);
+	return v;
+}
 
+int Cmd_read_uv(int argc, char *argv[]) {
+	LOGF("%d\n", read_zopt(atoi(argv[1])));
 	return 0;
 }
 
