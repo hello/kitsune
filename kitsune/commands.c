@@ -1683,7 +1683,7 @@ void launch_tasks() {
 	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
 
-
+	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
 #endif
 }
 
@@ -2259,7 +2259,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	start_top_boot_watcher();
 
-#define DEMO
+//#define DEMO
 
 #ifndef DEMO
 	if( on_charger ) {
@@ -2271,7 +2271,6 @@ void vUARTTask(void *pvParameters) {
 	}
 #else
 	/* remove anything we recieved before we were ready */
-	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
 	Cmd_boot(0,0);
 #endif
 
