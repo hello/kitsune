@@ -19,8 +19,6 @@ static hlo_stream_t * master;
 
 static unsigned long record_sr;
 static unsigned long playback_sr;
-static unsigned int initial_vol;
-static unsigned int initial_gain;
 static uint8_t audio_started = 0;
 xSemaphoreHandle record_isr_sem;
 xSemaphoreHandle playback_isr_sem;;
@@ -33,8 +31,8 @@ static volatile uint32_t last_play;
 ////------------------------------
 // playback stream driver
 
-static int _open_playback(uint8_t vol){
-	if(InitAudioPlayback(vol)){
+static int _open_playback(){
+	if(InitAudioPlayback()){
 		return -1;
 	}
 	DISP("Open playback\r\n");
@@ -58,6 +56,7 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 #if 0
 				return _reinit_playback(playback_sr, initial_vol);
 #else
+				mcu_reset();
 				return HLO_STREAM_ERROR;
 #endif
 			}
@@ -81,7 +80,7 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 ////------------------------------
 //record stream driver
 //bool set_mic_gain(int v, unsigned int dly) ;
-static int _open_record(uint32_t gain){
+static int _open_record(){
 	if(InitAudioCapture()){
 		return -1;
 	}
@@ -113,6 +112,7 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 #if 0
 			return _reinit_record(record_sr, initial_gain);
 #else
+			mcu_reset();
 			return HLO_STREAM_ERROR;
 #endif
 		}
@@ -233,26 +233,24 @@ void hlo_audio_init(void){
 
 }
 
-hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint8_t gain, uint32_t direction){
+hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint32_t direction){
 	hlo_stream_t * ret = master;
 	LOCK();
-	if(direction == HLO_AUDIO_PLAYBACK){
+	if(direction == HLO_AUDIO_PLAYBACK) {
 		playback_sr = sr;
-		initial_vol = vol;
-	}else if(direction == HLO_AUDIO_RECORD){
+	} else if(direction == HLO_AUDIO_RECORD){
 		record_sr = sr;
-		initial_gain = gain;
 	}else{
 		LOGW("Unsupported Audio Mode, returning default stream\r\n");
 	}
 
 	if(!audio_started){
-		_open_record(gain);
-		_open_playback(vol);
+		_open_record();
+		_open_playback();
 
+		set_volume(0, portMAX_DELAY);
 		Audio_Start();
 		audio_started = 1;
-		set_volume(vol, portMAX_DELAY);
 	}
 	UNLOCK();
 
