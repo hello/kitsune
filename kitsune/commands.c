@@ -1083,7 +1083,7 @@ void sample_sensor_data(periodic_data* data)
 	data->has_unix_time = true;
 	{
 		int als = read_zopt( ZOPT_ALS );
-		if( als > 0 ) {
+		if( als >= 0 ) {
 			LOGI("als %d\n", als);
 			data->has_light_sensor = true;
 			data->light_sensor.has_lux_count = true;
@@ -1237,7 +1237,7 @@ void sample_sensor_data(periodic_data* data)
 
 	{
 		int uv = read_zopt( ZOPT_UV );
-		if( uv > 0 ) {
+		if( uv >= 0 ) {
 			LOGI("uv %d\n", uv);
 			data->has_light_sensor = true;
 			data->light_sensor.has_lux_count = true;
