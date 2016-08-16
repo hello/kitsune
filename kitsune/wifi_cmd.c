@@ -62,6 +62,7 @@ int sl_mode = ROLE_INVALID;
 int send_top(char *, int);
 void mcu_reset()
 {
+	set_volume(0, 1000);
 	uart_logger_flush_err_shutdown();
 	send_top("bounce", strlen("bounce"));
 	vTaskDelay(1000);
@@ -847,14 +848,19 @@ void set_mac_to_device_id() {
 	}
 }
 bool load_device_id() {
-	int r;
+	static bool loaded = false;
+	if( !loaded ) {
+		int r;
 
-	int ret = fs_get( DEVICE_ID_LOC, device_id, DEVICE_ID_SZ, &r );
-	device_id[DEVICE_ID_SZ] = 0;
+		int ret = fs_get( DEVICE_ID_LOC, device_id, DEVICE_ID_SZ, &r );
+		device_id[DEVICE_ID_SZ] = 0;
 
-	if (r != DEVICE_ID_SZ || ret < 0) {
-		LOGE("failed to read device id file\n");
-		return false;
+		if (r != DEVICE_ID_SZ || ret < 0) {
+			LOGE("failed to read device id file\n");
+			return false;
+		} else {
+			loaded = true;
+		}
 	}
 	/*
 	UARTprintf("device id loaded from file: ");
