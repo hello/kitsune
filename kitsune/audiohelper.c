@@ -97,7 +97,7 @@ void DeinitAudioCapture(void) {
 	}
 }
 
-uint8_t InitAudioPlayback(int32_t vol) {
+uint8_t InitAudioPlayback() {
 
 	//create circular buffer
 	if (!pRxBuffer) {

@@ -208,7 +208,6 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 //playback sample app
 static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop){
 	int ret;
-	uint8_t chunk[512]; //arbitrary
 
 	ramp_ctx_t vol = (ramp_ctx_t){
 		.current = 0,
@@ -218,7 +217,8 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 		.duration =  desc->durationInSeconds * 1000,
 	};
 
-	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,0,0,HLO_AUDIO_PLAYBACK);
+	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,HLO_AUDIO_PLAYBACK);
+	set_volume(0, portMAX_DELAY);
 	hlo_stream_t * fs = desc->stream;
 
 	hlo_future_t * vol_task = (hlo_future_t*)hlo_future_create_task_bg(_change_volume_task,(void*)&vol,1024);
@@ -297,7 +297,7 @@ static uint8_t CheckForInterruptionDuringCapture(void){
 static int _do_capture(const AudioCaptureDesc_t * info){
 	int ret = HLO_STREAM_ERROR;
 	if(info->p){
-		hlo_stream_t * mic = hlo_audio_open_mono(info->rate, 0, 0, HLO_AUDIO_RECORD);
+		hlo_stream_t * mic = hlo_audio_open_mono(info->rate, HLO_AUDIO_RECORD);
 		ret = info->p(mic, info->opt_out, info->ctx, CheckForInterruptionDuringCapture);
 		LOGI("Capture Returned: %d\r\n", ret);
 		hlo_stream_close(mic);

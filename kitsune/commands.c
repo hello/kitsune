@@ -259,7 +259,7 @@ int Cmd_fs_read(int argc, char *argv[]) {
 #define minval( a,b ) a < b ? a : b
 #define BUF_SZ 600
 	unsigned long tok=0;
-	long hndl, err, bytes, i;
+	long hndl, bytes, i;
 	SlFsFileInfo_t info;
 	char buffer[BUF_SZ];
 
@@ -1076,6 +1076,18 @@ void sample_sensor_data(periodic_data* data)
 	AudioOncePerMinuteData_t aud_data;
 	data->unix_time = get_time();
 	data->has_unix_time = true;
+	{
+		int als = read_zopt( ZOPT_ALS );
+		if( als >= 0 ) {
+			LOGI("als %d\n", als);
+			data->has_light_sensor = true;
+			data->light_sensor.has_lux_count = true;
+			data->light_sensor.lux_count = als;
+		} else {
+			LOGE("als err %d\n", als);
+		}
+		read_zopt( ZOPT_UV );
+	}
 
 	// copy over the dust values
 	if( xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
@@ -1138,7 +1150,7 @@ void sample_sensor_data(periodic_data* data)
 	if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 		if(light_cnt == 0)
 		{
-			data->has_light = false;
+			data->has_light_sensor = false;
 		}else{
 			light_log_sum /= light_cnt;  // just be careful for devide by zero.
 			light_sf = (light_mean << 8) / bitexp( light_log_sum );
@@ -1160,11 +1172,12 @@ void sample_sensor_data(periodic_data* data)
 
 			light_m2 = light_mean = light_cnt = light_log_sum = light_sf = 0;
 		}
-		data->has_rgb = true;
-		data->rgb.r = rgb[0];
-		data->rgb.g = rgb[1];
-		data->rgb.b = rgb[2];
-		
+		data->has_light_sensor = true;
+		data->light_sensor.r = rgb[0];
+		data->light_sensor.g = rgb[1];
+		data->light_sensor.b = rgb[2];
+		data->light_sensor.has_clear = true;
+		data->light_sensor.clear = light;
 		xSemaphoreGive(light_smphr);
 	}
 
@@ -1172,8 +1185,9 @@ void sample_sensor_data(periodic_data* data)
 		int ir;
 		if( 0 == get_ir( &ir ) ) {
 			LOGI("ir %d\n", ir);
-			data->infrared = true;
-			data->infrared = ir;
+			data->has_light_sensor = true;
+			data->light_sensor.has_infrared = true;
+			data->light_sensor.infrared = ir;
 		}
 	}
 	{
@@ -1215,6 +1229,19 @@ void sample_sensor_data(periodic_data* data)
 		data->hold_count = hold_count;
 	}
 
+
+	{
+		int uv = read_zopt( ZOPT_UV );
+		if( uv >= 0 ) {
+			LOGI("uv %d\n", uv);
+			data->has_light_sensor = true;
+			data->light_sensor.has_lux_count = true;
+			data->light_sensor.lux_count = uv;
+		} else {
+			LOGE("uv err %d\n", uv);
+		}
+		read_zopt( ZOPT_ALS );
+	}
 	gesture_counter_reset();
 }
 
@@ -1651,7 +1678,7 @@ void launch_tasks() {
 	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
 
-
+	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
 #endif
 }
 
@@ -1741,10 +1768,12 @@ int cmd_memfrag(int argc, char *argv[]) {
 	}
 	return 0;
 }
+#if 0
 static long always_slow(int dly){
 	vTaskDelay(dly);
 	return 0;
 }
+#endif
 
 void
 vAssertCalled( const char * s );
@@ -1836,11 +1865,6 @@ int Cmd_nwpinfo(int argc, char *argv[]) {
 int Cmd_SyncID(int argc, char * argv[]);
 int Cmd_time_test(int argc, char * argv[]);
 int cmd_file_sync_upload(int argc, char *argv[]);
-
-int Cmd_read_temp_humid_old(int argc, char *argv[]);
-int Cmd_read_uv(int argc, char *argv[]);
-int Cmd_uvr(int argc, char *argv[]);
-int Cmd_uvw(int argc, char *argv[]);
 
 extern int ch;
 
@@ -2102,7 +2126,6 @@ void vUARTTask(void *pvParameters) {
 	// Set connection policy to Auto, fast
 
 	UARTprintf("*");
-	load_device_id();
 	set_mac_to_device_id();
 
 	unsigned char mac[6];
@@ -2231,7 +2254,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	start_top_boot_watcher();
 
-#define DEMO
+//#define DEMO
 
 #ifndef DEMO
 	if( on_charger ) {
@@ -2243,7 +2266,6 @@ void vUARTTask(void *pvParameters) {
 	}
 #else
 	/* remove anything we recieved before we were ready */
-	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
 	Cmd_boot(0,0);
 #endif
 

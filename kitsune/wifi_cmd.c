@@ -62,6 +62,7 @@ int sl_mode = ROLE_INVALID;
 int send_top(char *, int);
 void mcu_reset()
 {
+	set_volume(0, 1000);
 	uart_logger_flush_err_shutdown();
 	send_top("bounce", strlen("bounce"));
 	vTaskDelay(1000);
@@ -837,24 +838,29 @@ void load_aes() {
 }
 #include "netcfg.h"
 void set_mac_to_device_id() {
-	unsigned char mac[6] = {0x5c,0x6b,0x4f,0,0,0};
-	unsigned short mac_len;
-
-	mac[3] = device_id[DEVICE_ID_SZ-3];
-	mac[4] = device_id[DEVICE_ID_SZ-2];
-	mac[5] = device_id[DEVICE_ID_SZ-1];
-	sl_NetCfgSet(SL_NETCFG_MAC_ADDRESS_SET, 1, SL_MAC_ADDR_LEN, mac);
-	nwp_reset();
+	if( load_device_id() ) {
+		unsigned char mac[6] = {0x5c,0x6b,0x4f,0,0,0};
+		mac[3] = device_id[DEVICE_ID_SZ-3];
+		mac[4] = device_id[DEVICE_ID_SZ-2];
+		mac[5] = device_id[DEVICE_ID_SZ-1];
+		sl_NetCfgSet(SL_NETCFG_MAC_ADDRESS_SET, 1, SL_MAC_ADDR_LEN, mac);
+		nwp_reset();
+	}
 }
-void load_device_id() {
-	int r;
+bool load_device_id() {
+	static bool loaded = false;
+	if( !loaded ) {
+		int r;
 
-	fs_get( DEVICE_ID_LOC, device_id, DEVICE_ID_SZ, &r );
-	device_id[DEVICE_ID_SZ] = 0;
+		int ret = fs_get( DEVICE_ID_LOC, device_id, DEVICE_ID_SZ, &r );
+		device_id[DEVICE_ID_SZ] = 0;
 
-	if (r != DEVICE_ID_SZ) {
-		LOGE("failed to read device id file\n");
-		return;
+		if (r != DEVICE_ID_SZ || ret < 0) {
+			LOGE("failed to read device id file\n");
+			return false;
+		} else {
+			loaded = true;
+		}
 	}
 	/*
 	UARTprintf("device id loaded from file: ");
@@ -866,6 +872,7 @@ void load_device_id() {
 
 	UARTprintf("\n");
 	*/
+	return true;
 }
 
 static void _on_morpheus_command_success(void * structdata){

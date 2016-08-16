@@ -440,9 +440,9 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					}
 					DISP("Input Opt rate is %d\r\n", opt_rate);
 					if(opt_rate){
-						rstr = hlo_audio_open_mono(opt_rate,50,60,HLO_AUDIO_RECORD);
+						rstr = hlo_audio_open_mono(opt_rate,HLO_AUDIO_RECORD);
 					}else{
-						rstr = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,50,60,HLO_AUDIO_RECORD);
+						rstr = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_RECORD);
 					}
 					break;
 				}
@@ -484,7 +484,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					}
 					break;
 				case '~':
-					rstr = open_serial_flash(p+1, HLO_STREAM_READ);
+					rstr = open_serial_flash(p+1, HLO_STREAM_READ, 65536);
 					break;
 				default:
 					LOGE("stream missing\n");
@@ -503,10 +503,11 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					}
 					DISP("Output Opt rate is %d\r\n", opt_rate);
 					if(opt_rate){
-						rstr = hlo_audio_open_mono(opt_rate,50,60,HLO_AUDIO_PLAYBACK);
+						rstr = hlo_audio_open_mono(opt_rate,HLO_AUDIO_PLAYBACK);
 					}else{
-						rstr = hlo_audio_open_mono(48000,50,60,HLO_AUDIO_PLAYBACK);
+						rstr = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_PLAYBACK);
 					}
+					set_volume(64, portMAX_DELAY);
 				}
 				break;
 				case 'i':
@@ -518,7 +519,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					rstr = uart_stream();
 					break;
 				case '~':
-					rstr = open_serial_flash(p+1, HLO_STREAM_WRITE);
+					rstr = open_serial_flash(p+1, HLO_STREAM_WRITE, 65536);
 					break;
 				case 'f':
 				case 'F':
@@ -813,30 +814,26 @@ static sBootInfo_t sBootInfo;
 
 static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
 {
+    _i32 status = -1;
     _i32 hndl;
     unsigned long ulBootInfoToken = 0;
     unsigned long ulBootInfoCreateFlag;
 
-
-    sl_FsDel((unsigned char *)IMG_BOOT_INFO,ulBootInfoToken);
     //
     // Initialize boot info file create flag
     //
-    ulBootInfoCreateFlag  = SL_FS_CREATE|SL_FS_OVERWRITE | SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 256 );
-
-	if (hndl = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, SL_FS_WRITE, &ulBootInfoToken) < 0) {
-		LOGI("error opening file, trying to create\n");
-
-		if (hndl = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, ulBootInfoCreateFlag, &ulBootInfoToken) < 0) {
-            LOGE("Boot info open failed\n");
-			return -1;
-		}else{
-            sl_FsWrite(hndl, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t));  // Dummy write, we don't care about the result
-        }
+    ulBootInfoCreateFlag  = SL_FS_CREATE | SL_FS_OVERWRITE | SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 256 );
+    hndl = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, ulBootInfoCreateFlag, &ulBootInfoToken);
+	if (hndl < 0) {
+		LOGE("Boot info open failed\n");
+		return -1;
 	}
-	if( 0 < sl_FsWrite(hndl, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
+	status = sl_FsWrite(hndl, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t));
+	if( status >= 0 )
 	{
 		LOGI("WriteBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus);
+	} else {
+		LOGE("FAILED TO WRITE BOOT INFO %d\n", status);
 	}
 	sl_FsClose(hndl, 0, 0, 0);
     return 0;
@@ -844,24 +841,27 @@ static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
 
 static _i32 _ReadBootInfo(sBootInfo_t *psBootInfo)
 {
-    _i32 lFileHandle;
+    _i32 hndl;
     _i32 status = -1;
     unsigned long ulBootInfoToken;
     //
     // Check if its a secure MCU
     //
-    if( lFileHandle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, SL_FS_READ, &ulBootInfoToken) < 0 )
+    hndl = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, SL_FS_READ, &ulBootInfoToken);
+    if( hndl >= 0 )
     {
-        if( 0 < sl_FsRead(lFileHandle, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
+    	status =  sl_FsRead(hndl, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t));
+        if( status >= 0 )
         {
-            status = 0;
             static bool printed = false;
             if( !printed ) {
             	LOGI("ReadBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus);
             	printed = true;
             }
+        } else {
+    		LOGE("FAILED TO READ BOOT INFO %d\n", status);
         }
-        sl_FsClose(lFileHandle, 0, 0, 0);
+        sl_FsClose(hndl, 0, 0, 0);
     }
     return status;
 }
@@ -1061,13 +1061,12 @@ void file_download_task( void * params ) {
 				strncat(buf, serial_flash_name, 64 );
 
 				//TODO get max size from protobuf and set it here
-				sf_str = open_serial_flash(buf, HLO_STREAM_WRITE);
+				sf_str = open_serial_flash(buf, HLO_STREAM_WRITE, download_info.has_file_size ? download_info.file_size : 300 * 1024);
 
 				while(1){
 					if(hlo_stream_transfer_between( http_str, sf_str, (uint8_t*)buf, sizeof(buf), 4 ) < 0){
 						break;
 					}
-					DISP("x");
 				}
 				hlo_stream_close(sf_str);
 
