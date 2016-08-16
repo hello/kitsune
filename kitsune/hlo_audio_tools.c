@@ -545,7 +545,7 @@ enum mad_flow _mp3_output(void *data,
 	for(i = 0; i < pcm->length; i++){
 		i16_samples[i] = scale(pcm->samples[0][i]);
 	}
-	int ret = hlo_stream_transfer_all(INTO_STREAM, ctx->out, i16_samples, pcm->length * sizeof(int16_t), 4);
+	int ret = hlo_stream_transfer_all(INTO_STREAM, ctx->out, (uint8_t*)i16_samples, pcm->length * sizeof(int16_t), 4);
 	if( ret < 0){
 		return MAD_FLOW_BREAK;
 	}
