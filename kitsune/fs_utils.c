@@ -69,7 +69,9 @@ int fs_save( char* file, void* data, int len) {
 typedef struct{
 	long hndl;
 	long tok;
+	uint32_t size;
 	uint32_t offset;
+	uint32_t percent;
 }sf_ctx_t;
 static int _read_sf(void * ctx, void * out, size_t len){
 	sf_ctx_t * sf = (sf_ctx_t*)ctx;
@@ -89,8 +91,14 @@ static int _write_sf(void * ctx, const void * in, size_t len){
 	int ret = sl_FsWrite(sf->hndl, sf->offset, (uint8_t*)in, len);
 	if( ret > 0 ){
 		sf->offset += ret;
+
+		if( sf->percent != 100*sf->offset / sf->size) {
+			LOGI("%d percent\r\n", 100*sf->offset / sf->size );
+			sf->percent = 100*sf->offset / sf->size;
+		}
 		return ret;
 	}else if(ret == 0){
+		LOGI("100\r\n" );
 		return HLO_STREAM_EOF;
 	}else{
 		LOGW("SF error %d\r\n", ret);
@@ -148,6 +156,8 @@ hlo_stream_t * open_serial_flash( char * filepath, uint32_t options, uint32_t ma
 	assert(ctx);
 	ctx->hndl = hndl;
 	ctx->tok = tok;
+	ctx->size = max_size;
 	ctx->offset = 0;
+	ctx->percent = 0;
 	return hlo_stream_new(&tbl,ctx,options);
 }

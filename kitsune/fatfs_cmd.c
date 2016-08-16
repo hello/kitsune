@@ -1067,7 +1067,6 @@ void file_download_task( void * params ) {
 					if(hlo_stream_transfer_between( http_str, sf_str, (uint8_t*)buf, sizeof(buf), 4 ) < 0){
 						break;
 					}
-					DISP("x");
 				}
 				hlo_stream_close(sf_str);
 
