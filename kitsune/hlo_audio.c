@@ -56,7 +56,7 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 #if 0
 				return _reinit_playback(playback_sr, initial_vol);
 #else
-				mcu_reset();
+//				mcu_reset();
 				return HLO_STREAM_ERROR;
 #endif
 			}
@@ -112,7 +112,7 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 #if 0
 			return _reinit_record(record_sr, initial_gain);
 #else
-			mcu_reset();
+//			mcu_reset();
 			return HLO_STREAM_ERROR;
 #endif
 		}

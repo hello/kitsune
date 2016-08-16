@@ -1189,7 +1189,6 @@ int32_t codec_init(void)
 }
 
 static int codec_after_init_test(void){
-
 	char send_stop = 1;
 	unsigned char cmd[2];
 
