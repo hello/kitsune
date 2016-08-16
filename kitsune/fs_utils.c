@@ -93,7 +93,7 @@ static int _write_sf(void * ctx, const void * in, size_t len){
 		sf->offset += ret;
 
 		if( sf->percent != 100*sf->offset / sf->size) {
-			LOGI("%d percent\r\n", 100*sf->offset / sf->size );
+			LOGI("DL %d\r\n", 100*sf->offset / sf->size );
 			sf->percent = 100*sf->offset / sf->size;
 		}
 		return ret;
