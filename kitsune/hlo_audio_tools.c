@@ -298,11 +298,11 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		if( 0 == hlo_pb_decode(output,SpeechResponse_fields, &resp) ){
 			DISP("Resp %s\r\nUrl %s\r\n", resp.text.arg, resp.url.arg);
 			if(resp.audio_stream_size){
-				hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 60,HLO_AUDIO_PLAYBACK);
+				hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_SAMPLE_RATE, 60,HLO_AUDIO_PLAYBACK);
 				DISP("Playback Audio\r\n");
 				hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
 			}
-		/*	hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 60,HLO_AUDIO_PLAYBACK);
+		/*	hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_SAMPLE_RATE, 60,HLO_AUDIO_PLAYBACK);
 			hlo_stream_t * fs = hlo_http_get(resp.url.arg);
 			hlo_filter_adpcm_decoder(fs,aud,NULL,NULL);
 			hlo_stream_close(fs);
@@ -318,7 +318,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 #else
 	if(ret >= 0 || ret == HLO_STREAM_EOF ){
 		DISP("\r\n===========\r\n");
-		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_PLAYBACK);
+		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_PLAYBACK);
 			DISP("Playback Audio\r\n");
 			output = hlo_stream_sr_cnv( output, UPSAMPLE );
 			//hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
@@ -606,7 +606,7 @@ static uint8_t _can_has_sig_stop(void){
 int Cmd_audio_record_start(int argc, char *argv[]){
 	//audio_sig_stop = 0;
 	//hlo_audio_recorder_task("rec.raw");
-	AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
+	AudioTask_StartCapture(AUDIO_SAMPLE_RATE);
 	return 0;
 }
 int Cmd_audio_record_stop(int argc, char *argv[]){
@@ -700,7 +700,7 @@ void AudioControlTask(void * unused) {
 
 
 		hlo_stream_t * in;
-		in = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_RECORD);
+		in = hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_RECORD);
 		in = hlo_stream_sr_cnv( in, DOWNSAMPLE );
 
 		hlo_stream_t * out;

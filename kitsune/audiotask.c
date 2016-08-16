@@ -406,7 +406,7 @@ int Cmd_AudioPlayback(int argc, char * argv[]){
 		desc.fade_in_ms = 1000;
 		desc.fade_out_ms = 1000;
 		desc.onFinished = NULL;
-		desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
+		desc.rate = AUDIO_SAMPLE_RATE;
 		desc.stream = fs_stream_open_media(argv[1], 0);
 		desc.volume = 44;
 		ustrncpy(desc.source_name, argv[1], sizeof(desc.source_name));
@@ -422,7 +422,7 @@ int Cmd_AudioCapture(int argc, char * argv[]){
 			AudioTask_StopCapture();
 		}else{
 			LOGI("Starting Capture\r\n");
-			AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
+			AudioTask_StartCapture(AUDIO_SAMPLE_RATE);
 		}
 		return 0;
 	}

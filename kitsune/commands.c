@@ -318,7 +318,7 @@ int Cmd_fs_read(int argc, char *argv[]) {
 }
 
 int Cmd_audio_turn_on(int argc, char * argv[]) {
-	AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
+	AudioTask_StartCapture(AUDIO_SAMPLE_RATE);
 
 	AudioProcessingTask_SetControl(featureUploadsOn,0);
 #ifdef KIT_INCLUDE_FILE_UPLOAD
@@ -613,7 +613,7 @@ void thread_alarm(void * unused) {
 				desc.durationInSeconds = alarm.ring_duration_in_second;
 				desc.volume = 10;
 				desc.onFinished = thread_alarm_on_finished;
-				desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
+				desc.rate = AUDIO_SAMPLE_RATE;
 				desc.context = &alarm_led_id;
 
 				alarm.has_start_time = FALSE;
@@ -2205,7 +2205,7 @@ void vUARTTask(void *pvParameters) {
 	codec_init();
 
 	// McASP and DMA init
-	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
+	InitAudioTxRx(AUDIO_SAMPLE_RATE);
 
 	hlo_audio_init();
 
