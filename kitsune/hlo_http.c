@@ -501,6 +501,7 @@ static int _generate_header(char * output, size_t output_size, http_method metho
 	default:
 		return -1;
 	case GET:
+		/*
 		usnprintf(output, output_size,
 					"GET %s HTTP/1.1\r\n"
 		            "Host: %s\r\n"
@@ -509,6 +510,7 @@ static int _generate_header(char * output, size_t output_size, http_method metho
 		    		"X-Hello-Sense-TFW: %s\r\n"
 		            "Accept: %s\r\n\r\n",
 		            endpoint, host, hex_device_id, KIT_VER, get_top_version(), content_type);
+		            */
 		break;
 	case POST:
 		usnprintf(output, output_size,

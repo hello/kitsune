@@ -336,7 +336,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 					break;
 				}
 #endif
-				ret = hlo_stream_transfer_between(output,aud,samples,sizeof(samples),4);
+				ret = hlo_stream_transfer_between(output,aud,(uint8_t*)samples,sizeof(samples),4);
 
 				if(ret < 0){
 					break;
@@ -347,6 +347,23 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		hlo_stream_close(aud);
 	}
 #endif
+
+//#define DIV_MP3
+
+#ifdef DIV_MP3
+	AudioPlaybackDesc_t desc;
+	memset(&desc, 0, sizeof(desc));
+	desc.stream = fs_stream_open(output, HLO_STREAM_READ);
+	ustrncpy(desc.source_name, output, sizeof(desc.source_name));
+	desc.volume = 57;
+	desc.durationInSeconds = -1;
+	desc.rate = AUDIO_SAMPLE_RATE;
+	desc.fade_in_ms = 0;
+	desc.fade_out_ms = 0;
+	desc.to_fade_out_ms = 0;
+	AudioTask_StartPlayback(&desc);
+#endif
+
 	keyword_net_deinitialize();
 
 	stop_led_animation(portMAX_DELAY, 18);
