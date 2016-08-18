@@ -410,12 +410,12 @@ int Cmd_AudioPlayback(int argc, char * argv[]){
 		desc.onFinished = NULL;
 		desc.rate = AUDIO_SAMPLE_RATE;
 		LOGI("Playing from %s\n", argv[1]);
-#if 1
+#if 0
 		desc.p = NULL;
 		desc.stream = fs_stream_open_media(argv[1], 0);
 #else
-		desc.p = hlo_filter_mp3_decoder;
-		desc.stream = hlo_http_get(argv[1]);
+		desc.p = NULL; //hlo_filter_mp3_decoder;
+		desc.stream = fs_stream_open_media(argv[1], -1); //hlo_http_get(argv[1]);
 #endif
 		desc.volume = 44;
 		ustrncpy(desc.source_name, argv[1], sizeof(desc.source_name));
