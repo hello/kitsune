@@ -68,7 +68,6 @@ static int16_t hard_sigmoid(int32_t x,int8_t in_scale) {
     return (int16_t) temp32;
 }
 
-__attribute__((section(".ramcode")))
 static void lstm_time_step_forwards(int32_t * cell_state,
                                     Weight_t * output,
                                     const Weight_t * input_vec,
@@ -89,7 +88,7 @@ static void lstm_time_step_forwards(int32_t * cell_state,
     int32_t temp32;
     int8_t temp8;
     Weight_t h;
-    int8_t tempscale;
+    uint8_t tempscale;
     int32_t bias32;
 
     const Weight_t * weight_row_starts[NUM_GATES];
@@ -100,7 +99,7 @@ static void lstm_time_step_forwards(int32_t * cell_state,
     int16_t activation_forget_gate;
     int16_t activation_input_gate;
     int16_t activation_output_gate;
-    int8_t activation_cell;
+    Weight_t activation_cell;
     
     for (igate = 0; igate < NUM_GATES; igate++) {
         //set up row starts for all weights

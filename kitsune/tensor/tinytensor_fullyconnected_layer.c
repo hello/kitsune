@@ -26,7 +26,7 @@ static void eval_fullyconnected(const void * context,void * layer_state,Tensor_t
     Weight_t * output = out->x;
     
     int8_t activation_input_scale;
-    int8_t out_scale;
+    Weight_t out_scale;
     Weight_t outval;
     
     const int16_t dropout_weight = (1 << QFIXEDPOINT) - layer->incoming_dropout;

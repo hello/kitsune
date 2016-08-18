@@ -34,6 +34,7 @@ static void feats_callback(void * p, int8_t * feats) {
 	Tensor_t temp_tensor;
 	uint32_t i;
 	int j;
+	DECLCHKCYC
 
 	temp_tensor.dims[0] = 1;
 	temp_tensor.dims[1] = 1;
@@ -44,8 +45,9 @@ static void feats_callback(void * p, int8_t * feats) {
 	temp_tensor.scale = 0;
 	temp_tensor.delete_me = 0;
 
-
+	CHKCYC(" eval prep");
 	out = tinytensor_eval_stateful_net(&context->net, &context->state, &temp_tensor);
+	CHKCYC("evalnet");
 
 	if (context->counter++ < 20) {
 		out->delete_me(out);
@@ -109,9 +111,7 @@ static void feats_callback(void * p, int8_t * feats) {
 
 	//free
 	out->delete_me(out);
-
-
-
+	CHKCYC("eval cmplt");
 }
 
 __attribute__((section(".ramcode")))
@@ -152,12 +152,14 @@ void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples) {
 #include "stdlib.h"
 
 __attribute__((section(".ramcode")))
-int cmd_test_neural_net(int argc, char * argv[]) {
-	int16_t samples[256];
-	uint32_t start = xTaskGetTickCount();
-	int i;
+uint32_t __dwt_tot_CYC_cnt;
 
-	for (i = 0; i < 256; i++) {
+int cmd_test_neural_net(int argc, char * argv[]) {
+	int16_t samples[160];
+	uint32_t start = xTaskGetTickCount();
+	int i,k;
+
+	for (i = 0; i < 160; i++) {
 		samples[i] = rand();
 	}
 	keyword_net_initialize();
@@ -166,8 +168,16 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 
 	DISP("start test\n\n");
 
-	for (i = 0; i < 1024; i++) {
-		keyword_net_add_audio_samples(samples,256);
+	for (k = 0; k < 1024; k++) {
+		STARTCYC
+		CHKCYC("begin");
+		keyword_net_add_audio_samples(samples,160);
+		STOPCYC
+/*
+		for (i = 0; i < 160; i++) {
+			samples[i] = rand();
+		}
+		*/
 	}
 
 	DISP("\n\nstop test %d\n\n", xTaskGetTickCount() - start);

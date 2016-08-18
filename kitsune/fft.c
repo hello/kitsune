@@ -14,7 +14,7 @@
 #define LOG2_N_WAVE     (10)
 #define N_WAVE          (1 << LOG2_N_WAVE)        /* dimension of Sinewave[] */
 
-__attribute__((section(".ramcode"))) static const uint16_t sin_lut[N_WAVE/4+1] = {
+__attribute__((section(".data"))) static const uint16_t sin_lut[N_WAVE/4+1] = {
   0, 201, 402, 603, 804, 1005, 1206, 1406,
   1607, 1808, 2009, 2209, 2410, 2610, 2811, 3011,
   3211, 3411, 3611, 3811, 4011, 4210, 4409, 4608,
@@ -91,7 +91,8 @@ __attribute__((section(".ramcode"))) uint32_t bitexp(uint16_t n) {
     return (retval << (b - 2));
 }
 
-__attribute__((section(".ramcode"))) short fxd_sin( uint16_t x ) {
+ __attribute__((section(".ramcode")))
+ short fxd_sin( uint16_t x ) {
 	x &= 0x3FF;
 	if( x > 3*N_WAVE/4 ) {
 		return -sin_lut[N_WAVE - x];
@@ -119,13 +120,15 @@ inline static short fix_mpy(short a, short b)
   return a;
 }
 #endif
-
+#include "uart_logger.h"
 __attribute__((section(".ramcode"))) int fft(int16_t fr[], int16_t fi[], int32_t m)
 {
     int32_t mr, nn, i, j, l, k, istep, n;
     int16_t  wr, wi;
 
-    
+
+    DECLCHKCYC
+
     n = 1 << m;
     
     if (n > N_WAVE)
@@ -156,6 +159,7 @@ __attribute__((section(".ramcode"))) int fft(int16_t fr[], int16_t fi[], int32_t
         fi[m] = fi[mr];
         fi[mr] = tmp;
     }
+    CHKCYC("DECIMATE");
     
     l = 1;
     k = LOG2_N_WAVE - 1;

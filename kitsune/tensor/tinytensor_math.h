@@ -32,7 +32,10 @@ int8_t tiny_tensor_compare_scaled_numbers(const Weight_t x1, const int8_t scale1
 int8_t tiny_tensor_get_scaling(int32_t x);
 int8_t tiny_tensor_get_descaling(int32_t x);
 
-
+#if 1
+#include "hlo_m4.h"
+#define accumulate hlo_asm_accumulate
+#else
 __attribute__((section(".ramcode")))
 static inline int32_t accumulate(const uint32_t n, const Weight_t * in1, const Weight_t * in2) {
     int32_t accumulator = 0;
@@ -63,10 +66,9 @@ static inline int32_t accumulate(const uint32_t n, const Weight_t * in1, const W
         }
     }
     return accumulator;
-    
 }
+#endif
 
-    
 #ifdef __cplusplus
 }
 #endif

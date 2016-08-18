@@ -104,3 +104,4 @@ static ConstSequentialNetwork_t initialize_network(void) {
   return net;
 
 }
+

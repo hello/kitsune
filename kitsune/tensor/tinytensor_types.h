@@ -14,11 +14,11 @@ extern "C" {
 #define MAX_WEIGHT (0x7F)
 #define MAX_LONG_WEIGHT (0x7FFF)
 
-typedef int8_t Weight_t;
+typedef int16_t Weight_t;
 typedef Weight_t Data_t; //data and weight are the same for now
     
 //callback defs
-typedef void (*SquashFunc_t)(Weight_t * y, int8_t * out_scale, int32_t x,int8_t in_scale);
+typedef void (*SquashFunc_t)(Weight_t * y, uint8_t * out_scale, int32_t x,int8_t in_scale);
 
 #define TENSOR_DIM (4)
 
