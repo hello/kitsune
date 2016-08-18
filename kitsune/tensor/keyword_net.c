@@ -163,7 +163,7 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 
 	DISP("start test\n\n");
 
-	for (k = 0; k < 1024; k++) {
+	for (k = 0; k < 10; k++) {
 		STARTCYC
 		CHKCYC("begin");
 		keyword_net_add_audio_samples(samples,160);

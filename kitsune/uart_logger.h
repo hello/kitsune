@@ -111,9 +111,8 @@ int analytics_event( const char *pcString, ...);
 
 hlo_stream_t * uart_stream(void);
 
-
 extern uint32_t __dwt_tot_CYC_cnt;
-#if 0
+#if 1
 #define STARTCYC \
 volatile unsigned int *DWT_CYCCNT = (volatile unsigned int *)0xE0001004;\
 volatile unsigned int *DWT_CONTROL = (volatile unsigned int *)0xE0001000;\
