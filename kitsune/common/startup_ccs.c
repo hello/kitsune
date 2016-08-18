@@ -33,7 +33,7 @@ extern void xPortSysTickHandler(void);
 //*****************************************************************************
 void ResetISR(void);
 static void NmiSR(void);
-static void FaultISR(void);
+void FaultISR(void);
 static void IntDefaultHandler(void);
 static void BusFaultHandler(void);
 //*****************************************************************************

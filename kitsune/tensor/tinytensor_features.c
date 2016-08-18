@@ -57,7 +57,7 @@ typedef struct {
     
 } TinyTensorFeatures_t;
 
-__attribute__((section(".ramcode")))
+__attribute__((section(".data")))
 static TinyTensorFeatures_t _this;
 
 void tinytensor_features_initialize(void * results_context, tinytensor_audio_feat_callback_t results_callback) {
@@ -113,7 +113,7 @@ void tiny_tensor_features_get_latest_samples(int16_t * outbuffer, const uint32_t
 }
 
 __attribute__((section(".ramcode")))
-void tinytensor_features_get_mel_bank(int16_t * melbank,const int16_t * fr, const int16_t * fi,const int16_t input_scaling) {
+void tinytensor_features_get_mel_bank(int16_t * melbank,const int16_t * fr,const int16_t input_scaling) {
     uint32_t ifft;
     uint32_t imel;
     uint32_t idx;
@@ -127,7 +127,7 @@ void tinytensor_features_get_mel_bank(int16_t * melbank,const int16_t * fr, cons
         accumulator = 0;
         for (ifft = k_fft_index_pairs[imel][0]; ifft <= k_fft_index_pairs[imel][1]; ifft++) {
             utemp32 = 0;
-            utemp32 += ((uint32_t)fr[ifft]*fr[ifft]) + ((uint32_t)fi[ifft]*fi[ifft]); //q15 + q15 = q30, q30 * 2 --> q31, unsigned 32 is safe
+            utemp32 += ((uint32_t)fr[ifft]*fr[ifft]) /*+ ((uint32_t)fi[ifft]*fi[ifft])*/; //q15 + q15 = q30, q30 * 2 --> q31, unsigned 32 is safe
             utemp32 = (uint32_t)((((uint64_t) utemp32) * k_coeffs[idx]) >> 8);
             accumulator += utemp32;
             idx++;
@@ -156,10 +156,11 @@ void tinytensor_features_get_mel_bank(int16_t * melbank,const int16_t * fr, cons
 
 }
 
+#include "arm_math.h"
+
 __attribute__((section(".ramcode")))
 static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_t * melbank, const int16_t * samples, const uint32_t num_samples) {
     int16_t fr[FFT_SIZE] = {0};
-    int16_t fi[FFT_SIZE] = {0};
     const int16_t preemphasis_coeff = PREEMPHASIS;
     uint32_t i;
 
@@ -241,14 +242,24 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
     }
 
     CHKCYC(" fft prep");
-    
+#if 1
+    {
+        arm_rfft_instance_q15 fftr_inst;
+        arm_rfft_init_q15(&fftr_inst, 1<<FFT_SIZE_2N, 0, 0);
+        arm_rfft_q15(&fftr_inst, fr, fr );
+    }
+    CHKCYC("FFT");
+    tinytensor_features_get_mel_bank(melbank,fr,temp16);
+
+#else
     //PERFORM FFT
     fft(fr,fi,FFT_SIZE_2N);
-
     CHKCYC("FFT");
 
     //GET MEL FEATURES (one time slice in the mel spectrogram)
     tinytensor_features_get_mel_bank(melbank,fr,fi,temp16);
+#endif
+
     
     //GET MAX
     temp16 = MIN_INT_16;
@@ -314,8 +325,7 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
 }
 __attribute__((section(".ramcode")))
 void tinytensor_features_add_samples(const int16_t * samples, const uint32_t num_samples) {
-    int16_t melbank[NUM_MEL_BINS];
-    int8_t melbank8[NUM_MEL_BINS];
+    Weight_t melbank[NUM_MEL_BINS];
     int32_t temp32;
     int16_t maxmel;
     int16_t avgmel;
@@ -350,19 +360,9 @@ void tinytensor_features_add_samples(const int16_t * samples, const uint32_t num
             temp32 = melbank[i];
             temp32 >>= SCALE_TO_8_BITS;
             temp32 += offset;
-
-            if (temp32 > INT8_MAX) {
-                temp32 = INT8_MAX;
-            }
-            
-            if (temp32 < -INT8_MAX) {
-                temp32 = -INT8_MAX;
-            }
-            
-            melbank8[i] = (int8_t)temp32;
         }
         if (_this.results_callback) {
-            _this.results_callback(_this.results_context,melbank8);
+            _this.results_callback(_this.results_context,melbank);
         }
 #ifdef PRINT_MEL_BINS
         for (i = 0; i < 40; i++) {

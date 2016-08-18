@@ -23,12 +23,10 @@ typedef struct {
 
 } KeywordNetContext_t;
 
-__attribute__((section(".ramcode")))
 static KeywordNetContext_t _context;
 
-
 __attribute__((section(".ramcode")))
-static void feats_callback(void * p, int8_t * feats) {
+static void feats_callback(void * p, Weight_t * feats) {
 	KeywordNetContext_t * context = (KeywordNetContext_t *)p;
 	Tensor_t * out;
 	Tensor_t temp_tensor;
@@ -55,10 +53,8 @@ static void feats_callback(void * p, int8_t * feats) {
 	}
 	if(context->counter % 50 ==0){
 		Weight_t max = out->x[1];
-		uint32_t maxj = 1;
 		for (j = 2; j < out->dims[3]; j++) {
 			max = max > out->x[j] ? max : out->x[j];
-			maxj = j;
 		}
 
 		for(j = 0 ; j < 10; j++){
@@ -151,7 +147,6 @@ void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples) {
 #include "task.h"
 #include "stdlib.h"
 
-__attribute__((section(".ramcode")))
 uint32_t __dwt_tot_CYC_cnt;
 
 int cmd_test_neural_net(int argc, char * argv[]) {

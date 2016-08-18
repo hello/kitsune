@@ -88,6 +88,18 @@
   #define __UNALIGNED_UINT32(x)     (*((__packed uint32_t *)(x)))
   #define __ALIGNED(x)              __attribute__((aligned(x)))
 
+
+#elif defined ( __TI_ARM__ )                                          /* TI ARM Compiler */
+  #define __ASM                     __asm
+  #define __INLINE                  __EXTERN
+  #define __STATIC_INLINE           static inline
+  #define __NO_RETURN               __attribute__((noreturn))
+  #define __USED                    __attribute__((used))
+  #define __WEAK                    __attribute__((weak))
+  struct __attribute__((packed)) T_UINT32 { uint32_t v; };
+  #define __UNALIGNED_UINT32(x)     (((struct T_UINT32 *)(x))->v)
+  #define __ALIGNED(x)
+
 #elif defined (__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050)       /* ARM Compiler 6 */
   #define __ASM                     __asm
   #define __INLINE                  __inline
@@ -123,18 +135,6 @@
   __packed struct T_UINT32 { uint32_t v; };
   #define __UNALIGNED_UINT32(x)     (((struct T_UINT32 *)(x))->v)
   #define __ALIGNED(x)
-
-#elif defined ( __TI_ARM__ )                                          /* TI ARM Compiler */
-  #define __ASM                     __asm
-  #define __INLINE                  inline
-  #define __STATIC_INLINE           static inline
-  #define __NO_RETURN               __attribute__((noreturn))
-  #define __USED                    __attribute__((used))
-  #define __WEAK                    __attribute__((weak))
-  struct __attribute__((packed)) T_UINT32 { uint32_t v; };
-  #define __UNALIGNED_UINT32(x)     (((struct T_UINT32 *)(x))->v)
-  #define __ALIGNED(x)
-
 #elif defined ( __TASKING__ )                                         /* TASKING Compiler */
   #define __ASM                     __asm
   #define __INLINE                  inline
