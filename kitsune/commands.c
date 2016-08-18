@@ -1891,8 +1891,8 @@ int cmd_pwr_speaker(int argc, char * argv[]);
 int cmd_button(int argc, char *argv[]) {
 #define LED_GPIO_BASE_DOUT GPIOA2_BASE
 #define LED_GPIO_BIT_DOUT 0x80
-	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
 	while(1) {
+		bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
 		LOGF("%d\r", fast);
 		vTaskDelay(100);
 	}

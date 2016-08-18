@@ -400,6 +400,7 @@ BME280_U32_t bme280_compensate_H_int32(BME280_S32_t adc_H) {
 }
 #endif
 #define DBG_BME(...)
+uint32_t BME_i2c;
 int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 	unsigned char cmd;
 	int temp_raw, press_raw, hum_raw;
@@ -411,11 +412,11 @@ int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 	//humid oversample
 	b[0] = 0xf2; //must come before 0xf4
 	b[1] = 0b00000101;
-	(I2C_IF_Write(0x77, b, 2, 1));
+	(I2C_IF_Write(BME_i2c, b, 2, 1));
 	//temp/pressure oversample, force meas
 	b[0] = 0xf4;
 	b[1] = 0b10110101;
-	(I2C_IF_Write(0x77, b, 2, 1));
+	(I2C_IF_Write(BME_i2c, b, 2, 1));
 
 	xSemaphoreGiveRecursive(i2c_smphr);
 	vTaskDelay(95);
@@ -425,8 +426,8 @@ int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 	b[2] = b[1] = 0;
 	cmd = 0xf3;
 	while (b[0] != 4) {
-		(I2C_IF_Write(0x77, &cmd, 1, 1));
-		(I2C_IF_Read(0x77, b, 1));
+		(I2C_IF_Write(BME_i2c, &cmd, 1, 1));
+		(I2C_IF_Read(BME_i2c, b, 1));
 
 		DBG_BME("%x %x %x\n", b[0],b[1],b[2] );
 
@@ -438,8 +439,8 @@ int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 		assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 	}
 	cmd = 0xf7;
-	(I2C_IF_Write(0x77, &cmd, 1, 1));
-	(I2C_IF_Read(0x77, b, 8));
+	(I2C_IF_Write(BME_i2c, &cmd, 1, 1));
+	(I2C_IF_Read(BME_i2c, b, 8));
 
 	xSemaphoreGiveRecursive(i2c_smphr);
 
@@ -467,15 +468,28 @@ int init_temp_sensor()
 	unsigned char cmd = 0xd0;
 	unsigned char b[25];
 
+
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 	vTaskDelay(5);
-	(I2C_IF_Write(0x77, &cmd, 1, 1));
+	(I2C_IF_Write(0x76, &cmd, 1, 1));
 	vTaskDelay(5);
-	(I2C_IF_Read(0x77, &id, 1));
+	(I2C_IF_Read(0x76, &id, 1));
+	if (id == 0x60) {
+		BME_i2c = 0x76;
+	}
+	else {
+		vTaskDelay(5);
+		(I2C_IF_Write(0x77, &cmd, 1, 1));
+		vTaskDelay(5);
+		(I2C_IF_Read(0x77, &id, 1));
+		if (id == 0x60) {
+			BME_i2c = 0x77;
+		}
+	}
 
 	cmd =0x88;
-	(I2C_IF_Write(0x77, &cmd, 1, 1));
-	(I2C_IF_Read(0x77, b, 25));
+	(I2C_IF_Write(BME_i2c, &cmd, 1, 1));
+	(I2C_IF_Read(BME_i2c, b, 25));
 
 	bme280_cal.dig_T1 = b[0] | (b[1]<<8);
 	bme280_cal.dig_T2 = b[2] | (b[3]<<8);
@@ -492,8 +506,8 @@ int init_temp_sensor()
 	bme280_cal.dig_H1 = b[24];
 
 	cmd =0xE1;
-	(I2C_IF_Write(0x77, &cmd, 1, 1));
-	(I2C_IF_Read(0x77, b, 7));
+	(I2C_IF_Write(BME_i2c, &cmd, 1, 1));
+	(I2C_IF_Read(BME_i2c, b, 7));
 
 	bme280_cal.dig_H2 = b[0] | (b[1]<<8);
 	bme280_cal.dig_H3 = b[2];
@@ -766,7 +780,7 @@ int init_uv(bool als) {
 	return 0;
 }
 int read_zopt(zopt_mode selection) {
-	static int use_als;
+	static int use_als=-1;
 
 	if( use_als != (selection==ZOPT_ALS) ) {
 		use_als  = (selection==ZOPT_ALS);
@@ -1425,7 +1439,7 @@ int32_t mic_test_deviation(void)
 		ch=index%TOTAL_CHANNELS;
 		mic_test_data.results[ch].deviation += abs((mic_test_data.samples[index] - mic_test_data.results[ch].average));
 		// DISP("%d - %d = %d\n", mic_test_data.samples[index], mic_test_data.results[ch].average, mic_test_data.results[ch].deviation);
-		vTaskDelay(5);
+		// vTaskDelay(5);
 	}
 
 	for(index=0;index<TOTAL_CHANNELS;index++){
