@@ -206,6 +206,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 }
 ////-------------------------------------------
 //playback sample app
+#include "hlo_http.h"
 static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop){
 	int ret;
 
@@ -218,6 +219,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	};
 
 	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,HLO_AUDIO_PLAYBACK);
+	desc->stream = hlo_http_get(desc->source_name);
 	set_volume(0, portMAX_DELAY);
 	hlo_stream_t * fs = desc->stream;
 
@@ -363,6 +365,7 @@ void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
 
 	memcpy(&m.message.playbackdesc,desc,sizeof(AudioPlaybackDesc_t));
 	//send to front of queue so this message is always processed first
+	// TODO DKH Do we still need to sendtofront if queue for record and playback are separate
 	if (_playback_queue) {
 		xQueueSendToFront(_playback_queue,(void *)&m,0);
 		_queue_audio_playback_state(PLAYING, desc);
@@ -399,12 +402,12 @@ void AudioTask_QueueCaptureProcess(const AudioCaptureDesc_t * desc){
 	}
 }
 
-#include "hlo_http.h"
+
 int Cmd_AudioPlayback(int argc, char * argv[]){
 	if(argc  > 1){
 		AudioPlaybackDesc_t desc;
 		desc.context = NULL;
-		desc.durationInSeconds = 10;
+		desc.durationInSeconds = 20;
 		desc.fade_in_ms = 1000;
 		desc.fade_out_ms = 1000;
 		desc.onFinished = NULL;
@@ -412,12 +415,19 @@ int Cmd_AudioPlayback(int argc, char * argv[]){
 		LOGI("Playing from %s\n", argv[1]);
 #if 0
 		desc.p = NULL;
-		desc.stream = fs_stream_open_media(argv[1], 0);
+		desc.stream = fs_stream_open_media(argv[1], -1);
 #else
-		desc.p = NULL; //hlo_filter_mp3_decoder;
-		desc.stream = fs_stream_open_media(argv[1], -1); //hlo_http_get(argv[1]);
+		desc.p = hlo_filter_mp3_decoder;
+		uint32_t i = 0;
+		while(argv[1][i])
+		{
+			i++;
+		}
+		DISP("I=%d, %c %c\n",i,argv[1][i-1],argv[1][i] );
+		argv[1][i] = '\0';
+		// desc.stream = hlo_http_get(argv[1]);
 #endif
-		desc.volume = 44;
+		desc.volume = 60;
 		ustrncpy(desc.source_name, argv[1], sizeof(desc.source_name));
 		AudioTask_StartPlayback(&desc);
 		return 0;

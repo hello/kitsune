@@ -9,6 +9,8 @@
 
 #include "codec_debug_config.h"
 
+#define MAX_SOURCE_NAME_CHAR 	(68)
+
 typedef enum {
 	eAudioPlaybackStart,
 	eAudioPlaybackStop,
@@ -28,10 +30,8 @@ typedef struct {
 	NotificationCallback_t onFinished;
 	hlo_filter p;				/* the algorithm to run on the spkr input */
 	void * context;
-	char source_name[64];
+	char source_name[MAX_SOURCE_NAME_CHAR];
 } AudioPlaybackDesc_t;
-
-
 
 typedef struct {
 	EAudioCommand_t command;
