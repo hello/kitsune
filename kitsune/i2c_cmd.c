@@ -852,14 +852,14 @@ int32_t set_volume(int v, unsigned int dly) {
 	char send_stop = 1;
 	unsigned char cmd[2];
 
+	UARTprintf("Setting Vol: %d\n",v);
+
 	if(v < 0) v = 0;
 	if(v >64) v = 64;
 
 	v = 64-v;
 	v <<= 10;
 	v /= 560;
-
-	UARTprintf("Volume: %d\n",v);
 
 	if( xSemaphoreTakeRecursive(i2c_smphr, dly)) {
 
