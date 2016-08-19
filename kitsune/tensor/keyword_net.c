@@ -137,10 +137,12 @@ void keyword_net_register_callback(void * target_context, Keyword_t keyword, int
 	_context.callbacks[keyword].activation_threshold = threshold;
 
 }
-
+#include "SEGGER_SYSVIEW.h"
 __attribute__((section(".ramcode")))
 void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples) {
+	SEGGER_SYSVIEW_Print("NN BEGIN");
 	tinytensor_features_add_samples(samples,nsamples);
+	SEGGER_SYSVIEW_Print("NN END");
 }
 
 #include "FreeRTOS.h"
@@ -154,7 +156,6 @@ uint32_t __dwt_tot_CYC_cnt;
 
 int cmd_test_neural_net(int argc, char * argv[]) {
 	int16_t samples[160];
-	uint32_t start = xTaskGetTickCount();
 	int i,k;
 
 
@@ -212,6 +213,7 @@ int cmd_test_neural_net(int argc, char * argv[]) {
     }
 #endif
 #if 1
+	uint32_t start = xTaskGetTickCount();
 	for (i = 0; i < 160; i++) {
 		samples[i] = rand();
 	}
@@ -221,7 +223,7 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 
 	DISP("start test\n\n");
 
-	for (k = 0; k < 10; k++) {
+	for (k = 0; k < 1024; k++) {
 		STARTCYC
 		CHKCYC("begin");
 		keyword_net_add_audio_samples(samples,160);
