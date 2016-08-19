@@ -256,20 +256,20 @@
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.1777723470" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
 						</tool>
 					</fileInfo>
-					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.sys_time.c" name="sys_time.c" rcbsApplicability="disable" resourcePath="sys_time.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.3642805">
-						<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.3642805" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729">
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS.1228884296" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS.567112671" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS.182597989" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.525410524" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
-						</tool>
-					</fileInfo>
 					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.commands.c" name="commands.c" rcbsApplicability="disable" resourcePath="commands.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.1417093577">
 						<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.1417093577" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729">
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS.2071711663" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS"/>
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS.1893666957" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS"/>
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS.877854273" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS"/>
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.1968132417" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
+						</tool>
+					</fileInfo>
+					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.sys_time.c" name="sys_time.c" rcbsApplicability="disable" resourcePath="sys_time.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.3642805">
+						<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.3642805" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729">
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS.1228884296" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS.567112671" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS.182597989" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.525410524" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
 						</tool>
 					</fileInfo>
 					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.wifi_cmd.c" name="wifi_cmd.c" rcbsApplicability="disable" resourcePath="wifi_cmd.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.674763189">
@@ -307,7 +307,7 @@
 						</tool>
 					</fileInfo>
 					<sourceEntries>
-						<entry excluding="cc3220sf.cmd|CC3220sf_startup_ccs.c|cc3200v1p32.cmd|tinyhttp/example.cpp|cc3200_startup_ccs.c|common/network_if.c|common/uart_if.c|common/startup_gcc.c|common/startup_ewarm.c|freertos_demo.cmd" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="cmsis-dsp|cc3220sf.cmd|CC3220sf_startup_ccs.c|cc3200v1p32.cmd|tinyhttp/example.cpp|cc3200_startup_ccs.c|common/network_if.c|common/uart_if.c|common/startup_gcc.c|common/startup_ewarm.c|freertos_demo.cmd" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

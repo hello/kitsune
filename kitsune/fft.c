@@ -91,8 +91,7 @@ __attribute__((section(".ramcode"))) uint32_t bitexp(uint16_t n) {
     return (retval << (b - 2));
 }
 
- __attribute__((section(".ramcode")))
- short fxd_sin( uint16_t x ) {
+__attribute__((section(".ramcode"))) short fxd_sin( uint16_t x ) {
 	x &= 0x3FF;
 	if( x > 3*N_WAVE/4 ) {
 		return -sin_lut[N_WAVE - x];
@@ -120,25 +119,13 @@ inline static short fix_mpy(short a, short b)
   return a;
 }
 #endif
-#include "uart_logger.h"
-#include "cmsis_ccs.h"
-#include "arm_math.h"
+
 __attribute__((section(".ramcode"))) int fft(int16_t fr[], int16_t fi[], int32_t m)
 {
     int32_t mr, nn, i, j, l, k, istep, n;
     int16_t  wr, wi;
-#if 0
-    typedef union
-    {
-        struct {
-        	int16_t LSW; /* Least significant Word */
-            int16_t MSW; /* Most significant Word */
-        }regs;
-        uint32_t pair;
-    }pair_t;
-    pair_t p1, p2;
-#endif
 
+    
     n = 1 << m;
     
     if (n > N_WAVE)
@@ -169,7 +156,7 @@ __attribute__((section(".ramcode"))) int fft(int16_t fr[], int16_t fi[], int32_t
         fi[m] = fi[mr];
         fi[mr] = tmp;
     }
-
+    
     l = 1;
     k = LOG2_N_WAVE - 1;
     while (l < n) {
@@ -181,32 +168,20 @@ __attribute__((section(".ramcode"))) int fft(int16_t fr[], int16_t fi[], int32_t
         for (m = 0; m < l; ++m) {
             j = m << k;
             /* 0 <= j < N_WAVE/2 */
-        //    p1.regs.MSW =
-            		wr = fxd_sin(j + N_WAVE / 4);
-        //    p1.regs.LSW =
-            		wi = -fxd_sin(j);
+            wr = fxd_sin(j + N_WAVE / 4);
+            wi = -fxd_sin(j);
             
             for (i = m; i < n; i += istep) {
                 int32_t tr,ti,qr, qi;
 
                 j = i + l;
-
-#if 0
-                p2.regs.MSW = fr[j];
-                p2.regs.LSW = fi[j];
-                tr = __SMUSD( p1.pair, p2.pair  );
-                ti = __SMUADX( p1.pair, p2.pair  );
-##elif 0
-                tr = (int32_t)p1.regs.MSW * (int32_t)p2.regs.MSW
-				   - (int32_t)p1.regs.LSW * (int32_t)p2.regs.LSW;
-                ti = (int32_t)p1.regs.MSW * (int32_t)p2.regs.LSW
-			       + (int32_t)p1.regs.LSW * (int32_t)p2.regs.MSW;
-#else
+                
+                //tr = fix_mpy(wr, fr[j]) - fix_mpy(wi, fi[j]);
                 tr = (int32_t)wr * (int32_t)fr[j] - (int32_t)wi * (int32_t)fi[j];
-                ti = (int32_t)wr * (int32_t)fi[j] + (int32_t)wi*(int32_t)fr[j];
-#endif
-
                 tr >>= 1;
+                
+                //ti = fix_mpy(wr, fi[j]) + fix_mpy(wi, fr[j]);
+                ti = (int32_t)wr * (int32_t)fi[j] + (int32_t)wi*(int32_t)fr[j];
                 ti >>= 1;
                 
                 qr = fr[i] << 14;
