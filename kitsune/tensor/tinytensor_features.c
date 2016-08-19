@@ -57,7 +57,7 @@ typedef struct {
     
 } TinyTensorFeatures_t;
 
-__attribute__((section(".data")))
+__attribute__((section(".ramcode")))
 static TinyTensorFeatures_t _this;
 
 void tinytensor_features_initialize(void * results_context, tinytensor_audio_feat_callback_t results_callback) {
@@ -113,14 +113,13 @@ void tiny_tensor_features_get_latest_samples(int16_t * outbuffer, const uint32_t
 }
 
 __attribute__((section(".ramcode")))
-void tinytensor_features_get_mel_bank(int16_t * melbank,const int16_t * fr,const int16_t input_scaling) {
+void tinytensor_features_get_mel_bank(int16_t * melbank,const int16_t * fr, const int16_t * fi,const int16_t input_scaling) {
     uint32_t ifft;
     uint32_t imel;
     uint32_t idx;
     uint32_t utemp32;
     int32_t temp32;
     uint64_t accumulator;
-    
     //get mel bank feats
     idx = 0;
     for (imel = 0; imel < NUM_MEL_BINS; imel++) {
@@ -161,6 +160,7 @@ void tinytensor_features_get_mel_bank(int16_t * melbank,const int16_t * fr,const
 __attribute__((section(".ramcode")))
 static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_t * melbank, const int16_t * samples, const uint32_t num_samples) {
     int16_t fr[FFT_SIZE] = {0};
+    int16_t fi[FFT_SIZE] = {0};
     const int16_t preemphasis_coeff = PREEMPHASIS;
     uint32_t i;
 
@@ -242,24 +242,14 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
     }
 
     CHKCYC(" fft prep");
-#if 1
-    {
-        arm_rfft_instance_q15 fftr_inst;
-        arm_rfft_init_q15(&fftr_inst, 1<<FFT_SIZE_2N, 0, 0);
-        arm_rfft_q15(&fftr_inst, fr, fr );
-    }
-    CHKCYC("FFT");
-    tinytensor_features_get_mel_bank(melbank,fr,temp16);
 
-#else
     //PERFORM FFT
     fft(fr,fi,FFT_SIZE_2N);
+
     CHKCYC("FFT");
 
     //GET MEL FEATURES (one time slice in the mel spectrogram)
     tinytensor_features_get_mel_bank(melbank,fr,fi,temp16);
-#endif
-
     
     //GET MAX
     temp16 = MIN_INT_16;
