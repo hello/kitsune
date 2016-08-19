@@ -315,8 +315,7 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
 }
 __attribute__((section(".ramcode")))
 void tinytensor_features_add_samples(const int16_t * samples, const uint32_t num_samples) {
-    Weight_t melbank[NUM_MEL_BINS];
-    int32_t temp32;
+    int16_t melbank[NUM_MEL_BINS];
     int16_t maxmel;
     int16_t avgmel;
     int32_t nominal_offset;
@@ -347,9 +346,7 @@ void tinytensor_features_add_samples(const int16_t * samples, const uint32_t num
 
         //printf("%d\n",offset);
         for (i = 0; i <NUM_MEL_BINS; i++) {
-            temp32 = melbank[i];
-            temp32 >>= SCALE_TO_8_BITS;
-            temp32 += offset;
+            melbank[i] = (melbank[i]>>SCALE_TO_8_BITS)+offset;
         }
         if (_this.results_callback) {
             _this.results_callback(_this.results_context,melbank);
