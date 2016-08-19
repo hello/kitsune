@@ -529,6 +529,7 @@ int Cmd_read_temp_hum_press(int argc, char *argv[]) {
 	return SUCCESS;
 }
 
+bool tvoc_wa = false;
 int init_tvoc() {
 	unsigned char b[2];
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
@@ -558,7 +559,19 @@ int init_tvoc() {
 	b[1] = 0x20; //60sec
 	(I2C_IF_Write(0x5a, b, 2, 1));
 
+	b[0] = 0x24;
+	(I2C_IF_Write(0x5a, b, 1, 1));
+	(I2C_IF_Read(0x5a, b, 2));
+
+	LOGE("TVOC FW %d.%d.%d\n",(b[0]>>4) & 0xff,b[0] & 0xff, b[1]);
+	if (b[0] == 0x02 && b[1] == 0x4) {
+		LOGE("apply TVOC FW 0.2.4 workaround\n");
+		tvoc_wa = true;
+	}
+
 	xSemaphoreGiveRecursive(i2c_smphr);
+
+
 
 	return 0;
 }
@@ -566,6 +579,9 @@ int init_tvoc() {
 int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, unsigned int humid ) {
 	unsigned char b[8];
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+
+
+
 
 	vTaskDelay(10);
 	//environmental
@@ -586,7 +602,13 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 			b[0],b[1],b[2],b[3],b[4],b[5],
 		    b[6],b[7]);
 
-	if( !(b[5] & 0x90) ) {
+	//Status and Error ID bytes swapped in TVOC FW 0.2.4
+	if( tvoc_wa ) {
+		unsigned char temp = b[4];
+		b[4] = b[5];
+		b[5] = temp;
+	}
+	if( b[4] & 0x01 ) {
 		LOGE("TVOC error %x ", b[5] );
 		b[0] = 0xe0;
 		(I2C_IF_Write(0x5a, b, 1, 1));
