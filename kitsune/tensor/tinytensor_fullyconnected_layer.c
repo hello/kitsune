@@ -13,7 +13,7 @@ static void get_fullyconnectged_output_size(const void * context,uint32_t * dims
     
 }
 
-static void eval_fullyconnected(const void * context,void * layer_state,Tensor_t * out,const Tensor_t * in,ELayer_t prev_layer_type) {
+static void eval_fullyconnected(const void * context,void * layer_state,Tensor_t * out,const Tensor_t * in,ELayer_t prev_layer_type, const uint32_t flags) {
     const FullyConnectedLayer_t * layer = (const FullyConnectedLayer_t *)context;
     const uint32_t n_out = layer->output_dims[3];
     const uint32_t num_weight_cols = layer->weights->dims[3];

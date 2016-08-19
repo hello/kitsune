@@ -22,11 +22,11 @@ typedef struct {
     void * states[MAX_NUMBER_OF_LAYERS]; //better this than a linked list
 } SequentialNetworkStates_t ;
 
-Tensor_t * tinytensor_eval_net(const ConstSequentialNetwork_t * net,Tensor_t * input);
+Tensor_t * tinytensor_eval_net(const ConstSequentialNetwork_t * net,Tensor_t * input,const uint32_t flags);
 
-Tensor_t * tinytensor_eval_partial_net(const ConstSequentialNetwork_t * net,Tensor_t * input,const uint32_t stop_layer);
+Tensor_t * tinytensor_eval_partial_net(const ConstSequentialNetwork_t * net,Tensor_t * input,const uint32_t stop_layer,const uint32_t flags);
 
-Tensor_t * tinytensor_eval_stateful_net(const ConstSequentialNetwork_t * net,SequentialNetworkStates_t * netstate,Tensor_t * input);
+Tensor_t * tinytensor_eval_stateful_net(const ConstSequentialNetwork_t * net,SequentialNetworkStates_t * netstate,Tensor_t * input,const uint32_t flags);
     
 void tinytensor_allocate_states(SequentialNetworkStates_t * states,const ConstSequentialNetwork_t * net);
 

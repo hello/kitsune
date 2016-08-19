@@ -220,7 +220,7 @@ int8_t tinytensor_convolve3d_direct_maxpooling(int8_t * descale,
 }
 
 
-static void eval_conv2d_direct(const void * context,void * layer_state,Tensor_t * out,const Tensor_t * in,ELayer_t prev_layer_type) {
+static void eval_conv2d_direct(const void * context,void * layer_state,Tensor_t * out,const Tensor_t * in,ELayer_t prev_layer_type, const uint32_t flags) {
     const ConvLayer2D_t * layer = (ConvLayer2D_t *)context;
     
     uint32_t iout;

@@ -9,7 +9,7 @@
    should handle all the cases, everything else is just a wrapper around this
  */
 
-static Tensor_t * eval_all_nets(const ConstSequentialNetwork_t * net,SequentialNetworkStates_t * netstate,Tensor_t * input, const uint32_t stop_layer) {
+static Tensor_t * eval_all_nets(const ConstSequentialNetwork_t * net,SequentialNetworkStates_t * netstate,Tensor_t * input, const uint32_t stop_layer,const uint32_t flags) {
     Tensor_t * current_input = input;
     Tensor_t * current_output = 0;
     uint32_t ilayer;
@@ -28,13 +28,14 @@ static Tensor_t * eval_all_nets(const ConstSequentialNetwork_t * net,SequentialN
             layer_state = netstate->states[ilayer];
         }
 
+        //get output size
         layer->get_output_dims(layer->context,&output_dims[0],&input_dims[0]);
         
         //allocate output
         current_output = tinytensor_create_new_tensor(output_dims);
         
         //perform evaluation
-        layer->eval(layer->context,layer_state,current_output,current_input,prev_layer);
+        layer->eval(layer->context,layer_state,current_output,current_input,prev_layer,flags);
         
         //output becomes new input --- so delete input if we can
         if (current_input->delete_me && current_input != input) {
@@ -44,7 +45,7 @@ static Tensor_t * eval_all_nets(const ConstSequentialNetwork_t * net,SequentialN
         current_input = current_output;
         prev_layer = layer->layer_type;
         memcpy(input_dims, output_dims, sizeof(input_dims));
-
+        
     }
     
     //whomever received this object must delete it
@@ -52,16 +53,16 @@ static Tensor_t * eval_all_nets(const ConstSequentialNetwork_t * net,SequentialN
     
 }
 
-Tensor_t * tinytensor_eval_net(const ConstSequentialNetwork_t * net,Tensor_t * input) {
-    return tinytensor_eval_partial_net(net,input,0);
+Tensor_t * tinytensor_eval_net(const ConstSequentialNetwork_t * net,Tensor_t * input,const uint32_t flags) {
+    return tinytensor_eval_partial_net(net,input,0,flags);
 }
 
-Tensor_t * tinytensor_eval_partial_net(const ConstSequentialNetwork_t * net,Tensor_t * input,const uint32_t stop_layer) {
-    return eval_all_nets(net, NULL, input, stop_layer);
+Tensor_t * tinytensor_eval_partial_net(const ConstSequentialNetwork_t * net,Tensor_t * input,const uint32_t stop_layer,const uint32_t flags) {
+    return eval_all_nets(net, NULL, input, stop_layer,flags);
 }
 
-Tensor_t * tinytensor_eval_stateful_net(const ConstSequentialNetwork_t * net,SequentialNetworkStates_t * netstate, Tensor_t * input) {
-    return eval_all_nets(net, netstate, input, 0);
+Tensor_t * tinytensor_eval_stateful_net(const ConstSequentialNetwork_t * net,SequentialNetworkStates_t * netstate, Tensor_t * input,const uint32_t flags) {
+    return eval_all_nets(net, netstate, input, 0,flags);
 }
 
 

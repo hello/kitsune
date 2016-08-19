@@ -44,7 +44,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 	temp_tensor.delete_me = 0;
 
 	CHKCYC(" eval prep");
-	out = tinytensor_eval_stateful_net(&context->net, &context->state, &temp_tensor);
+	out = tinytensor_eval_stateful_net(&context->net, &context->state, &temp_tensor,NET_FLAG_LSTM_DAMPING);
 	CHKCYC("evalnet");
 
 	if (context->counter++ < 20) {
@@ -118,7 +118,7 @@ void keyword_net_initialize(void) {
 
     tinytensor_allocate_states(&_context.state, &_context.net);
 
-	tinytensor_features_initialize(&_context,feats_callback);
+	tinytensor_features_initialize(&_context,feats_callback, NULL);
 }
 
 __attribute__((section(".ramcode")))
