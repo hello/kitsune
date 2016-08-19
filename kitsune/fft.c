@@ -121,13 +121,21 @@ inline static short fix_mpy(short a, short b)
 }
 #endif
 #include "uart_logger.h"
+#include "cmsis_ccs.h"
+#include "arm_math.h"
 __attribute__((section(".ramcode"))) int fft(int16_t fr[], int16_t fi[], int32_t m)
 {
     int32_t mr, nn, i, j, l, k, istep, n;
     int16_t  wr, wi;
-
-
-    DECLCHKCYC
+    typedef union
+    {
+        struct {
+        	int16_t LSW; /* Least significant Word */
+            int16_t MSW; /* Most significant Word */
+        }regs;
+        uint32_t pair;
+    }pair_t;
+    pair_t p1, p2;
 
     n = 1 << m;
     
@@ -159,8 +167,7 @@ __attribute__((section(".ramcode"))) int fft(int16_t fr[], int16_t fi[], int32_t
         fi[m] = fi[mr];
         fi[mr] = tmp;
     }
-    CHKCYC("DECIMATE");
-    
+
     l = 1;
     k = LOG2_N_WAVE - 1;
     while (l < n) {
@@ -172,20 +179,21 @@ __attribute__((section(".ramcode"))) int fft(int16_t fr[], int16_t fi[], int32_t
         for (m = 0; m < l; ++m) {
             j = m << k;
             /* 0 <= j < N_WAVE/2 */
-            wr = fxd_sin(j + N_WAVE / 4);
-            wi = -fxd_sin(j);
+            p1.regs.MSW = wr = fxd_sin(j + N_WAVE / 4);
+            p1.regs.LSW = wi = -fxd_sin(j);
             
             for (i = m; i < n; i += istep) {
                 int32_t tr,ti,qr, qi;
 
                 j = i + l;
-                
-                //tr = fix_mpy(wr, fr[j]) - fix_mpy(wi, fi[j]);
-                tr = (int32_t)wr * (int32_t)fr[j] - (int32_t)wi * (int32_t)fi[j];
+
+                p2.regs.MSW = fr[j];
+                p2.regs.LSW = fi[j];
+                tr = __SMUSD( p1.pair, p2.pair  );
+                ti = __SMUADX( p1.pair, p2.pair  );
+//                tr = (int32_t)wr * (int32_t)fr[j] - (int32_t)wi * (int32_t)fi[j];
                 tr >>= 1;
-                
-                //ti = fix_mpy(wr, fi[j]) + fix_mpy(wi, fr[j]);
-                ti = (int32_t)wr * (int32_t)fi[j] + (int32_t)wi*(int32_t)fr[j];
+                //ti = (int32_t)wr * (int32_t)fi[j] + (int32_t)wi*(int32_t)fr[j];
                 ti >>= 1;
                 
                 qr = fr[i] << 14;
