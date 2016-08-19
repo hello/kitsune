@@ -36,37 +36,54 @@ int8_t tiny_tensor_get_descaling(int32_t x);
 #include "hlo_m4.h"
 #define accumulate hlo_asm_accumulate
 #else
+
+typedef union
+{
+    struct {
+        uint32_t LSW; /* Least significant Word */
+        uint32_t MSW; /* Most significant Word */
+    }regs;
+    uint64_t pair;
+}RegPair_t;
+
+#include "cmsis_ccs.h"
+#include "arm_math.h"
+
 __attribute__((section(".ramcode")))
-static inline int32_t accumulate(const uint32_t n, const Weight_t * in1, const Weight_t * in2) {
+static inline int32_t accumulate(int32_t n, int16_t* in1, int16_t* in2)
+{
+    RegPair_t ba,bb;
     int32_t accumulator = 0;
-    int16_t nloop = n;
-    nloop = n;
-    {
-        int n = (nloop + 15) / 16;
 
-        switch (nloop % 16) {
-        case 0: do { accumulator += *in1++ * *in2++;
-        case 15:     accumulator += *in1++ * *in2++;
-        case 14:     accumulator += *in1++ * *in2++;
-        case 13:     accumulator += *in1++ * *in2++;
-        case 12:     accumulator += *in1++ * *in2++;
-        case 11:     accumulator += *in1++ * *in2++;
-        case 10:     accumulator += *in1++ * *in2++;
-        case 9:      accumulator += *in1++ * *in2++;
-        case 8:      accumulator += *in1++ * *in2++;
-        case 7:      accumulator += *in1++ * *in2++;
-        case 6:      accumulator += *in1++ * *in2++;
-        case 5:      accumulator += *in1++ * *in2++;
-        case 4:      accumulator += *in1++ * *in2++;
-        case 3:      accumulator += *in1++ * *in2++;
-        case 2:      accumulator += *in1++ * *in2++;
-        case 1:      accumulator += *in1++ * *in2++;
-
-        } while (--n > 0);
-        }
+    uint32_t * aw = (uint32_t*)in1;
+    uint32_t * bw = (uint32_t*)in2;
+    while (n >= 8) {
+        ba.pair = *__SIMD64(aw)++;
+        bb.pair = *__SIMD64(bw)++;
+        accumulator = __SMLAD(ba.regs.MSW, bb.regs.MSW, accumulator);
+        accumulator = __SMLAD(ba.regs.LSW, bb.regs.LSW, accumulator);
+        ba.pair = *__SIMD64(aw)++;
+        bb.pair = *__SIMD64(bw)++;
+        accumulator = __SMLAD(ba.regs.MSW, bb.regs.MSW, accumulator);
+        accumulator = __SMLAD(ba.regs.LSW, bb.regs.LSW, accumulator);
+        n -= 8;
     }
+    while( n>=4 ) {
+        ba.pair = *__SIMD64(aw)++;
+        bb.pair = *__SIMD64(bw)++;
+        accumulator = __SMLAD(ba.regs.MSW, bb.regs.MSW, accumulator);
+        accumulator = __SMLAD(ba.regs.LSW, bb.regs.LSW, accumulator);
+        n-=4;
+    }
+    while( n>=2 ) {
+		accumulator = __SMLAD(*aw++, *bw++, accumulator);
+        n-=2;
+    }
+
     return accumulator;
 }
+
+
 #endif
 
 #ifdef __cplusplus
