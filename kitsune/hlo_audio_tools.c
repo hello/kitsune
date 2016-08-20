@@ -570,7 +570,6 @@ void AudioControlTask(void * unused) {
 
 		hlo_stream_t * in;
 		in = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_RECORD);
-		in = hlo_stream_sr_cnv( in, DOWNSAMPLE );
 
 		hlo_stream_t * out;
 		out = hlo_http_post("dev-speech.hello.is/upload/audio?r=16000", NULL);
