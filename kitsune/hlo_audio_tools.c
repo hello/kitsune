@@ -400,10 +400,6 @@ static void _finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	if (keyword == okay_sense) {
 		DISP("Keyword Done\r\n");
 	}
-
-	if(ctx){
-		((nn_keyword_ctx_t *)ctx)->keyword_detected++;
-	}
 }
 //note that filter and the stream version can not run concurrently
 int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
