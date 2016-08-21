@@ -159,7 +159,7 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 	int i,k;
 
 
-#if 0
+#if 1
     {
 
 		int16_t fr[64];
