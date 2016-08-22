@@ -19,17 +19,19 @@ static int close (void * context) {
 static int read(void * ctx, void * buf, size_t size) {
 	//gets bit from the PN sequence
 	uint32_t i;
+	uint8_t bit;
 	int16_t * p16 = (int16_t *)buf;
 	for (i = 0; i < size / sizeof(int16_t); i++) {
-		if (pn_get_next_bit()) {
-			p16[i] = INT16_MAX;
+		bit =  pn_get_next_bit();
+		if (bit) {
+			p16[i] = 4096;
 		}
 		else {
-			p16[i] = -INT16_MAX;
+			p16[i] = -4096;
 		}
 	}
 
-	return 0;
+	return size;
 }
 
 void pn_stream_init(void) {
@@ -41,7 +43,7 @@ void pn_stream_init(void) {
 	_pstream = hlo_stream_new(&_tbl,NULL,HLO_STREAM_READ);
 
 
-	pn_init_with_mask_9();
+	pn_init_with_mask_12();
 
 
 }

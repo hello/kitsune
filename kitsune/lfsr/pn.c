@@ -12,10 +12,17 @@ typedef struct {
 
 const int8_t k_lookup[256] = {-8,-6,-6,-4,-6,-4,-4,-2,-6,-4,-4,-2,-4,-2,-2,0,-6,-4,-4,-2,-4,-2,-2,0,-4,-2,-2,0,-2,0,0,2,-6,-4,-4,-2,-4,-2,-2,0,-4,-2,-2,0,-2,0,0,2,-4,-2,-2,0,-2,0,0,2,-2,0,0,2,0,2,2,4,-6,-4,-4,-2,-4,-2,-2,0,-4,-2,-2,0,-2,0,0,2,-4,-2,-2,0,-2,0,0,2,-2,0,0,2,0,2,2,4,-4,-2,-2,0,-2,0,0,2,-2,0,0,2,0,2,2,4,-2,0,0,2,0,2,2,4,0,2,2,4,2,4,4,6,-6,-4,-4,-2,-4,-2,-2,0,-4,-2,-2,0,-2,0,0,2,-4,-2,-2,0,-2,0,0,2,-2,0,0,2,0,2,2,4,-4,-2,-2,0,-2,0,0,2,-2,0,0,2,0,2,2,4,-2,0,0,2,0,2,2,4,0,2,2,4,2,4,4,6,-4,-2,-2,0,-2,0,0,2,-2,0,0,2,0,2,2,4,-2,0,0,2,0,2,2,4,0,2,2,4,2,4,4,6,-2,0,0,2,0,2,2,4,0,2,2,4,2,4,4,6,0,2,2,4,2,4,4,6,2,4,4,6,4,6,6,8};
 
-#define MASK_16 (0xd008u)
+/*straight from wikipedia, ha.
+  https://en.wikipedia.org/wiki/Linear-feedback_shift_register
+*/
 #define MASK_9 (0x0110u)
+#define MASK_10 (0x0240u)
+#define MASK_12 (0x0E08u)
+#define MASK_16 (0xd008u)
 
-#define PN_LEN_9           ((1<<9) - 1)
+#define PN_LEN_9           ((1<<9)  - 1)
+#define PN_LEN_10          ((1<<10) - 1)
+#define PN_LEN_12          ((1<<12) - 1)
 #define PN_LEN_16          ((1<<16) - 1)
 
 
@@ -29,12 +36,13 @@ void pn_init_with_state(uint16_t init_state, uint16_t mask, uint32_t len) {
     _data.len = len;
 }
 
+
 void pn_init_with_mask_9() {
     pn_init_with_state(0xABCD,MASK_9,PN_LEN_9);
 }
 
-void pn_init_with_mask_16() {
-    pn_init_with_state(0xABCD,MASK_16,PN_LEN_16);
+void pn_init_with_mask_12() {
+    pn_init_with_state(0xABCD,MASK_12,PN_LEN_12);
 }
 
 uint32_t pn_get_length() {
