@@ -137,9 +137,12 @@ void keyword_net_register_callback(void * target_context, Keyword_t keyword, int
 	_context.callbacks[keyword].activation_threshold = threshold;
 
 }
+#include "SEGGER_SYSVIEW.h"
 __attribute__((section(".ramcode")))
 void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples) {
+	SEGGER_SYSVIEW_Print("NN BEGIN");
 	tinytensor_features_add_samples(samples,nsamples);
+	SEGGER_SYSVIEW_Print("NN END");
 }
 
 #include "FreeRTOS.h"

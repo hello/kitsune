@@ -67,9 +67,7 @@ static int16_t hard_sigmoid(int32_t x,int8_t in_scale) {
     
     return (int16_t) temp32;
 }
-#include "FreeRTOS.h"
-#include "task.h"
-#include "uart_logger.h"
+
 static void lstm_time_step_forwards(int32_t * cell_state,
                                     Weight_t * output,
                                     const Weight_t * input_vec,
@@ -109,9 +107,10 @@ static void lstm_time_step_forwards(int32_t * cell_state,
         bias_row_starts[igate] = biases[igate];
     }
     
+    
     for (icell = 0; icell < num_cells; icell++) {
 //        printf("cell=%d\n",icell);
-
+        
         if (icell == 3) {
             int foo = 3;
             foo++;
@@ -164,7 +163,7 @@ static void lstm_time_step_forwards(int32_t * cell_state,
         activation_input_gate = hard_sigmoid(pre_activations[inputgate],input_scale);
         activation_output_gate = hard_sigmoid(pre_activations[outputgate],input_scale);
         
-        tinytensor_tanh(&activation_cell,&tempscale,pre_activations[celloutput],input_scale);
+        output_activation(&activation_cell,&tempscale,pre_activations[celloutput],input_scale);
         assert(tempscale == 0);
 
         
@@ -184,7 +183,7 @@ static void lstm_time_step_forwards(int32_t * cell_state,
         //To Q7
         temp32 >>= QFIXEDPOINT;
         
-        tinytensor_tanh(&h,&tempscale,temp32,0);
+        output_activation(&h,&tempscale,temp32,0);
         assert(tempscale == 0);
         //Q7 x Q7  = Q14
         temp32 = (int16_t)h * (int16_t)activation_output_gate;

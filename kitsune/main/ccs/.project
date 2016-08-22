@@ -31,111 +31,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/ack_set_entry.h</locationURI>
 		</link>
 		<link>
-			<name>adpcm.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/adpcm.c</locationURI>
-		</link>
-		<link>
-			<name>adpcm.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/adpcm.h</locationURI>
-		</link>
-		<link>
-			<name>aes.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/aes.c</locationURI>
-		</link>
-		<link>
-			<name>audio_codec_pps_driver.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audio_codec_pps_driver.h</locationURI>
-		</link>
-		<link>
-			<name>audio_types.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audio_types.h</locationURI>
-		</link>
-		<link>
-			<name>audioclassifier.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.c</locationURI>
-		</link>
-		<link>
-			<name>audioclassifier.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.h</locationURI>
-		</link>
-		<link>
-			<name>audiocontrolhelper.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audiocontrolhelper.c</locationURI>
-		</link>
-		<link>
-			<name>audiocontrolhelper.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audiocontrolhelper.h</locationURI>
-		</link>
-		<link>
-			<name>audiofeatures.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.c</locationURI>
-		</link>
-		<link>
-			<name>audiofeatures.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.h</locationURI>
-		</link>
-		<link>
-			<name>audiohelper.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audiohelper.c</locationURI>
-		</link>
-		<link>
-			<name>audiohelper.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audiohelper.h</locationURI>
-		</link>
-		<link>
-			<name>audioprocessingtask.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.c</locationURI>
-		</link>
-		<link>
-			<name>audioprocessingtask.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.h</locationURI>
-		</link>
-		<link>
-			<name>audiosimilarity.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audiosimilarity.h</locationURI>
-		</link>
-		<link>
-			<name>audiotask.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audiotask.c</locationURI>
-		</link>
-		<link>
-			<name>audiotask.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audiotask.h</locationURI>
-		</link>
-		<link>
-			<name>bigint.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/bigint.c</locationURI>
-		</link>
-		<link>
-			<name>bigint.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/bigint.h</locationURI>
-		</link>
-		<link>
-			<name>bigint_impl.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/bigint_impl.h</locationURI>
-		</link>
-		<link>
 			<name>ble_cmd.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/ble_cmd.c</locationURI>
@@ -156,16 +51,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/ble_proto.h</locationURI>
 		</link>
 		<link>
-			<name>circ_buff.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/circ_buff.c</locationURI>
-		</link>
-		<link>
-			<name>circ_buff.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/circ_buff.h</locationURI>
-		</link>
-		<link>
 			<name>cmdline.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/cmdline.c</locationURI>
@@ -179,21 +64,6 @@
 			<name>cmsis-dsp</name>
 			<type>2</type>
 			<locationURI>virtual:/virtual</locationURI>
-		</link>
-		<link>
-			<name>codec_debug_config.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/codec_debug_config.h</locationURI>
-		</link>
-		<link>
-			<name>codec_runtime_update.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/codec_runtime_update.c</locationURI>
-		</link>
-		<link>
-			<name>codec_runtime_update.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/codec_runtime_update.h</locationURI>
 		</link>
 		<link>
 			<name>commands.c</name>
@@ -266,16 +136,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/fault.h</locationURI>
 		</link>
 		<link>
-			<name>fft.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/fft.c</locationURI>
-		</link>
-		<link>
-			<name>fft.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/fft.h</locationURI>
-		</link>
-		<link>
 			<name>filedownloadmanager.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/filedownloadmanager.c</locationURI>
@@ -331,96 +191,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/hellomath.c</locationURI>
 		</link>
 		<link>
-			<name>hlo_async.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_async.c</locationURI>
-		</link>
-		<link>
-			<name>hlo_async.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_async.h</locationURI>
-		</link>
-		<link>
-			<name>hlo_audio.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio.c</locationURI>
-		</link>
-		<link>
-			<name>hlo_audio.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio.h</locationURI>
-		</link>
-		<link>
-			<name>hlo_audio_tools.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio_tools.c</locationURI>
-		</link>
-		<link>
-			<name>hlo_audio_tools.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio_tools.h</locationURI>
-		</link>
-		<link>
-			<name>hlo_http.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_http.c</locationURI>
-		</link>
-		<link>
-			<name>hlo_http.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_http.h</locationURI>
-		</link>
-		<link>
-			<name>hlo_m4.asm</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_m4.asm</locationURI>
-		</link>
-		<link>
-			<name>hlo_m4.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_m4.h</locationURI>
-		</link>
-		<link>
-			<name>hlo_net_tools.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_net_tools.c</locationURI>
-		</link>
-		<link>
-			<name>hlo_net_tools.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_net_tools.h</locationURI>
-		</link>
-		<link>
-			<name>hlo_pipe.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_pipe.c</locationURI>
-		</link>
-		<link>
-			<name>hlo_pipe.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_pipe.h</locationURI>
-		</link>
-		<link>
-			<name>hlo_proto_tools.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_proto_tools.c</locationURI>
-		</link>
-		<link>
-			<name>hlo_proto_tools.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_proto_tools.h</locationURI>
-		</link>
-		<link>
-			<name>hlo_stream.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_stream.c</locationURI>
-		</link>
-		<link>
-			<name>hlo_stream.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_stream.h</locationURI>
-		</link>
-		<link>
 			<name>hw_ver.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hw_ver.c</locationURI>
@@ -439,16 +209,6 @@
 			<name>i2c_cmd.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/i2c_cmd.h</locationURI>
-		</link>
-		<link>
-			<name>keyword_net.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/keyword_net.c</locationURI>
-		</link>
-		<link>
-			<name>keyword_net.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/keyword_net.h</locationURI>
 		</link>
 		<link>
 			<name>kit_assert.h</name>
@@ -531,16 +291,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/octogram.c</locationURI>
 		</link>
 		<link>
-			<name>pcm_handler.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/pcm_handler.c</locationURI>
-		</link>
-		<link>
-			<name>pcm_handler.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/pcm_handler.h</locationURI>
-		</link>
-		<link>
 			<name>pill_settings.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/pill_settings.c</locationURI>
@@ -586,24 +336,9 @@
 			<locationURI>PARENT-2-PROJECT_LOC/prox_signal.h</locationURI>
 		</link>
 		<link>
-			<name>rc4.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/rc4.c</locationURI>
-		</link>
-		<link>
 			<name>readme.txt</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/readme.txt</locationURI>
-		</link>
-		<link>
-			<name>rsa.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/rsa.c</locationURI>
-		</link>
-		<link>
-			<name>sha1.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/sha1.c</locationURI>
 		</link>
 		<link>
 			<name>sl_sync.c</name>
@@ -654,91 +389,6 @@
 			<name>tinyhttp</name>
 			<type>2</type>
 			<locationURI>virtual:/virtual</locationURI>
-		</link>
-		<link>
-			<name>tinytensor_conv_layer.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_conv_layer.c</locationURI>
-		</link>
-		<link>
-			<name>tinytensor_conv_layer.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_conv_layer.h</locationURI>
-		</link>
-		<link>
-			<name>tinytensor_features.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_features.c</locationURI>
-		</link>
-		<link>
-			<name>tinytensor_features.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_features.h</locationURI>
-		</link>
-		<link>
-			<name>tinytensor_fullyconnected_layer.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_fullyconnected_layer.c</locationURI>
-		</link>
-		<link>
-			<name>tinytensor_fullyconnected_layer.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_fullyconnected_layer.h</locationURI>
-		</link>
-		<link>
-			<name>tinytensor_lstm_layer.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_lstm_layer.c</locationURI>
-		</link>
-		<link>
-			<name>tinytensor_lstm_layer.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_lstm_layer.h</locationURI>
-		</link>
-		<link>
-			<name>tinytensor_math.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_math.c</locationURI>
-		</link>
-		<link>
-			<name>tinytensor_math.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_math.h</locationURI>
-		</link>
-		<link>
-			<name>tinytensor_maxpool_layer.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_maxpool_layer.h</locationURI>
-		</link>
-		<link>
-			<name>tinytensor_memory.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_memory.h</locationURI>
-		</link>
-		<link>
-			<name>tinytensor_net.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_net.c</locationURI>
-		</link>
-		<link>
-			<name>tinytensor_net.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_net.h</locationURI>
-		</link>
-		<link>
-			<name>tinytensor_tensor.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_tensor.c</locationURI>
-		</link>
-		<link>
-			<name>tinytensor_tensor.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_tensor.h</locationURI>
-		</link>
-		<link>
-			<name>tinytensor_types.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_types.h</locationURI>
 		</link>
 		<link>
 			<name>top_board.c</name>
@@ -911,6 +561,41 @@
 			<locationURI>PARENT-2-PROJECT_LOC/common/wdt_if.h</locationURI>
 		</link>
 		<link>
+			<name>crypto/aes.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/aes.c</locationURI>
+		</link>
+		<link>
+			<name>crypto/bigint.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/bigint.c</locationURI>
+		</link>
+		<link>
+			<name>crypto/bigint.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/bigint.h</locationURI>
+		</link>
+		<link>
+			<name>crypto/bigint_impl.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/bigint_impl.h</locationURI>
+		</link>
+		<link>
+			<name>crypto/rc4.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/rc4.c</locationURI>
+		</link>
+		<link>
+			<name>crypto/rsa.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/rsa.c</locationURI>
+		</link>
+		<link>
+			<name>crypto/sha1.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sha1.c</locationURI>
+		</link>
+		<link>
 			<name>debugutils/matmessageutils.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/debugutils/matmessageutils.c</locationURI>
@@ -1034,6 +719,216 @@
 			<name>hashtable/swap_mem.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hashtable/swap_mem.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/adpcm.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/adpcm.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/adpcm.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/adpcm.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/audio_codec_pps_driver.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audio_codec_pps_driver.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/audio_types.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audio_types.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/audioclassifier.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/audioclassifier.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/audiocontrolhelper.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiocontrolhelper.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/audiocontrolhelper.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiocontrolhelper.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/audiofeatures.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/audiofeatures.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/audiohelper.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiohelper.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/audiohelper.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiohelper.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/audioprocessingtask.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/audioprocessingtask.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/audiosimilarity.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiosimilarity.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/audiotask.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiotask.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/audiotask.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiotask.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/circ_buff.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/circ_buff.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/circ_buff.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/circ_buff.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/codec_debug_config.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/codec_debug_config.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/codec_runtime_update.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/codec_runtime_update.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/codec_runtime_update.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/codec_runtime_update.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_async.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_async.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_async.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_async.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_audio.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_audio.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_audio_tools.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio_tools.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_audio_tools.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio_tools.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_http.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_http.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_http.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_http.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_m4.asm</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_m4.asm</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_m4.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_m4.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_net_tools.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_net_tools.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_net_tools.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_net_tools.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_pipe.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_pipe.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_pipe.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_pipe.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_proto_tools.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_proto_tools.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_proto_tools.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_proto_tools.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_stream.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_stream.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_stream.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_stream.h</locationURI>
+		</link>
+		<link>
+			<name>hlo/pcm_handler.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/pcm_handler.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/pcm_handler.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/pcm_handler.h</locationURI>
 		</link>
 		<link>
 			<name>nanopb/pb.h</name>
@@ -1239,6 +1134,111 @@
 			<name>protobuf/sync_response.pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/sync_response.pb.h</locationURI>
+		</link>
+		<link>
+			<name>tensor/fft.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/fft.c</locationURI>
+		</link>
+		<link>
+			<name>tensor/fft.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/fft.h</locationURI>
+		</link>
+		<link>
+			<name>tensor/keyword_net.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/keyword_net.c</locationURI>
+		</link>
+		<link>
+			<name>tensor/keyword_net.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/keyword_net.h</locationURI>
+		</link>
+		<link>
+			<name>tensor/tinytensor_conv_layer.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_conv_layer.c</locationURI>
+		</link>
+		<link>
+			<name>tensor/tinytensor_conv_layer.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_conv_layer.h</locationURI>
+		</link>
+		<link>
+			<name>tensor/tinytensor_features.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_features.c</locationURI>
+		</link>
+		<link>
+			<name>tensor/tinytensor_features.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_features.h</locationURI>
+		</link>
+		<link>
+			<name>tensor/tinytensor_fullyconnected_layer.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_fullyconnected_layer.c</locationURI>
+		</link>
+		<link>
+			<name>tensor/tinytensor_fullyconnected_layer.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_fullyconnected_layer.h</locationURI>
+		</link>
+		<link>
+			<name>tensor/tinytensor_lstm_layer.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_lstm_layer.c</locationURI>
+		</link>
+		<link>
+			<name>tensor/tinytensor_lstm_layer.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_lstm_layer.h</locationURI>
+		</link>
+		<link>
+			<name>tensor/tinytensor_math.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_math.c</locationURI>
+		</link>
+		<link>
+			<name>tensor/tinytensor_math.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_math.h</locationURI>
+		</link>
+		<link>
+			<name>tensor/tinytensor_maxpool_layer.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_maxpool_layer.h</locationURI>
+		</link>
+		<link>
+			<name>tensor/tinytensor_memory.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_memory.h</locationURI>
+		</link>
+		<link>
+			<name>tensor/tinytensor_net.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_net.c</locationURI>
+		</link>
+		<link>
+			<name>tensor/tinytensor_net.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_net.h</locationURI>
+		</link>
+		<link>
+			<name>tensor/tinytensor_tensor.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_tensor.c</locationURI>
+		</link>
+		<link>
+			<name>tensor/tinytensor_tensor.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_tensor.h</locationURI>
+		</link>
+		<link>
+			<name>tensor/tinytensor_types.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_types.h</locationURI>
 		</link>
 		<link>
 			<name>tests/TestNetwork.c</name>

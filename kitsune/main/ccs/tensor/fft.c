@@ -123,21 +123,20 @@ inline static short fix_mpy(short a, short b)
 #include "uart_logger.h"
 #include "cmsis_ccs.h"
 #include "arm_math.h"
-typedef union
-{
-    struct {
-    	int16_t LSW; /* Least significant Word */
-        int16_t MSW; /* Most significant Word */
-    }regs;
-    uint32_t pair;
-}pair_t;
-pair_t p1, p2;
-
 __attribute__((section(".ramcode"))) int fft(int16_t fr[], int16_t fi[], int32_t m)
 {
     int32_t mr, nn, i, j, l, k, istep, n;
-#if 0
     int16_t  wr, wi;
+#if 0
+    typedef union
+    {
+        struct {
+        	int16_t LSW; /* Least significant Word */
+            int16_t MSW; /* Most significant Word */
+        }regs;
+        uint32_t pair;
+    }pair_t;
+    pair_t p1, p2;
 #endif
 
     n = 1 << m;
@@ -182,28 +181,29 @@ __attribute__((section(".ramcode"))) int fft(int16_t fr[], int16_t fi[], int32_t
         for (m = 0; m < l; ++m) {
             j = m << k;
             /* 0 <= j < N_WAVE/2 */
-            p1.regs.LSW =
-            		/*wr =*/ fxd_sin(j + N_WAVE / 4);
-            p1.regs.MSW =
-            		/*wi = */-fxd_sin(j);
+        //    p1.regs.MSW =
+            		wr = fxd_sin(j + N_WAVE / 4);
+        //    p1.regs.LSW =
+            		wi = -fxd_sin(j);
             
             for (i = m; i < n; i += istep) {
                 int32_t tr,ti,qr, qi;
 
                 j = i + l;
 
-#ifdef ARM_MATH_CM4
-                p2.regs.LSW = fr[j];
-                p2.regs.MSW = fi[j];
-                tr = (int32_t)__SMUSD( p1.pair, p2.pair  );
-                ti = (int32_t)__SMUADX( p1.pair, p2.pair  );
-#elif
-                p2.regs.LSW = fr[j];
-                p2.regs.MSW = fi[j];
-                tr = (int32_t)p1.regs.LSW * (int32_t)p2.regs.LSW
-				   - (int32_t)p1.regs.MSW * (int32_t)p2.regs.MSW;
-                ti = (int32_t)p1.regs.LSW * (int32_t)p2.regs.MSW
-			       + (int32_t)p1.regs.MSW * (int32_t)p2.regs.LSW;
+#if 0
+                p2.regs.MSW = fr[j];
+                p2.regs.LSW = fi[j];
+                tr = __SMUSD( p1.pair, p2.pair  );
+                ti = __SMUADX( p1.pair, p2.pair  );
+##elif 0
+                tr = (int32_t)p1.regs.MSW * (int32_t)p2.regs.MSW
+				   - (int32_t)p1.regs.LSW * (int32_t)p2.regs.LSW;
+                ti = (int32_t)p1.regs.MSW * (int32_t)p2.regs.LSW
+			       + (int32_t)p1.regs.LSW * (int32_t)p2.regs.MSW;
+#else
+                tr = (int32_t)wr * (int32_t)fr[j] - (int32_t)wi * (int32_t)fi[j];
+                ti = (int32_t)wr * (int32_t)fi[j] + (int32_t)wi*(int32_t)fr[j];
 #endif
 
                 tr >>= 1;
@@ -224,8 +224,7 @@ __attribute__((section(".ramcode"))) int fft(int16_t fr[], int16_t fi[], int32_t
     return 0;
 }
 
-__attribute__((section(".ramcode")))
-int fftr(int16_t f[], int32_t m)
+__attribute__((section(".ramcode"))) int fftr(int16_t f[], int32_t m)
 {
     int32_t i, N = 1<<(m-1);
     int16_t tt, *fr=f, *fi=&f[N];
@@ -235,7 +234,7 @@ int fftr(int16_t f[], int32_t m)
         f[N+i-1] = f[i];
         f[i] = tt;
     }
-    fft(fi, fr, m-1);
+    return fft(fi, fr, m-1);
 }
 
 //requires 2N memory... for now

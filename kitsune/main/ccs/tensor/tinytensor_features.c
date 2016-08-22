@@ -345,7 +345,6 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
     fft(fr,fi,FFT_SIZE_2N);
 
     CHKCYC("FFT");
-
     //get "speech" energy ratio
     get_speech_energy_ratio(fr,fi,temp16);
 
@@ -353,7 +352,7 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
     _this.speech_frame_counter++;
     //GET MEL FEATURES (one time slice in the mel spectrogram)
     tinytensor_features_get_mel_bank(melbank,fr,fi,temp16);
-
+    
     //GET MAX
     temp16 = MIN_INT_16;
     for (i = 0; i < NUM_MEL_BINS; i++) {

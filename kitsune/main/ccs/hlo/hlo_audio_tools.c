@@ -391,9 +391,15 @@ int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * outp
 	return ret;
 }
 static void _begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
-	DISP("OKAY SENSE\r\n");
+	play_led_animation_solid(254, 254, 254, 254 ,1, 18,3);
+	if (keyword == okay_sense) {
+		DISP("OKAY SENSE\r\n");
+	}
 }
 static void _finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
+	if (keyword == okay_sense) {
+		DISP("Keyword Done\r\n");
+	}
 }
 //note that filter and the stream version can not run concurrently
 int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
