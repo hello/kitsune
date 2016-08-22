@@ -5,10 +5,9 @@
 
 	.def hlo_asm_accumulate
 
-	.text
 
 ;---------------------------------------------------------
-hlo_asm_accumulate:
+hlo_asm_accumulate: .asmfunc
 		push	{r4, r5, r6, r7, lr}
 		mov	r6, r0
 		movs	r0, #0
@@ -74,3 +73,4 @@ l80c0:		cmp	r6, #1
 		subs	r6, #2
 		b.n	l80c0
 l80d4:		pop	{r4, r5, r6, r7, pc}
+	.endasmfunc

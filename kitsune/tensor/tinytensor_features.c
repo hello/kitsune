@@ -2,6 +2,8 @@
 #include "tinytensor_memory.h"
 
 #include "uart_logger.h"
+#include "FreeRTOS.h"
+#include "task.h"
 #include "fft.h"
 #include "hellomath.h"
 
@@ -81,7 +83,6 @@ typedef struct {
 
 } TinyTensorFeatures_t;
 
-__attribute__((section(".ramcode")))
 static TinyTensorFeatures_t _this;
 
 void tinytensor_features_initialize(void * results_context, tinytensor_audio_feat_callback_t results_callback,tinytensor_speech_detector_callback_t speech_detector_callback) {

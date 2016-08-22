@@ -67,9 +67,11 @@ static int16_t hard_sigmoid(int32_t x,int8_t in_scale) {
     
     return (int16_t) temp32;
 }
+
 #include "FreeRTOS.h"
 #include "task.h"
 #include "uart_logger.h"
+__attribute__((section(".ramcode")))
 static void lstm_time_step_forwards(int32_t * cell_state,
                                     Weight_t * output,
                                     const Weight_t * input_vec,
@@ -88,14 +90,13 @@ static void lstm_time_step_forwards(int32_t * cell_state,
     uint32_t icell;
     int32_t accumulator32;
     int32_t temp32;
-    int8_t temp8;
+    int temp;
     Weight_t h;
     int8_t tempscale;
-    int32_t bias32;
 
     const Weight_t * weight_row_starts[NUM_GATES];
-    const Weight_t * bias_row_starts[NUM_GATES];
-    const uint32_t total_len = num_cells + num_inputs;
+    Weight_t bias_row_starts[NUM_GATES];
+    uint32_t total_len = num_cells + num_inputs;
     int32_t pre_activations[NUM_GATES];
 
     int16_t activation_forget_gate;
@@ -106,7 +107,7 @@ static void lstm_time_step_forwards(int32_t * cell_state,
     for (igate = 0; igate < NUM_GATES; igate++) {
         //set up row starts for all weights
         weight_row_starts[igate] = weights[igate];
-        bias_row_starts[igate] = biases[igate];
+        bias_row_starts[igate] = *biases[igate] << QFIXEDPOINT; //to Q14 + QB FROM Q7 + QB
     }
     
     for (icell = 0; icell < num_cells; icell++) {
@@ -121,24 +122,22 @@ static void lstm_time_step_forwards(int32_t * cell_state,
 
             accumulator32 = 0;
             const Weight_t * w = weight_row_starts[igate];
-            const Weight_t * b = bias_row_starts[igate];
-            const int8_t w_scale = weights_scale[igate];
-            const int8_t b_scale = biases_scale[igate];
+            Weight_t b = bias_row_starts[igate];
+            int8_t w_scale = weights_scale[igate];
+            int8_t b_scale = biases_scale[igate];
             
             accumulator32 = accumulate(total_len,w,input_vec);
             
-            bias32 = *b << QFIXEDPOINT; //to Q14 + QB FROM Q7 + QB
+            temp = b_scale - input_scale - w_scale;
             
-            temp8 = b_scale - input_scale - w_scale;
-            
-            if (temp8 > 0) {
-                bias32 >>= temp8;
+            if (temp > 0) {
+                b >>= temp;
             }
-            else if (temp8 < 0){
-                bias32 <<= -temp8;
+            else if (temp < 0){
+                b <<= -temp;
             }
             
-            accumulator32 += bias32;
+            accumulator32 += b;
             
             if (w_scale > 0) {
                 accumulator32 >>= w_scale;
@@ -154,8 +153,7 @@ static void lstm_time_step_forwards(int32_t * cell_state,
             
             //update indices
             weight_row_starts[igate] += total_len;
-            bias_row_starts[igate] += 1;
-
+            ++bias_row_starts[igate];
         }
         
 
@@ -164,7 +162,7 @@ static void lstm_time_step_forwards(int32_t * cell_state,
         activation_input_gate = hard_sigmoid(pre_activations[inputgate],input_scale);
         activation_output_gate = hard_sigmoid(pre_activations[outputgate],input_scale);
         
-        tinytensor_tanh(&activation_cell,&tempscale,pre_activations[celloutput],input_scale);
+        output_activation(&activation_cell,&tempscale,pre_activations[celloutput],input_scale);
         assert(tempscale == 0);
 
         
@@ -184,7 +182,7 @@ static void lstm_time_step_forwards(int32_t * cell_state,
         //To Q7
         temp32 >>= QFIXEDPOINT;
         
-        tinytensor_tanh(&h,&tempscale,temp32,0);
+        output_activation(&h,&tempscale,temp32,0);
         assert(tempscale == 0);
         //Q7 x Q7  = Q14
         temp32 = (int16_t)h * (int16_t)activation_output_gate;

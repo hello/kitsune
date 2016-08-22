@@ -43,7 +43,7 @@
 #include "arm_const_structs.h"
 
 //Floating-point structs
-
+#if 0
 const arm_cfft_instance_f32 arm_cfft_sR_f32_len16 = {
 	16, twiddleCoef_16, armBitRevIndexTable16, ARMBITREVINDEXTABLE__16_TABLE_LENGTH
 };
@@ -79,6 +79,7 @@ const arm_cfft_instance_f32 arm_cfft_sR_f32_len2048 = {
 const arm_cfft_instance_f32 arm_cfft_sR_f32_len4096 = {
 	4096, twiddleCoef_4096, armBitRevIndexTable4096, ARMBITREVINDEXTABLE4096_TABLE_LENGTH
 };
+#endif
 
 //Fixed-point structs
 
@@ -119,6 +120,10 @@ const arm_cfft_instance_q31 arm_cfft_sR_q31_len4096 = {
 };
 
 
+
+const arm_cfft_instance_q15 arm_cfft_sR_q15_len64 = {
+	64, twiddleCoef_64_q15, armBitRevIndexTable_fixed_64, ARMBITREVINDEXTABLE_FIXED___64_TABLE_LENGTH
+};
 const arm_cfft_instance_q15 arm_cfft_sR_q15_len16 = {
 	16, twiddleCoef_16_q15, armBitRevIndexTable_fixed_16, ARMBITREVINDEXTABLE_FIXED___16_TABLE_LENGTH
 };
@@ -126,11 +131,6 @@ const arm_cfft_instance_q15 arm_cfft_sR_q15_len16 = {
 const arm_cfft_instance_q15 arm_cfft_sR_q15_len32 = {
 	32, twiddleCoef_32_q15, armBitRevIndexTable_fixed_32, ARMBITREVINDEXTABLE_FIXED___32_TABLE_LENGTH
 };
-
-const arm_cfft_instance_q15 arm_cfft_sR_q15_len64 = {
-	64, twiddleCoef_64_q15, armBitRevIndexTable_fixed_64, ARMBITREVINDEXTABLE_FIXED___64_TABLE_LENGTH
-};
-
 const arm_cfft_instance_q15 arm_cfft_sR_q15_len128 = {
 	128, twiddleCoef_128_q15, armBitRevIndexTable_fixed_128, ARMBITREVINDEXTABLE_FIXED__128_TABLE_LENGTH
 };
@@ -154,3 +154,4 @@ const arm_cfft_instance_q15 arm_cfft_sR_q15_len2048 = {
 const arm_cfft_instance_q15 arm_cfft_sR_q15_len4096 = {
 	4096, twiddleCoef_4096_q15, armBitRevIndexTable_fixed_4096, ARMBITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH
 };
+

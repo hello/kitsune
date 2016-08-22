@@ -109,6 +109,12 @@
 								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.TRAMPOLINES.1179924399" name="Generate far call trampolines (--trampolines)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.TRAMPOLINES" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.TRAMPOLINES.on" valueType="enumerated"/>
 								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.UNUSED_SECTION_ELIMINATION.410390372" name="Eliminate sections not needed in the executable (--unused_section_elimination)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.UNUSED_SECTION_ELIMINATION" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.UNUSED_SECTION_ELIMINATION.on" valueType="enumerated"/>
 								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.COMPRESS_DWARF.539904748" name="Aggressively reduce size of the DWARF information (--compress_dwarf)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.COMPRESS_DWARF" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.COMPRESS_DWARF.on" valueType="enumerated"/>
+								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.ROM.948956648" name="Create a ROM object (--rom)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.ROM" value="false" valueType="boolean"/>
+								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.MINIMIZE_TRAMPOLINES.665032391" name="Select trampoline minimization algorithm (--minimize_trampolines)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.MINIMIZE_TRAMPOLINES" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.MINIMIZE_TRAMPOLINES.postorder" valueType="enumerated"/>
+								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.PREFERRED_ORDER.2052138398" name="Add &lt;function&gt; to preferred placement order list (--preferred_order)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.PREFERRED_ORDER" value="&quot;hlo_asm_accumulate, tinytensor_math.c:tinytensor_tanh,  tinytensor_lstm_layer.c:hard_sigmoid, tinytensor_math.c:tinytensor_tanh&quot;" valueType="string"/>
+								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.OTHER_FLAGS.1557428001" name="Other flags" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.OTHER_FLAGS" valueType="stringList">
+									<listOptionValue builtIn="false" value=""/>
+								</option>
 								<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exeLinker.inputType__CMD_SRCS.1871414634" name="Linker Command Files" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exeLinker.inputType__CMD_SRCS"/>
 								<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exeLinker.inputType__CMD2_SRCS.6499814" name="Linker Command Files" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exeLinker.inputType__CMD2_SRCS"/>
 								<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exeLinker.inputType__GEN_CMDS.1295047486" name="Generated Linker Command Files" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exeLinker.inputType__GEN_CMDS"/>
@@ -135,6 +141,14 @@
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.1602775556" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
 						</tool>
 					</fileInfo>
+					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.sys_time.c" name="sys_time.c" rcbsApplicability="disable" resourcePath="sys_time.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.3642805">
+						<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.3642805" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729">
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS.1228884296" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS.567112671" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS.182597989" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.525410524" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
+						</tool>
+					</fileInfo>
 					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.commands.c" name="commands.c" rcbsApplicability="disable" resourcePath="commands.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.1417093577">
 						<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.1417093577" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729">
 							<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL.2111716445" name="Optimization level (--opt_level, -O)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL.off" valueType="enumerated"/>
@@ -142,14 +156,6 @@
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS.1893666957" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS"/>
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS.877854273" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS"/>
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.1968132417" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
-						</tool>
-					</fileInfo>
-					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.sys_time.c" name="sys_time.c" rcbsApplicability="disable" resourcePath="sys_time.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.3642805">
-						<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.3642805" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729">
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS.1228884296" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS.567112671" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS.182597989" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.525410524" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
 						</tool>
 					</fileInfo>
 					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.wifi_cmd.c" name="wifi_cmd.c" rcbsApplicability="disable" resourcePath="wifi_cmd.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.674763189">
@@ -196,12 +202,21 @@
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.1088131964" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
 						</tool>
 					</fileInfo>
+					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.i2c_cmd.c" name="i2c_cmd.c" rcbsApplicability="disable" resourcePath="i2c_cmd.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.135803623">
+						<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.135803623" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729">
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS.419106024" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS.564066525" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS.779521516" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.801625807" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
+						</tool>
+					</fileInfo>
 					<folderInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.1201141994" name="/" resourcePath="tensor">
 						<toolChain id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.DebugToolchain.1340025493" name="TI Build Tools" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.DebugToolchain" unusedChildren="">
 							<option id="com.ti.ccstudio.buildDefinitions.core.OPT_TAGS.1194076515.1911969477" superClass="com.ti.ccstudio.buildDefinitions.core.OPT_TAGS.1194076515"/>
 							<option id="com.ti.ccstudio.buildDefinitions.core.OPT_CODEGEN_VERSION.99948005.332065563" name="Compiler version" superClass="com.ti.ccstudio.buildDefinitions.core.OPT_CODEGEN_VERSION.99948005"/>
+							<targetPlatform id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.targetPlatformDebug" name="Platform" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.targetPlatformDebug"/>
 							<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1246918513" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729">
-								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL.1765943532" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL.2" valueType="enumerated"/>
+								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL.1765943532" name="Optimization level (--opt_level, -O)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL.2" valueType="enumerated"/>
 								<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS.819674418" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS"/>
 								<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS.446270222" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS"/>
 								<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS.1474836173" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS"/>
@@ -232,16 +247,6 @@
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.1578223228" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
 						</tool>
 					</fileInfo>
-					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.1351495466" name="tinytensor_conv_layer.c" rcbsApplicability="disable" resourcePath="tensor/tinytensor_conv_layer.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.89430511">
-						<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.89430511" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729">
-							<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED.2113919344" name="Speed vs. size trade-offs (--opt_for_speed, -mf)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED.5" valueType="enumerated"/>
-							<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL.534641719" name="Optimization level (--opt_level, -O)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL.2" valueType="enumerated"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS.1907190961" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS.688957767" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS.1289308216" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.1948914744" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
-						</tool>
-					</fileInfo>
 					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.444004188" name="tinytensor_math.c" rcbsApplicability="disable" resourcePath="tensor/tinytensor_math.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.298659617">
 						<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.298659617" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729">
 							<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED.16977001" name="Speed vs. size trade-offs (--opt_for_speed, -mf)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED.5" valueType="enumerated"/>
@@ -250,6 +255,16 @@
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS.76856127" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS"/>
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS.1907307017" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS"/>
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.1777723470" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
+						</tool>
+					</fileInfo>
+					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.1351495466" name="tinytensor_conv_layer.c" rcbsApplicability="disable" resourcePath="tensor/tinytensor_conv_layer.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.89430511">
+						<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.89430511" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729">
+							<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED.2113919344" name="Speed vs. size trade-offs (--opt_for_speed, -mf)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED.5" valueType="enumerated"/>
+							<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL.534641719" name="Optimization level (--opt_level, -O)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL.2" valueType="enumerated"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS.1907190961" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS.688957767" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS.1289308216" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.1948914744" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
 						</tool>
 					</fileInfo>
 					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.1941015506" name="tinytensor_lstm_layer.c" rcbsApplicability="disable" resourcePath="tensor/tinytensor_lstm_layer.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.1531695887">
@@ -287,16 +302,6 @@
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.346300335" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
 						</tool>
 					</fileInfo>
-					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.78237221" name="tinytensor_net.c" rcbsApplicability="disable" resourcePath="tensor/tinytensor_net.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.545344402">
-						<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.545344402" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729">
-							<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED.602330116" name="Speed vs. size trade-offs (--opt_for_speed, -mf)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED.5" valueType="enumerated"/>
-							<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL.399892407" name="Optimization level (--opt_level, -O)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL.2" valueType="enumerated"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS.1638528317" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS.757238379" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS.266921753" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.1343378729" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
-						</tool>
-					</fileInfo>
 					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.1164712840" name="tinytensor_fullyconnected_layer.c" rcbsApplicability="disable" resourcePath="tensor/tinytensor_fullyconnected_layer.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.1650557882">
 						<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.1650557882" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729">
 							<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED.809332195" name="Speed vs. size trade-offs (--opt_for_speed, -mf)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED.5" valueType="enumerated"/>
@@ -307,12 +312,14 @@
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.628600049" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
 						</tool>
 					</fileInfo>
-					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.i2c_cmd.c" name="i2c_cmd.c" rcbsApplicability="disable" resourcePath="i2c_cmd.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.135803623">
-						<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.135803623" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729">
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS.419106024" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS.564066525" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS.779521516" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.801625807" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
+					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.78237221" name="tinytensor_net.c" rcbsApplicability="disable" resourcePath="tensor/tinytensor_net.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.545344402">
+						<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.545344402" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729">
+							<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED.602330116" name="Speed vs. size trade-offs (--opt_for_speed, -mf)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED.5" valueType="enumerated"/>
+							<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL.399892407" name="Optimization level (--opt_level, -O)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL.2" valueType="enumerated"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS.1638528317" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS.757238379" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS.266921753" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.1343378729" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
 						</tool>
 					</fileInfo>
 					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.diskio.c" name="diskio.c" rcbsApplicability="disable" resourcePath="diskio.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1193645729.998165689">
@@ -324,7 +331,7 @@
 						</tool>
 					</fileInfo>
 					<sourceEntries>
-						<entry excluding="cmsis-dsp|cc3220sf.cmd|CC3220sf_startup_ccs.c|cc3200v1p32.cmd|tinyhttp/example.cpp|cc3200_startup_ccs.c|common/network_if.c|common/uart_if.c|common/startup_gcc.c|common/startup_ewarm.c|freertos_demo.cmd" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="cmsis-dsp/Source/ComplexMathFunctions/arm_cmplx_mag_squared_f32.c|cmsis-dsp/Source/ComplexMathFunctions/arm_cmplx_mag_q31.c|cmsis-dsp/Source/ComplexMathFunctions/arm_cmplx_mag_q15.c|cmsis-dsp/Source/ComplexMathFunctions/arm_cmplx_mag_f32.c|cmsis-dsp/Source/ComplexMathFunctions/arm_cmplx_dot_prod_q31.c|cmsis-dsp/Source/ComplexMathFunctions/arm_cmplx_dot_prod_q15.c|cmsis-dsp/Source/ComplexMathFunctions/arm_cmplx_dot_prod_f32.c|cmsis-dsp/Source/ComplexMathFunctions/arm_cmplx_conj_q31.c|cmsis-dsp/Source/ComplexMathFunctions/arm_cmplx_conj_q15.c|cmsis-dsp/Source/ComplexMathFunctions/arm_cmplx_conj_f32.c|cmsis-dsp/Source/ComplexMathFunctions/arm_cmplx_mult_real_q31.c|cmsis-dsp/Source/ComplexMathFunctions/arm_cmplx_mult_real_q15.c|cmsis-dsp/Source/ComplexMathFunctions/arm_cmplx_mult_real_f32.c|cmsis-dsp/Source/ComplexMathFunctions/arm_cmplx_mult_cmplx_q31.c|cmsis-dsp/Source/ComplexMathFunctions/arm_cmplx_mult_cmplx_q15.c|cmsis-dsp/Source/ComplexMathFunctions/arm_cmplx_mult_cmplx_f32.c|cmsis-dsp/Source/TransformFunctions/arm_rfft_init_f32.c|cmsis-dsp/Source/TransformFunctions/arm_rfft_fast_init_f32.c|cmsis-dsp/Source/TransformFunctions/arm_rfft_fast_f32.c|cmsis-dsp/Source/TransformFunctions/arm_rfft_f32.c|cmsis-dsp/Source/TransformFunctions/arm_dct4_q31.c|cmsis-dsp/Source/TransformFunctions/arm_dct4_q15.c|cmsis-dsp/Source/TransformFunctions/arm_dct4_init_q31.c|cmsis-dsp/Source/TransformFunctions/arm_dct4_init_q15.c|cmsis-dsp/Source/TransformFunctions/arm_dct4_init_f32.c|cmsis-dsp/Source/TransformFunctions/arm_dct4_f32.c|cmsis-dsp/Source/TransformFunctions/arm_cfft_radix8_f32.c|cmsis-dsp/Source/TransformFunctions/arm_cfft_radix4_init_f32.c|cmsis-dsp/Source/TransformFunctions/arm_cfft_radix4_f32.c|cmsis-dsp/Source/TransformFunctions/arm_cfft_radix2_init_f32.c|cmsis-dsp/Source/TransformFunctions/arm_cfft_radix2_f32.c|cmsis-dsp/Source/TransformFunctions/arm_cfft_f32.c|cmsis-dsp/Source/SupportFunctions|cmsis-dsp/Source/StatisticsFunctions|cmsis-dsp/Source/MatrixFunctions|cmsis-dsp/Source/FilteringFunctions|cmsis-dsp/Source/FastMathFunctions|cmsis-dsp/Source/ControllerFunctions|cc3220sf.cmd|CC3220sf_startup_ccs.c|cc3200v1p32.cmd|tinyhttp/example.cpp|cc3200_startup_ccs.c|common/network_if.c|common/uart_if.c|common/startup_gcc.c|common/startup_ewarm.c|freertos_demo.cmd" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

@@ -183,7 +183,7 @@ const uint16_t armBitRevTable[1024] = {
    0x5fe, 0x3fe, 0x7fe, 0x1 
 };
 
-
+#if 0
 /*    
 * @brief  Floating-point Twiddle factors Table Generation    
 */
@@ -8525,7 +8525,7 @@ const float32_t twiddleCoef_4096[8192] = {
     0.999995294f, -0.003067957f,
     0.999998823f, -0.001533980f
 };
-
+#endif
 /*    
 * @brief  Q31 Twiddle factors Table    
 */
@@ -12820,7 +12820,6 @@ const q31_t twiddleCoef_4096_q31[6144] =
 	(q31_t)0xFF69343E, (q31_t)0x800058D3, (q31_t)0xFF9B781D, 
 	(q31_t)0x8000277A, (q31_t)0xFFCDBC0A, (q31_t)0x800009DE
 };
-
 
 
 /*    
@@ -17778,7 +17777,7 @@ const uint16_t armBitRevIndexTable_fixed_4096[ARMBITREVINDEXTABLE_FIXED_4096_TAB
     30456,32184, 30584,31672, 30712,32696, 30968,31864, 31096,31352, 31224,32376, 
     31480,32120, 31736,32632, 32248,32504 
 };
-
+#if 0
 /**    
 * \par    
 * Example code for Floating-point RFFT Twiddle factors Generation:    
@@ -22002,6 +22001,7 @@ const float32_t sinTable_f32[FAST_MATH_TABLE_SIZE + 1] = {
    -0.04906767f, -0.03680722f, -0.02454123f, -0.01227154f, -0.00000000f
 };
 
+#endif
 /**   
  * \par    
  * Table values are in Q31 (1.31 fixed-point format) and generation is done in 

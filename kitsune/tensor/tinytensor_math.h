@@ -36,7 +36,7 @@ int8_t tiny_tensor_get_descaling(int32_t x);
 #if ARM_MATH_CM4
 #include "hlo_m4.h"
 #define accumulate hlo_asm_accumulate
-#else
+#elif 0
 __attribute__((section(".ramcode")))
 static inline int32_t accumulate(const uint32_t n, const Weight_t * in1, const Weight_t * in2) {
     int32_t accumulator = 0;

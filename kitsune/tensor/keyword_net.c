@@ -4,6 +4,15 @@
 #include "tinytensor_memory.h"
 #include "uart_logger.h"
 
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "stdlib.h"
+
+#include "arm_math.h"
+#include "arm_const_structs.h"
+#include "fft.h"
+
 typedef struct {
 	KeywordCallback_t on_start;
 	KeywordCallback_t on_end;
@@ -142,13 +151,6 @@ void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples) {
 	tinytensor_features_add_samples(samples,nsamples);
 }
 
-#include "FreeRTOS.h"
-#include "task.h"
-#include "stdlib.h"
-
-#include "arm_math.h"
-#include "arm_const_structs.h"
-#include "fft.h"
 uint32_t __dwt_tot_CYC_cnt;
 
 int cmd_test_neural_net(int argc, char * argv[]) {
@@ -156,57 +158,73 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 	int i,k;
 
 
-#if 1
+#if 0
     {
 
-		int16_t fr[64];
-		int16_t fi[64];
+#define L 512
+#define SR 8000
+#define FREQ 697
+
+		q31_t fr[512];
+		q31_t fi[512];
 
 
-		int16_t f_int[128];
+		q31_t f_int[1024];
+		q31_t f_mag[512];
 
-		for (i = 0; i < 64; i++) {
-			fr[i] = 1000*(i%7)-3000;
+		memset(f_int, 0, sizeof(f_int));
+		for (i = 0; i < L; i++) {
+			fr[i] = 32768 * (0.5f * sinf(2.0f * PI * FREQ * i / SR));
 			fi[i] = 0;
-			f_int[2*i] = fr[i];
 			f_int[2*i+1] = 0;
+			f_int[2*i] = 0;
 		}
         DISP("%d", fr[0]);
-		for (i = 1; i < 64; i++) {
+		for (i = 1; i < L; i++) {
 			DISP(",%d", fr[i]);
 			vTaskDelay(2);
 		}DISP("\n");
-//        arm_rfft_instance_q15 fftr_inst;
-//        arm_rfft_init_q15(&fftr_inst, 64, 0, 0);
+
+		 q31_t hanning_window_q31[L];
+		for (i = 0; i < L; i++) {
+			hanning_window_q31[i] = (q31_t) (0.5f * 2147483647.0f
+					* (1.0f - cosf(2.0f*PI*i / L)));
+		}
+        // Apply the window to the input buffer
+        arm_mult_q31(hanning_window_q31, fr, fr, L);
+
+        arm_rfft_instance_q31 fftr_inst;
+        arm_rfft_init_q31(&fftr_inst, L, 0, 1);
 		STARTCYC
-//        arm_rfft_q15(&fftr_inst, fr, f_int );
-		arm_cfft_q15( &arm_cfft_sR_q15_len64, f_int, 1, 1 );
+        arm_rfft_q31(&fftr_inst, fr, f_int );
+//		arm_cfft_q31( &arm_cfft_sR_q31_len64, f_int, 0, 1 );
 	    CHKCYC("ARM FFT");
-        DISP("%d", f_int[0]*f_int[0]+f_int[1]*f_int[1]);
-		for (i = 2; i < 128; i+=2) {
-			DISP(",%d", f_int[0]*f_int[0]+f_int[1]*f_int[1]);
-			vTaskDelay(2);
-		}DISP("\n");DISP("\n");
-        DISP("%d, %d", f_int[0], f_int[1]);
-		for (i = 2; i < 128; i+=2) {
-			DISP(",%d, %d", f_int[0], f_int[1]);
+
+        arm_cmplx_mag_squared_q31(f_int, f_mag, L);
+
+        DISP("%d,", f_mag[0]);
+		for (i = 1; i < L; i++) {
+			DISP(",%d", f_mag[0]);
 			vTaskDelay(2);
 		}DISP("\n");DISP("\n");
 
 		CHKCYC("-");
-		fft(fr,fi,6);
+		fft(fr,fi,9);
 		CHKCYC("MY FFT");
 	    STOPCYC
+
         DISP("%d", fr[i]*fr[i]+ fi[i]*fi[i]);
-		for (i = 1; i < 64; i++) {
+		for (i = 1; i < L; i++) {
 			DISP(",%d", fr[i]*fr[i]+ fi[i]*fi[i]);
 			vTaskDelay(2);
 		}DISP("\n");DISP("\n");
+#if 0
         DISP("%d, %d", fr[i], fi[i]);
-		for (i = 1; i < 64; i++) {
+		for (i = 1; i < L; i++) {
 			DISP(",%d, %d", fr[i], fi[i]);
 			vTaskDelay(2);
 		}DISP("\n");DISP("\n");
+#endif
     }
 #endif
 #if 1
@@ -220,16 +238,15 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 
 	DISP("start test\n\n");
 
-	for (k = 0; k < 1024; k++) {
+	for (k = 0; k < 10; k++) {
 		STARTCYC
 		CHKCYC("begin");
 		keyword_net_add_audio_samples(samples,160);
 		STOPCYC
-/*
+
 		for (i = 0; i < 160; i++) {
 			samples[i] = rand();
 		}
-		*/
 	}
 
 	DISP("\n\nstop test %d\n\n", xTaskGetTickCount() - start);

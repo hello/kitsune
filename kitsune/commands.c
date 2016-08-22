@@ -2307,7 +2307,7 @@ void vUARTTask(void *pvParameters) {
 				LOGF("can't run %s, no mem!\n", cCmdBuf );
 			} else {
 				memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
-				xTaskCreate(CmdLineProcess, "commandTask",  10*1024 / 4, args, 3, NULL);
+				xTaskCreate(CmdLineProcess, "commandTask",  20*1024 / 4, args, 3, NULL);
 			}
         }
 	}

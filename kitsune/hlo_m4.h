@@ -4,6 +4,6 @@
 #include "stdint.h"
 
 __attribute__((section(".ramcode")))
-int32_t hlo_asm_accumulate( int32_t a, const int16_t* w1,const int16_t* w2);
+inline int32_t hlo_asm_accumulate( int32_t a, const int16_t* w1,const int16_t* w2);
 
 #endif

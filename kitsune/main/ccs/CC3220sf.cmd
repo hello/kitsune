@@ -70,12 +70,12 @@ SECTIONS
 {
     .resetVecs            : > FLASH_BASE
     .init_array           : > FLASH_CODE
-    .text                 : > FLASH_CODE
+    .text                 : unordered() > FLASH_CODE
     .const                : > FLASH_CODE
     .cinit                : > FLASH_CODE
     .pinit                : > FLASH_CODE
     .binit                : > FLASH_CODE
-    .ramcode              : load = FLASH_CODE, run= SRAM_DATA, table(BINIT)
+    .ramcode              : unordered() load = FLASH_CODE, run= SRAM_DATA, table(BINIT)
     .ramvecs              : > SRAM_DATA ALIGN(1024)
     .data                 : > SRAM_DATA
     .bss                  : > SRAM_DATA
