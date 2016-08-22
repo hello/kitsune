@@ -109,16 +109,15 @@ void tinytensor_features_get_mel_bank(int16_t * melbank,const int16_t * fr, cons
     uint32_t utemp32;
     int32_t temp32;
     uint64_t accumulator;
+
     //get mel bank feats
     idx = 0;
     for (imel = 0; imel < NUM_MEL_BINS; imel++) {
         accumulator = 0;
-        for (ifft = k_fft_index_pairs[imel][0]; ifft <= k_fft_index_pairs[imel][1]; ifft++) {
-            utemp32 = 0;
-            utemp32 += ((uint32_t)fr[ifft]*fr[ifft]) + ((uint32_t)fi[ifft]*fi[ifft]); //q15 + q15 = q30, q30 * 2 --> q31, unsigned 32 is safe
-            utemp32 = (uint32_t)((((uint64_t) utemp32) * k_coeffs[idx]) >> 8);
-            accumulator += utemp32;
-            idx++;
+        for (ifft = k_fft_index_pairs[imel][0]; ifft <= k_fft_index_pairs[imel][1]; ++ifft) {
+            utemp32 = ((uint32_t)fr[ifft]*fr[ifft]) + ((uint32_t)fi[ifft]*fi[ifft]); //q15 + q15 = q30, q30 * 2 --> q31, unsigned 32 is safe
+            accumulator += (uint32_t)((((uint64_t) utemp32) * k_coeffs[idx]) >> 8);
+            ++idx;
         }
         
         if (accumulator < NOISE_FLOOR) {

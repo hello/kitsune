@@ -152,19 +152,15 @@ void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples) {
 }
 
 uint32_t __dwt_tot_CYC_cnt;
-
-int cmd_test_neural_net(int argc, char * argv[]) {
-	int16_t samples[160];
-	int i,k;
-
-
-#if 0
+#if 1
+int cmd_test_neural_net2(int argc, char * argv[])
     {
 
 #define L 512
 #define SR 8000
 #define FREQ 697
 
+	int i,k;
 		q31_t fr[512];
 		q31_t fi[512];
 
@@ -218,15 +214,19 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 			DISP(",%d", fr[i]*fr[i]+ fi[i]*fi[i]);
 			vTaskDelay(2);
 		}DISP("\n");DISP("\n");
-#if 0
         DISP("%d, %d", fr[i], fi[i]);
 		for (i = 1; i < L; i++) {
 			DISP(",%d, %d", fr[i], fi[i]);
 			vTaskDelay(2);
 		}DISP("\n");DISP("\n");
-#endif
+		return 0;
     }
 #endif
+
+int cmd_test_neural_net(int argc, char * argv[]) {
+	int16_t samples[160];
+	int i,k;
+
 #if 1
 	uint32_t start = xTaskGetTickCount();
 	for (i = 0; i < 160; i++) {
@@ -252,7 +252,6 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 	DISP("\n\nstop test %d\n\n", xTaskGetTickCount() - start);
 
 	keyword_net_deinitialize();
-
 	return 0;
 #endif
 }
