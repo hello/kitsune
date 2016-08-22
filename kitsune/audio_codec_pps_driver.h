@@ -46,7 +46,7 @@ typedef struct{
 
 #define MIC_VOLUME_DB 10
 #define MIC_VOLUME_CONTROL ((MIC_VOLUME_DB)*2)
-#define MUTE_SPK 1
+#define MUTE_SPK 0
 
 static const reg_value REG_Section_program[] = {
     {  0,0x0},
@@ -222,7 +222,7 @@ static const reg_value REG_Section_program2[] = {
 #endif
     {  0x7F,0x00},
 //			# reg[0][0][63] = 0xc2                       ; reg(0)(0)(0x3f => 63)     DAC L&R DAC powerup Ldata-LDAC Rdata-RDAC (soft-stepping disable)
-    { 63,0xC0},
+    { 63,0xC1},
 //			# reg[0][0][64] = 0x00                       ; reg(0)(0)(0x40 => 64)     DAC Left and Right DAC unmuted with indep.  vol. ctrl
     { 64,0x00},
 #if (KITSUNE_CODE==1)
