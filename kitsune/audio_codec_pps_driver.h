@@ -241,11 +241,11 @@ static const reg_value REG_Section_program2[] = {
 //			# reg[0][1][22] = 0xC3 ;
     { 22,0xC3},
 //			# reg[0][1][45] = 0x06 ;
-    { 45,0x06},
+    { 45,0x02},
 //			# reg[0][1][46] = 0x0C ; 		-6db
     { 46,0x0C},
 //			# reg[0][1][47] = 0x0C ;
-    { 47,0x0C},
+    // { 47,0x0C},
 #if (MUTE_SPK==1)
 	//			# reg[0][1][48] = 0x21 ;   12db
 	{ 48,0x00},
