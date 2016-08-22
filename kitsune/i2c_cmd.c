@@ -890,6 +890,7 @@ int32_t set_volume(int v, unsigned int dly) {
 	char send_stop = 1;
 	unsigned char cmd[2];
 
+	UARTprintf("Setting Volume: %d\n",v);
 	if(v < 0) v = 0;
 	if(v >64) v = 64;
 
@@ -907,7 +908,7 @@ int32_t set_volume(int v, unsigned int dly) {
 		codec_set_book(0);
 
 		//	w 30 00 00 # Select Page 0
-		codec_set_page(1);
+		codec_set_page(0);
 
 		cmd[0] = 65;
 		cmd[1] = v;
