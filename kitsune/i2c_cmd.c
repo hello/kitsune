@@ -898,7 +898,7 @@ int32_t set_volume(int v, unsigned int dly) {
 	v /= 372;
 	v -= 127;
 
-	if(v > 49) v = 49;
+	if(v > 48) v = 48;
 	if(v < -127) v = -127;
 
 	UARTprintf("Digital Volume: %d\n",v);
