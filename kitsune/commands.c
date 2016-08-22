@@ -1678,7 +1678,7 @@ void launch_tasks() {
 	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
 
-	// xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
+	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
 #endif
 }
 
