@@ -8,6 +8,7 @@ int Cmd_i2c_write(int argc, char *argv[]);
 int Cmd_i2c_readreg(int argc, char *argv[]);
 int Cmd_i2c_writereg(int argc, char *argv[]);
 
+int Cmd_read_temp_humid_old(int argc, char *argv[]);
 int Cmd_read_temp_hum_press(int argc, char *argv[]);
 int Cmd_meas_TVOC(int argc, char *argv[]);
 
@@ -20,6 +21,15 @@ int get_ir( int * ir );
 
 int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p );
 int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, unsigned int humid );
+
+typedef enum {
+	ZOPT_UV = 0,
+	ZOPT_ALS = 1,
+} zopt_mode;
+int read_zopt(zopt_mode selection);
+int Cmd_read_uv(int argc, char *argv[]);
+int Cmd_uvr(int argc, char *argv[]);
+int Cmd_uvw(int argc, char *argv[]);
 
 int init_humid_sensor();
 int init_temp_sensor();
@@ -37,4 +47,9 @@ int32_t codec_init(void);
 void codec_unmute_spkr(void);
 void codec_mute_spkr(void);
 
+void codec_set_page(uint32_t page);
+void codec_set_book(uint32_t book);
+int32_t set_volume(int v, unsigned int dly);
+
+int Cmd_mic_test(int argc, char * argv[]);
 #endif

@@ -51,9 +51,11 @@ void InitAudioTxRx(uint32_t rate)
 
 	MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
 
+	codec_unmute_spkr();
+
 }
 
-uint8_t InitAudioCapture(uint32_t rate) {
+uint8_t InitAudioCapture(void) {
 
 	if(pTxBuffer == NULL) {
 		pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE, audio_mem);
@@ -76,9 +78,6 @@ uint8_t InitAudioCapture(uint32_t rate) {
 	// Setup the Audio In/Out
 	MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA );
 
-	// Start Audio Tx/Rx
-	//Audio_Start();
-
 	return 0;
 }
 
@@ -99,19 +98,13 @@ void DeinitAudioCapture(void) {
 	}
 }
 
-uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
+uint8_t InitAudioPlayback() {
 
 	//create circular buffer
 	if (!pRxBuffer) {
 		pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE, audio_mem_p);
 	}
 	memset( audio_mem_p, 0, AUD_BUFFER_SIZE);
-
-	// Initialize the Audio(I2S) Module
-	//McASPInit(rate);
-
-	// Unmute speaker
-	codec_unmute_spkr();
 
 	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 
@@ -121,8 +114,6 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 	// Setup the Audio In/Out
     //MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA | I2S_INT_XDMA );
 	MAP_I2STxFIFOEnable(I2S_BASE,8,1);
-
-	//MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
 
     //MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX, I2S_INACT_LOW_LEVEL);
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX, I2S_INACT_LOW_LEVEL);
@@ -136,8 +127,11 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 
 void DeinitAudioPlayback(void) {
 
+#if 0
 	// Mute speaker
 	codec_mute_spkr();
+#endif
+	set_volume(0, portMAX_DELAY);
 
 	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
 

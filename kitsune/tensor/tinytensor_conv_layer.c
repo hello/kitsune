@@ -1,7 +1,7 @@
 #include "tinytensor_conv_layer.h"
 #include "tinytensor_memory.h"
 #include "tinytensor_math.h"
-#include <assert.h>
+#include "kit_assert.h"
 
 #define MAX_MAX_POOL_SIZE (8)
 

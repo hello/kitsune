@@ -398,33 +398,70 @@ int global_filename(char * local_fn)
 // Audio = $a46000
 //
 //*****************************************************************************
+
+char* strsep( char** stringp, const char* delim )
+  {
+  char* result;
+
+  if ((stringp == NULL) || (*stringp == NULL)) return NULL;
+
+  result = *stringp;
+
+  while (**stringp && !strchr( delim, **stringp )) ++*stringp;
+
+  if (**stringp) *(*stringp)++ = '\0';
+  else             *stringp    = NULL;
+
+  return result;
+  }
+
+
 #include "hlo_pipe.h"
 #include "hlo_audio.h"
 #include "fs_utils.h"
 #include "hlo_http.h"
 #include "audio_types.h"
+#include "hlo_audio_tools.h"
+hlo_stream_t * mic_test_stream_open(void);
 #define BUF_SIZE 64
 hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 	hlo_stream_t * rstr = NULL;
+	char * s = str+1;
+	char * p;
 	if(input){//input
-		if(str[0] == '$'){
-			do {
-			switch(str[1]){
+		while(p = strsep (&s,"$")) {
+			switch(p[0]){
 				case 'a':
 				case 'A':
 				{
 					int opt_rate = 0;
-					if(str[2] != '\0'){
-						opt_rate = ustrtoul(&str[2],NULL, 10);
+					if(p[1] != '\0'){
+						opt_rate = ustrtoul(p+1,NULL, 10);
 					}
 					DISP("Input Opt rate is %d\r\n", opt_rate);
 					if(opt_rate){
-						rstr = hlo_audio_open_mono(opt_rate,60,HLO_AUDIO_RECORD);
+						rstr = hlo_audio_open_mono(opt_rate,HLO_AUDIO_RECORD);
 					}else{
-						rstr = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,60,HLO_AUDIO_RECORD);
+						rstr = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_RECORD);
 					}
 					break;
 				}
+#if 0
+				case 'n':
+				case 'N':
+					rstr = hlo_stream_nn_keyword_recognition( rstr, 80 );
+					break;
+#endif
+				case 't':
+				case 'T':
+					rstr = hlo_stream_en( rstr );
+					break;
+				case 'c':
+					rstr = hlo_stream_sr_cnv( rstr, DOWNSAMPLE );
+					break;
+				case 'C':
+					rstr = hlo_stream_sr_cnv( rstr, UPSAMPLE );
+					break;
 				case 'l':
 				case 'L':
 					rstr = hlo_light_stream( rstr );
@@ -435,54 +472,69 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					break;
 				case 'i':
 				case 'I':
-					return hlo_http_get(&str[2]);
-				case '~':
-					return open_serial_flash(&str[2], HLO_STREAM_READ);
-				default:
+					rstr =  hlo_http_get(p+1);
 					break;
-				}
-			} while( '$' == *(str+=2) );
-		}else{//try file
-			global_filename(str);
-			if(input > 1){//repeating mode
-				return fs_stream_open_media(path_buff, -1);
+				case 'f':
+				case 'F':
+					global_filename(p+1);
+					if(input > 1){//repeating mode
+						rstr =  fs_stream_open_media(path_buff, -1);
+					} else {
+						rstr = fs_stream_open(path_buff, HLO_STREAM_READ);
+					}
+					break;
+				case '~':
+					rstr = open_serial_flash(p+1, HLO_STREAM_READ, 65536);
+					break;
+				default:
+					LOGE("stream missing\n");
+					break;
 			}
-			return fs_stream_open(path_buff, HLO_STREAM_READ);
 		}
 	}else{//output
-		if(str[0] == '$'){
+		while(p = strsep (&s,"$")) {
 			switch(str[1]){
-			case 'a':
-			case 'A':
-			{
-				int opt_rate = 0;
-				if(str[2] != '\0'){
-					opt_rate = ustrtoul(&str[2],NULL, 10);
+				case 'a':
+				case 'A':
+				{
+					int opt_rate = 0;
+					if(str[2] != '\0'){
+						opt_rate = ustrtoul(p+1,NULL, 10);
+					}
+					DISP("Output Opt rate is %d\r\n", opt_rate);
+					if(opt_rate){
+						rstr = hlo_audio_open_mono(opt_rate,HLO_AUDIO_PLAYBACK);
+					}else{
+						rstr = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_PLAYBACK);
+					}
+					set_volume(64, portMAX_DELAY);
 				}
-				DISP("Output Opt rate is %d\r\n", opt_rate);
-				if(opt_rate){
-					return hlo_audio_open_mono(opt_rate,60,HLO_AUDIO_PLAYBACK);
-				}else{
-					return hlo_audio_open_mono(48000,60,HLO_AUDIO_PLAYBACK);
+				break;
+				case 'i':
+				case 'I':
+					rstr = hlo_http_post(p+1, NULL);
+					break;
+				case 'o':
+				case 'O':
+					rstr = uart_stream();
+					break;
+				case '~':
+					rstr = open_serial_flash(p+1, HLO_STREAM_WRITE, 65536);
+					break;
+				case 'f':
+				case 'F':
+					global_filename(p+1);
+					rstr = fs_stream_open(path_buff, HLO_STREAM_WRITE);
+					break;
+				case 'm':
+				case 'M':
+					rstr = mic_test_stream_open();
+					break;
+				default:
+					rstr = random_stream_open();
 				}
 			}
-			case 'i':
-			case 'I':
-				return hlo_http_post(&str[2], NULL);
-			case 'o':
-			case 'O':
-				return uart_stream();
-			case '~':
-				return open_serial_flash(&str[2], HLO_STREAM_WRITE);
-			default:
-				return random_stream_open();
-
-			}
-		}else{//try file, TODO make it append
-			global_filename(str);
-			return fs_stream_open(path_buff, HLO_STREAM_WRITE);
 		}
-	}
 	return rstr;
 }
 int
@@ -694,10 +746,10 @@ signed long hexToi(unsigned char *ptr)
 /******************************************************************************
    Image file names
 *******************************************************************************/
-#define IMG_BOOT_INFO           "/sys/mcubootinfo.bin"
-#define IMG_FACTORY_DEFAULT     "/sys/mcuimg1.bin"
-#define IMG_USER_1              "/sys/mcuimg2.bin"
-#define IMG_USER_2              "/sys/mcuimg3.bin"
+#define IMG_BOOT_INFO           "/ota/mcubootinfo.bin"
+#define IMG_FACTORY_DEFAULT     "/ota/mcuimg1.bin"
+#define IMG_USER_1              "/ota/mcuimg2.bin"
+#define IMG_USER_2              "/ota/mcuimg3.bin"
 
 /******************************************************************************
    Image status
@@ -762,30 +814,26 @@ static sBootInfo_t sBootInfo;
 
 static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
 {
+    _i32 status = -1;
     _i32 hndl;
     unsigned long ulBootInfoToken = 0;
     unsigned long ulBootInfoCreateFlag;
 
-
-    sl_FsDel((unsigned char *)IMG_BOOT_INFO,ulBootInfoToken);
     //
     // Initialize boot info file create flag
     //
-    ulBootInfoCreateFlag  = SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 256 );
-
-	if (hndl = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, SL_FS_WRITE, &ulBootInfoToken) < 0) {
-		LOGI("error opening file, trying to create\n");
-
-		if (hndl = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, ulBootInfoCreateFlag, &ulBootInfoToken) < 0) {
-            LOGE("Boot info open failed\n");
-			return -1;
-		}else{
-            sl_FsWrite(hndl, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t));  // Dummy write, we don't care about the result
-        }
+    ulBootInfoCreateFlag  = SL_FS_CREATE | SL_FS_OVERWRITE | SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 256 );
+    hndl = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, ulBootInfoCreateFlag, &ulBootInfoToken);
+	if (hndl < 0) {
+		LOGE("Boot info open failed\n");
+		return -1;
 	}
-	if( 0 < sl_FsWrite(hndl, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
+	status = sl_FsWrite(hndl, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t));
+	if( status >= 0 )
 	{
 		LOGI("WriteBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus);
+	} else {
+		LOGE("FAILED TO WRITE BOOT INFO %d\n", status);
 	}
 	sl_FsClose(hndl, 0, 0, 0);
     return 0;
@@ -793,24 +841,27 @@ static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
 
 static _i32 _ReadBootInfo(sBootInfo_t *psBootInfo)
 {
-    _i32 lFileHandle;
+    _i32 hndl;
     _i32 status = -1;
     unsigned long ulBootInfoToken;
     //
     // Check if its a secure MCU
     //
-    if( lFileHandle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, SL_FS_READ, &ulBootInfoToken) < 0 )
+    hndl = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, SL_FS_READ, &ulBootInfoToken);
+    if( hndl >= 0 )
     {
-        if( 0 < sl_FsRead(lFileHandle, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
+    	status =  sl_FsRead(hndl, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t));
+        if( status >= 0 )
         {
-            status = 0;
             static bool printed = false;
             if( !printed ) {
             	LOGI("ReadBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus);
             	printed = true;
             }
+        } else {
+    		LOGE("FAILED TO READ BOOT INFO %d\n", status);
         }
-        sl_FsClose(lFileHandle, 0, 0, 0);
+        sl_FsClose(hndl, 0, 0, 0);
     }
     return status;
 }
@@ -1009,14 +1060,15 @@ void file_download_task( void * params ) {
 				strncpy( buf, serial_flash_path, 64 );
 				strncat(buf, serial_flash_name, 64 );
 
-				sf_str = open_serial_flash(buf, HLO_STREAM_WRITE);
+				//TODO get max size from protobuf and set it here
+				sf_str = open_serial_flash(buf, HLO_STREAM_WRITE, download_info.has_file_size ? download_info.file_size : 300 * 1024);
 
 				while(1){
 					if(hlo_stream_transfer_between( http_str, sf_str, (uint8_t*)buf, sizeof(buf), 4 ) < 0){
 						break;
 					}
-					DISP("x");
 				}
+				hlo_stream_close(sf_str);
 
                 if (strcmp(buf, "/top/update.bin") == 0) {
                     if (download_info.has_sha1) {

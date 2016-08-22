@@ -15,10 +15,10 @@ void InitAudioHelper_p();
 void InitAudioTxRx(uint32_t rate);
 
 
-uint8_t InitAudioCapture(uint32_t rate);
+uint8_t InitAudioCapture(void);
 void DeinitAudioCapture(void);
 
-uint8_t InitAudioPlayback(int32_t vol, uint32_t rate);
+uint8_t InitAudioPlayback();
 void DeinitAudioPlayback(void);
 
 uint8_t InitFile(Filedata_t * pfiledata);

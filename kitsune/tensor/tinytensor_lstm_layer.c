@@ -1,7 +1,7 @@
 #include "tinytensor_lstm_layer.h"
 #include "tinytensor_memory.h"
 #include "tinytensor_math.h"
-#include <assert.h>
+#include "kit_assert.h"
 
 #define DAMP_CELL_STATES 1
 

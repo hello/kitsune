@@ -74,9 +74,12 @@ extern bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *fiel
 static void _print_heap_info(void){
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 }
+static SenseState sense_state;
+AudioState get_audio_state() {
+	return sense_state.audio_state;
+}
 static void _sense_state_task(hlo_future_t * result, void * ctx){
 #define MAX_STATE_BACKOFF (15*60*1000)
-	SenseState sense_state;
 	AudioState last_audio_state;
 	sense_state.sense_id.funcs.encode = encode_device_id_string;
 	sense_state.has_audio_state = true;
@@ -158,7 +161,8 @@ typedef struct{
 	int32_t  duration;
 }ramp_ctx_t;
 extern xSemaphoreHandle i2c_smphr;
-//TODO extern bool set_volume(int v, unsigned int dly);
+
+int32_t set_volume(int v, unsigned int dly);
 
 static void _change_volume_task(hlo_future_t * result, void * ctx){
 	volatile ramp_ctx_t * v = (ramp_ctx_t*)ctx;
@@ -185,7 +189,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 		if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 			//set vol
 			vTaskDelay(5);
-			//set_volume(v->current, 0); TODO
+			set_volume(v->current, 0);
 			vTaskDelay(5);
 			xSemaphoreGiveRecursive(i2c_smphr);
 
@@ -204,7 +208,6 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 //playback sample app
 static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop){
 	int ret;
-	uint8_t chunk[512]; //arbitrary
 
 	ramp_ctx_t vol = (ramp_ctx_t){
 		.current = 0,
@@ -214,17 +217,15 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 		.duration =  desc->durationInSeconds * 1000,
 	};
 
-	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,0,HLO_AUDIO_PLAYBACK);
+	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,HLO_AUDIO_PLAYBACK);
+	set_volume(0, portMAX_DELAY);
 	hlo_stream_t * fs = desc->stream;
 
 	hlo_future_t * vol_task = (hlo_future_t*)hlo_future_create_task_bg(_change_volume_task,(void*)&vol,1024);
 
 	//playback
-#if 0 //TODO DKH
 	hlo_filter transfer_function = desc->p ? desc->p : hlo_filter_data_transfer;
-#else
-	hlo_filter transfer_function = hlo_filter_data_transfer;
-#endif
+
 	ret = transfer_function(fs, spkr, desc->context, sig_stop);
 
 	//join async worker
@@ -296,7 +297,7 @@ static uint8_t CheckForInterruptionDuringCapture(void){
 static int _do_capture(const AudioCaptureDesc_t * info){
 	int ret = HLO_STREAM_ERROR;
 	if(info->p){
-		hlo_stream_t * mic = hlo_audio_open_mono(info->rate, 0, HLO_AUDIO_RECORD);
+		hlo_stream_t * mic = hlo_audio_open_mono(info->rate, HLO_AUDIO_RECORD);
 		ret = info->p(mic, info->opt_out, info->ctx, CheckForInterruptionDuringCapture);
 		LOGI("Capture Returned: %d\r\n", ret);
 		hlo_stream_close(mic);

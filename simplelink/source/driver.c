@@ -534,7 +534,7 @@ const _SlActionLookup_t _SlActionLookupTable[] =
     {PING_ID, SL_OPCODE_NETAPP_PINGREPORTREQUESTRESPONSE, (_SlSpawnEntryFunc_t)_SlNetAppHandleAsync_PingResponse},
     {NETAPP_RECEIVE_ID, SL_OPCODE_NETAPP_RECEIVE, (_SlSpawnEntryFunc_t)_SlNetAppHandleAsync_NetAppReceive},
     {START_STOP_ID, SL_OPCODE_DEVICE_STOP_ASYNC_RESPONSE,(_SlSpawnEntryFunc_t)_SlDeviceHandleAsync_Stop},
-    //{NETUTIL_CMD_ID, SL_OPCODE_NETUTIL_COMMANDASYNCRESPONSE,(_SlSpawnEntryFunc_t)_SlNetUtilHandleAsync_Cmd},
+    {NETUTIL_CMD_ID, SL_OPCODE_NETUTIL_COMMANDASYNCRESPONSE,(_SlSpawnEntryFunc_t)_SlNetUtilHandleAsync_Cmd},
 	{CLOSE_ID, SL_OPCODE_SOCKET_SOCKETCLOSEASYNCEVENT,(_SlSpawnEntryFunc_t)_SlSocketHandleAsync_Close}
 };
 #else
@@ -1797,7 +1797,7 @@ static const _SlSpawnEntryFunc_t RxMsgClassLUT[] = {
 #endif
     NULL,                                             /* SL_OPCODE_SILO_FS      */
     NULL,                                             /* SL_OPCODE_SILO_NETCFG  */
-//    (_SlSpawnEntryFunc_t)_SlNetUtilHandleAsync_Cmd,   /* SL_OPCODE_SILO_NETUTIL */
+    (_SlSpawnEntryFunc_t)_SlNetUtilHandleAsync_Cmd,   /* SL_OPCODE_SILO_NETUTIL */
     NULL
 };
 

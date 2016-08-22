@@ -591,8 +591,12 @@ static bool send_log() {
 	}
 #endif
 	//no timeout on this one...
+#if 0
     return NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
     		sense_log_fields,&self.log, 0, NULL, NULL, NULL, false);
+#else
+    return (bool)1;
+#endif
 }
 
 void analytics_event_task(void * params){
@@ -635,10 +639,13 @@ upload:
 			log.unix_time = time;
 			portTickType now = xTaskGetTickCount();
 			DISP("Analytics: %s\r\n", block);
+#if 0
 			if( !NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
 					sense_log_fields, &log, 0, NULL, NULL, NULL, false) ) {
 				LOGI("Analytics failed to upload\n");
 			}
+#else
+#endif
 			block_len = 0;
 			memset(block, 0, ANALYTICS_MAX_CHUNK_SIZE);
 			vTaskDelayUntil(&now, 1000);
@@ -660,8 +667,7 @@ void uart_logger_task(void * params){
 		log_local_enable = 1;
 	}
 
-	// TODO DKH
-	// xTaskCreate(uart_block_saver_task, "log saver task",   UART_LOGGER_THREAD_STACK_SIZE / 4 , NULL, 2, NULL);
+	xTaskCreate(uart_block_saver_task, "log saver task",   UART_LOGGER_THREAD_STACK_SIZE / 4 , NULL, 2, NULL);
 
 	while(1){
 		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
