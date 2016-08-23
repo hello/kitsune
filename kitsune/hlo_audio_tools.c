@@ -743,7 +743,7 @@ void AudioControlTask(void * unused) {
 
 		hlo_stream_t * out;
 #if (STREAM_MP3==1)
-		out = hlo_http_post("dev-speech.hello.is/upload/audio?r=16000&response=mp3", NULL);
+		out = hlo_http_post("dev-speech.hello.is/v1/upload/audio?r=16000&response=mp3", NULL);
 #else
 		out = hlo_http_post("dev-speech.hello.is/upload/audio?r=16000", NULL);
 #endif
