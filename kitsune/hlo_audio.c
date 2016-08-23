@@ -155,6 +155,49 @@ static int16_t _quad_to_mono(int16_t * samples){
 static int16_t _ez_lpf(int16_t now, int16_t prev){
 	return (int16_t)(((int32_t)now + prev)/2);
 }
+
+static int _read_record_quad_to_quad_bits(void * ctx, void * buf, size_t size) {
+
+	int16_t samples[32];
+	uint8_t bitbuf[4]; //8 bits == 8 samples per channel, 4 channels, ergo 32 samples total
+	uint32_t * pbitbuf32 = (uint32_t *)&bitbuf[0];
+	uint32_t ibuf,i;
+	uint8_t decision;
+	uint32_t * bufout32 = buf;
+	int ret;
+
+	if (size % 4 != 0) {
+		return HLO_STREAM_ERROR;
+	}
+
+	for (ibuf = 0; ibuf < size/4; ibuf++) {
+		*pbitbuf32 = 0x00000000; //I don't think this is actually necessary, but whatever.
+
+		//get 32 samples worth of audio (should be interleaved 4 channels of something, so 2 bytes, 2 bytes, 2 bytes .... etc.)
+		ret = _read_record_mono(ctx, samples, sizeof(samples));
+
+		if (ret < 0) {
+			return HLO_STREAM_ERROR;
+		}
+
+		//turn a sample into a bit, save in the bit buf
+		for (i = 0; i < 32; i++) {
+			decision = samples[i] > 0 ? 0x80 : 0x00; //from MSB to LSB
+			bitbuf[i & 0x03] |= decision;
+			bitbuf[i & 0x03] >>= 1;
+		}
+
+		*bufout32 = *pbitbuf32;
+		bufout32++;
+
+	}
+
+	return size;
+
+}
+
+
+
 int ch = 2;
 static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 	int i;
@@ -212,24 +255,51 @@ static int _close(void * ctx){
 
 ////------------------------------
 //  Public API
-void hlo_audio_init(void){
+
+void hlo_audio_set_read_type(EAudioReadType_t read_type) {
+
+	if (!master) {
+		return;
+	}
+
+	LOCK();
+
+	switch(read_type) {
+	case mono_from_quad_by_channel:
+		master->impl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
+		break;
+
+	case quad_decision_bits_from_quad:
+		master->impl.read = _read_record_quad_to_quad_bits;	//for self-test
+		break;
+
+	case mono_from_mono:
+		master->impl.read = _read_record_mono;			//for 1p0 when return channel is mono
+		break;
+
+	default:
+		master->impl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
+		break;
+	}
+
+	UNLOCK();
+}
+
+void hlo_audio_init(EAudioReadType_t read_type){
 	lock = xSemaphoreCreateRecursiveMutex();
 	assert(lock);
 	hlo_stream_vftbl_t tbl = { 0 };
 	tbl.write = _write_playback_mono;
-#if 0
-	tbl.read = _read_record_mono;			//for 1p0 when return channel is mono
-#else
-	tbl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
-#endif
+	tbl.read = _read_record_quad_to_mono; //default
 	tbl.close = _close;
+
 	master = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD|HLO_AUDIO_PLAYBACK);
 	record_isr_sem = xSemaphoreCreateBinary();
 	assert(record_isr_sem);
 	playback_isr_sem = xSemaphoreCreateBinary();
 	assert(playback_isr_sem);
 
-
+	hlo_audio_set_read_type(read_type);
 
 }
 

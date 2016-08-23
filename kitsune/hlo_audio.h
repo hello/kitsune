@@ -10,7 +10,21 @@
 #define HLO_AUDIO_PLAYBACK 	HLO_STREAM_WRITE
 #define HLO_AUDIO_RECORD	HLO_STREAM_READ
 
-void hlo_audio_init(void);
+typedef enum {
+	mono_from_quad_by_channel,
+	quad_decision_bits_from_quad,
+	mono_from_mono
+
+} EAudioReadType_t;
+
+
+void hlo_audio_init(EAudioReadType_t read_type);
+
+void hlo_audio_set_read_type(EAudioReadType_t read_type); //change read-type mid-stream
+
+
+hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint32_t direction);
+
 hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint32_t direction);
 
 hlo_stream_t * hlo_light_stream( hlo_stream_t * base);

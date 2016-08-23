@@ -50,6 +50,7 @@
 #include "audiotask.h"
 #include "top_board.h"
 #include "fft.h"
+#include "lfsr/pn_stream.h"
 
 /* I2S module*/
 #include "i2s.h"
@@ -2055,6 +2056,7 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 		{"fs", cmd_file_sync_upload, ""},
 		{"nn",cmd_test_neural_net,""},
+		{"pn",cmd_audio_self_test,""},
 		{ 0, 0, 0 } };
 
 
@@ -2212,7 +2214,7 @@ void vUARTTask(void *pvParameters) {
 	// McASP and DMA init
 	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
 
-	hlo_audio_init();
+	hlo_audio_init(mono_from_quad_by_channel);
 
 	// Create audio tasks for playback and record
 	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);

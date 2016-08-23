@@ -7,5 +7,6 @@ void pn_stream_init(void);
 
 hlo_stream_t * pn_stream_open(void);
 
+int cmd_audio_self_test(int argc, char* argv[]);
 
 #endif //_PNSTREAM_H_
