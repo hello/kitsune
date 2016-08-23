@@ -242,6 +242,7 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	}
 }
 
+#define STREAM_MP3 0
 
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
@@ -319,22 +320,28 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 	if(ret >= 0 || ret == HLO_STREAM_EOF ){
 
-#define DIV_MP3
+#define USE_PLAYBACK_TASK
 
-#ifdef DIV_MP3
+#ifdef USE_PLAYBACK_TASK
+
 			AudioPlaybackDesc_t desc;
 			memset(&desc, 0, sizeof(desc));
-			output = hlo_stream_sr_cnv( output, UPSAMPLE );
-			desc.stream = output;
 			desc.volume = 57;
 			desc.durationInSeconds = -1;
 			desc.rate = AUDIO_SAMPLE_RATE;
 			desc.fade_in_ms = 0;
 			desc.fade_out_ms = 0;
 			desc.to_fade_out_ms = 0;
+#if (STREAM_MP3==1)
+			desc.p = hlo_filter_mp3_decoder;
+#else
+			output = hlo_stream_sr_cnv( output, UPSAMPLE );
 			desc.p = hlo_filter_data_transfer;// hlo_filter_mp3_decoder;
+#endif
+			desc.stream = output;
 			AudioTask_StartPlayback(&desc);
-#else // DIV_MP3
+
+#else // USE_PLAYBACK_TASK
 
 		DISP("\r\n===========\r\n");
 		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_PLAYBACK);
@@ -364,7 +371,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			}
 			DISP("\r\n===========\r\n");
 		hlo_stream_close(aud);
-#endif// DIV_MP3
+#endif// USE_PLAYBACK_TASK
 
 	}
 	else
@@ -735,7 +742,11 @@ void AudioControlTask(void * unused) {
 		in = hlo_stream_sr_cnv( in, DOWNSAMPLE );
 
 		hlo_stream_t * out;
+#if (STREAM_MP3==1)
+		out = hlo_http_post("dev-speech.hello.is/upload/audio?r=16000&response=mp3", NULL);
+#else
 		out = hlo_http_post("dev-speech.hello.is/upload/audio?r=16000", NULL);
+#endif
 
 		if( !started ) {
 			ble_proto_led_init();
