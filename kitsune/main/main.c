@@ -306,14 +306,22 @@ void nwp_reset_thread(void* unused) {
 }
 #endif
 
+bool check_button();
 void watchdog_thread(void* unused) {
 #ifdef NWP_WATCHDOG_TIMEOUT
 	int last_nwp_reset_time = 0;
 #endif
+	int button_cnt=0;
 	while (1) {
 		if (xTaskGetTickCount() - last_upload_time > 3*ONE_HOUR) {
 			LOGE("NET TIMEOUT\n");
 			mcu_reset();
+		}
+		if( check_button() && ++button_cnt == 10 ) {
+			LOGE("WDT BUTTON\n");
+			mcu_reset();
+		} else {
+			button_cnt = 0;
 		}
 #ifdef NWP_WATCHDOG_TIMEOUT
 		if (xTaskGetTickCount() - last_upload_time > FIFTEEN_MINUTES
