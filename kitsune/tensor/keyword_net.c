@@ -152,7 +152,7 @@ void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples) {
 }
 
 uint32_t __dwt_tot_CYC_cnt;
-#if 1
+#if 0
 int cmd_test_neural_net2(int argc, char * argv[])
     {
 

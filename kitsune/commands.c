@@ -2055,7 +2055,6 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 		{"fs", cmd_file_sync_upload, ""},
 		{"nn",cmd_test_neural_net,""},
-		{"nn",cmd_test_neural_net2,""},
 		{ 0, 0, 0 } };
 
 
