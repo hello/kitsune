@@ -313,8 +313,6 @@ void AudioCaptureTask(void * data) {
 	_capture_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	assert(_capture_queue);
 
-	InitAudioHelper();
-
 	AudioCaptureDesc_t bg_info = {0};
 	uint8_t bg_capture_enable = 0;
 	for (; ;) {
