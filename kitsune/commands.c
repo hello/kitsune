@@ -2210,8 +2210,8 @@ void vUARTTask(void *pvParameters) {
 	hlo_audio_init();
 
 	// Create audio tasks for playback and record
-	xTaskCreate(AudioPlaybackTask,"playbackTask",(8*1024)/4,NULL,4,NULL);
-	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
+	xTaskCreate(AudioPlaybackTask,"playbackTask",(10*1024)/4,NULL,4,NULL);
+	// xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
 
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 
