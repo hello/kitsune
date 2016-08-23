@@ -712,6 +712,7 @@ int cmd_confidence(int argc, char *argv[]) {
 	confidence = atoi(argv[1]);
 	return 0;
 }
+void InitAudioHelper();
 void AudioControlTask(void * unused) {
 	audio_sig_stop = 0;
 	int ret;
