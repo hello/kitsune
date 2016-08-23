@@ -242,7 +242,7 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	}
 }
 
-
+extern xSemaphoreHandle playback_done_sem;
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
 	int ret = 0;
@@ -370,6 +370,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	else
 	{
 		hlo_stream_close(output);
+		xSemaphoreGive(playback_done_sem);
 	}
 
 
@@ -712,6 +713,9 @@ int cmd_confidence(int argc, char *argv[]) {
 	confidence = atoi(argv[1]);
 	return 0;
 }
+
+extern xSemaphoreHandle playback_done_sem;
+
 void AudioControlTask(void * unused) {
 	audio_sig_stop = 0;
 	int ret;
@@ -730,6 +734,8 @@ void AudioControlTask(void * unused) {
 		hlo_stream_t * in;
 		in = hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_RECORD);
 		in = hlo_stream_sr_cnv( in, DOWNSAMPLE );
+
+		xSemaphoreTake(playback_done_sem,portMAX_DELAY);
 
 		hlo_stream_t * out;
 		out = hlo_http_post("dev-speech.hello.is/upload/audio?r=16000", NULL);

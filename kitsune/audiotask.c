@@ -219,7 +219,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	};
 
 	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,HLO_AUDIO_PLAYBACK);
-	set_volume(0, portMAX_DELAY);
+	//set_volume(0, portMAX_DELAY);
 	hlo_stream_t * fs = desc->stream;
 
 	hlo_future_t * vol_task = (hlo_future_t*)hlo_future_create_task_bg(_change_volume_task,(void*)&vol,1024);
@@ -240,6 +240,9 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	}
 	DISP("Playback Task Finished %d\r\n", ret);
 }
+
+xSemaphoreHandle playback_done_sem = NULL;
+
 void AudioPlaybackTask(void * data) {
 	InitAudioHelper_p();
 
@@ -252,6 +255,11 @@ void AudioPlaybackTask(void * data) {
 
 	hlo_future_t * state_update_task = hlo_future_create_task_bg(_sense_state_task, NULL, 1024);
 	assert(state_update_task);
+
+	if (!playback_done_sem) {
+		playback_done_sem = xSemaphoreCreateBinary();
+	}
+	xSemaphoreGive(playback_done_sem);
 
 	while(1){
 		AudioMessage_t  m;
@@ -275,6 +283,8 @@ void AudioPlaybackTask(void * data) {
 					if (m.message.playbackdesc.onFinished) {
 						m.message.playbackdesc.onFinished(m.message.playbackdesc.context);
 					}
+
+					xSemaphoreGive(playback_done_sem);
 				}   break;
 				default:
 					break;
