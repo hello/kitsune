@@ -286,6 +286,7 @@ void hlo_audio_set_read_type(EAudioReadType_t read_type) {
 }
 
 void hlo_audio_init(EAudioReadType_t read_type){
+	LOGI("hlo_audio_init\r\n");
 	lock = xSemaphoreCreateRecursiveMutex();
 	assert(lock);
 	hlo_stream_vftbl_t tbl = { 0 };
