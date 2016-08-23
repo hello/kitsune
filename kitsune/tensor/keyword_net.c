@@ -238,15 +238,11 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 
 	DISP("start test\n\n");
 
-	for (k = 0; k < 10; k++) {
+	for (k = 0; k < 1024; k++) {
 		STARTCYC
 		CHKCYC("begin");
 		keyword_net_add_audio_samples(samples,160);
 		STOPCYC
-
-		for (i = 0; i < 160; i++) {
-			samples[i] = rand();
-		}
 	}
 
 	DISP("\n\nstop test %d\n\n", xTaskGetTickCount() - start);
