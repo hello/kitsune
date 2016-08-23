@@ -13,4 +13,6 @@ vAssertCalled( const char * s );
 
 #define assert(x) if(!(x)) {vAssertCalled(#x);}
 
+//#define DEMO
+
 #endif // __USTDLIB_H__
