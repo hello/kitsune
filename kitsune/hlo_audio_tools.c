@@ -285,8 +285,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	hlo_stream_close(hmac_payload_str);
 
 	{//now play the swirling thing when we get response
-			play_led_wheel(get_alpha_from_light(),254,0,254,2,18,0);
-			DISP("Wheel\r\n");
+		play_led_wheel(get_alpha_from_light(),254,0,254,2,18,0);
+		DISP("Wheel\r\n");
 	}
 #if 0
 	//lastly, glow with voice output, since we can't do that in half duplex mode, simply queue it to the voice output
@@ -316,7 +316,26 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		DISP("\r\n===========\r\n");
 	}
 #else
+
 	if(ret >= 0 || ret == HLO_STREAM_EOF ){
+
+#define DIV_MP3
+
+#ifdef DIV_MP3
+			AudioPlaybackDesc_t desc;
+			memset(&desc, 0, sizeof(desc));
+			output = hlo_stream_sr_cnv( output, UPSAMPLE );
+			desc.stream = output;
+			desc.volume = 57;
+			desc.durationInSeconds = -1;
+			desc.rate = AUDIO_SAMPLE_RATE;
+			desc.fade_in_ms = 0;
+			desc.fade_out_ms = 0;
+			desc.to_fade_out_ms = 0;
+			desc.p = hlo_filter_data_transfer;// hlo_filter_mp3_decoder;
+			AudioTask_StartPlayback(&desc);
+#else // DIV_MP3
+
 		DISP("\r\n===========\r\n");
 		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_PLAYBACK);
 			DISP("Playback Audio\r\n");
@@ -345,23 +364,15 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			}
 			DISP("\r\n===========\r\n");
 		hlo_stream_close(aud);
+#endif// DIV_MP3
+
 	}
-#endif
+	else
+	{
+		hlo_stream_close(output);
+	}
 
-//#define DIV_MP3
 
-#ifdef DIV_MP3
-	AudioPlaybackDesc_t desc;
-	memset(&desc, 0, sizeof(desc));
-	desc.stream = fs_stream_open(output, HLO_STREAM_READ);
-	ustrncpy(desc.source_name, output, sizeof(desc.source_name));
-	desc.volume = 57;
-	desc.durationInSeconds = -1;
-	desc.rate = AUDIO_SAMPLE_RATE;
-	desc.fade_in_ms = 0;
-	desc.fade_out_ms = 0;
-	desc.to_fade_out_ms = 0;
-	AudioTask_StartPlayback(&desc);
 #endif
 
 	keyword_net_deinitialize();
@@ -734,7 +745,7 @@ void AudioControlTask(void * unused) {
 		LOGI("Task Stream transfer exited with code %d\r\n", ret);
 
 		hlo_stream_close(in);
-		hlo_stream_close(out);
+		// hlo_stream_close(out);
 
 		vTaskDelay(100);
 	}
