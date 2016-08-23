@@ -1,3 +1,6 @@
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
 #include "pn_stream.h"
 #include "pn.h"
 #include "audio_types.h"
