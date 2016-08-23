@@ -221,7 +221,7 @@ extern bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, 
 #include "tensor/keyword_net.h"
 typedef struct{
 	hlo_stream_t * base;
-	uint8_t keyword_detected;
+	int8_t keyword_detected;
 	uint8_t threshold;
 	uint16_t reserved;
 	uint32_t timeout;
@@ -252,7 +252,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	bool light_open = false;
 
 	keyword_net_initialize();
-	nn_keyword_ctx_t nn_ctx = {0};
+	nn_keyword_ctx_t nn_ctx;
+	nn_ctx.keyword_detected = -1;
 	keyword_net_register_callback(&nn_ctx,okay_sense,80,_voice_begin_keyword,_voice_finish_keyword);
 
 	//wrap output in hmac stream
@@ -262,7 +263,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	assert(hmac_payload_str);
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
-		if( nn_ctx.keyword_detected ) {
+		if( nn_ctx.keyword_detected > 0 ) {
 			if( !light_open ) {
 				input = hlo_light_stream( input );
 				input = hlo_stream_en( input );
