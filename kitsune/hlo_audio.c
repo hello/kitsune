@@ -266,18 +266,22 @@ void hlo_audio_set_read_type(EAudioReadType_t read_type) {
 
 	switch(read_type) {
 	case mono_from_quad_by_channel:
+		DISP("set read_type to mono_from_quad_by_channel");
 		master->impl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
 		break;
 
 	case quad_decision_bits_from_quad:
+		DISP("set read_type to quad_decision_bits_from_quad");
 		master->impl.read = _read_record_quad_to_quad_bits;	//for self-test
 		break;
 
 	case mono_from_mono:
+		DISP("set read_type to mono_from_mono");
 		master->impl.read = _read_record_mono;			//for 1p0 when return channel is mono
 		break;
 
 	default:
+		DISP("defaulted read_type to mono_from_quad_by_channel");
 		master->impl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
 		break;
 	}
@@ -300,7 +304,7 @@ void hlo_audio_init(EAudioReadType_t read_type){
 	playback_isr_sem = xSemaphoreCreateBinary();
 	assert(playback_isr_sem);
 
-	hlo_audio_set_read_type(read_type);
+	hlo_audio_set_read_type(quad_decision_bits_from_quad);
 
 }
 

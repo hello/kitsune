@@ -489,7 +489,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					break;
 				case 'p':
 				case 'P':
-					rstr = pn_stream_open();
+					rstr = pn_read_stream_open();
 					break;
 
 				default:
