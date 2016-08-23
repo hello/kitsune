@@ -219,7 +219,6 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	};
 
 	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,HLO_AUDIO_PLAYBACK);
-	desc->stream = hlo_http_get(desc->source_name);
 	set_volume(0, portMAX_DELAY);
 	hlo_stream_t * fs = desc->stream;
 
@@ -418,14 +417,7 @@ int Cmd_AudioPlayback(int argc, char * argv[]){
 		desc.stream = fs_stream_open_media(argv[1], -1);
 #else
 		desc.p = hlo_filter_mp3_decoder;
-		uint32_t i = 0;
-		while(argv[1][i])
-		{
-			i++;
-		}
-		DISP("I=%d, %c %c\n",i,argv[1][i-1],argv[1][i] );
-		argv[1][i] = '\0';
-		// desc.stream = hlo_http_get(argv[1]);
+		desc.stream = hlo_http_get(argv[1]);
 #endif
 		desc.volume = 60;
 		ustrncpy(desc.source_name, argv[1], sizeof(desc.source_name));
