@@ -1699,6 +1699,41 @@ void launch_tasks() {
 	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
 
+	/*******************************************************************************
+	*           AUDIO INIT START
+	********************************************************************************
+	*/
+
+	// Reset codec
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
+	vTaskDelay(10);
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
+
+	vTaskDelay(20);
+
+#ifdef CODEC_1P5_TEST
+	codec_test_commands();
+#endif
+
+	// Program codec
+	codec_init();
+
+	// McASP and DMA init
+	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
+
+	hlo_audio_init();
+
+	// Create audio tasks for playback and record
+	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
+	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
+
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
+
+
+	/*******************************************************************************
+	*           AUDIO INIT END
+	********************************************************************************
+	*/
 	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
 #endif
 }
@@ -1907,8 +1942,8 @@ int cmd_pwr_speaker(int argc, char * argv[]);
 int cmd_button(int argc, char *argv[]) {
 #define LED_GPIO_BASE_DOUT GPIOA2_BASE
 #define LED_GPIO_BIT_DOUT 0x80
-	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
 	while(1) {
+		bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
 		LOGF("%d\r", fast);
 		vTaskDelay(100);
 	}
@@ -2205,42 +2240,6 @@ void vUARTTask(void *pvParameters) {
 	SetupGPIOInterrupts();
 	CreateDefaultDirectories();
 	load_data_server();
-
-	/*******************************************************************************
-	*           AUDIO INIT START
-	********************************************************************************
-	*/
-
-	// Reset codec
-	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
-	vTaskDelay(10);
-	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
-
-	vTaskDelay(20);
-
-#ifdef CODEC_1P5_TEST
-	codec_test_commands();
-#endif
-
-	// Program codec
-	codec_init();
-
-	// McASP and DMA init
-	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
-
-	hlo_audio_init();
-
-	// Create audio tasks for playback and record
-	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
-	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
-
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
-
-
-	/*******************************************************************************
-	*           AUDIO INIT END
-	********************************************************************************
-	*/
 
 	UARTprintf("*");
 
