@@ -1,39 +1,40 @@
+/*
+ *  Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/ 
+ *  
+ *  Redistribution and use in source and binary forms, with or without 
+ *  modification, are permitted provided that the following conditions 
+ *  are met:
+ *
+ *    Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ *    Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the   
+ *    distribution.
+ *
+ *    Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  
+ */
 //*****************************************************************************
 //
 //  prcm.h
 //
 //  Prototypes for the PRCM control driver.
-//
-//  Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
-//
-//
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions
-//  are met:
-//
-//    Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//
-//    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the
-//    distribution.
-//
-//    Neither the name of Texas Instruments Incorporated nor the names of
-//    its contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //*****************************************************************************
 
@@ -70,7 +71,6 @@ unsigned long ulRstReg;
 //*****************************************************************************
 #define PRCM_RUN_MODE_CLK         0x00000001
 #define PRCM_SLP_MODE_CLK         0x00000100
-#define PRCM_DSLP_MODE_CLK        0x00010000
 
 //*****************************************************************************
 // Values that can be passed to PRCMSRAMRetentionEnable() and
@@ -85,7 +85,6 @@ unsigned long ulRstReg;
 // Values that can be passed to PRCMSRAMRetentionEnable() and
 // PRCMSRAMRetentionDisable() as ulModeFlags.
 //*****************************************************************************
-#define PRCM_SRAM_DSLP_RET        0x00000001
 #define PRCM_SRAM_LPDS_RET        0x00000002
 
 //*****************************************************************************
@@ -189,15 +188,105 @@ unsigned long ulRstReg;
 #define PRCM_SSPI                 0x00000013
 #define PRCM_I2CA0                0x00000014
 // Note : PRCM_ADC is a dummy define for pinmux utility code generation
-// PRCM_ADC should never be used in any user code. 
-#define PRCM_ADC                  0x000000FF 
+// PRCM_ADC should never be used in any user code.
+#define PRCM_ADC                  0x000000FF
+
+
+//*****************************************************************************
+// Values that can be passed to PRCMIORetEnable() and PRCMIORetDisable()
+//*****************************************************************************
+#define PRCM_IO_RET_GRP_0       0x00000001
+#define PRCM_IO_RET_GRP_1       0x00000002
+#define PRCM_IO_RET_GRP_2       0x00000004
+#define PRCM_IO_RET_GRP_3       0x00000008
+
+//*****************************************************************************
+// Macros definig the device type
+//*****************************************************************************
+#define PRCM_DEV_TYPE_FLAG_R         0x00000001
+#define PRCM_DEV_TYPE_FLAG_F         0x00000002
+#define PRCM_DEV_TYPE_FLAG_Z         0x00000004
+#define PRCM_DEV_TYPE_FLAG_SECURE    0x00000008
+#define PRCM_DEV_TYPE_FLAG_PRE_PROD  0x00000010
+#define PRCM_DEV_TYPE_FLAG_3200      0x00000020
+#define PRCM_DEV_TYPE_FLAG_3220      0x00000040
+#define PRCM_DEV_TYPE_FLAG_REV1      0x00010000
+#define PRCM_DEV_TYPE_FLAG_REV2      0x00020000
+
+//*****************************************************************************
+// Pre-defined helper macros
+//*****************************************************************************
+#define PRCM_DEV_TYPE_PRE_CC3200R    (PRCM_DEV_TYPE_FLAG_PRE_PROD| \
+                                      PRCM_DEV_TYPE_FLAG_3200|     \
+                                      PRCM_DEV_TYPE_FLAG_R)
+
+#define PRCM_DEV_TYPE_PRE_CC3200F    (PRCM_DEV_TYPE_FLAG_PRE_PROD| \
+                                      PRCM_DEV_TYPE_FLAG_3200|     \
+                                      PRCM_DEV_TYPE_FLAG_F)
+
+#define PRCM_DEV_TYPE_PRE_CC3200Z    (PRCM_DEV_TYPE_FLAG_PRE_PROD| \
+                                      PRCM_DEV_TYPE_FLAG_3200|     \
+                                      PRCM_DEV_TYPE_FLAG_Z)
+
+#define PRCM_DEV_TYPE_CC3200R        (PRCM_DEV_TYPE_FLAG_PRE_PROD| \
+                                      PRCM_DEV_TYPE_FLAG_3200|     \
+                                      PRCM_DEV_TYPE_FLAG_R)
+
+#define PRCM_DEV_TYPE_PRE_CC3220R    (PRCM_DEV_TYPE_FLAG_PRE_PROD| \
+                                      PRCM_DEV_TYPE_FLAG_3220|     \
+                                      PRCM_DEV_TYPE_FLAG_R)
+
+#define PRCM_DEV_TYPE_PRE_CC3220F    (PRCM_DEV_TYPE_FLAG_PRE_PROD| \
+                                      PRCM_DEV_TYPE_FLAG_3220|     \
+                                      PRCM_DEV_TYPE_FLAG_F)
+
+#define PRCM_DEV_TYPE_PRE_CC3220Z    (PRCM_DEV_TYPE_FLAG_PRE_PROD| \
+                                      PRCM_DEV_TYPE_FLAG_3220|     \
+                                      PRCM_DEV_TYPE_FLAG_Z)
+
+#define PRCM_DEV_TYPE_CC3220R        (PRCM_DEV_TYPE_FLAG_3220|     \
+                                      PRCM_DEV_TYPE_FLAG_R)
+
+
+#define PRCM_DEV_TYPE_PRE_CC3220RS   (PRCM_DEV_TYPE_FLAG_PRE_PROD| \
+                                      PRCM_DEV_TYPE_FLAG_3220|     \
+                                      PRCM_DEV_TYPE_FLAG_R|        \
+                                      PRCM_DEV_TYPE_FLAG_SECURE)
+
+#define PRCM_DEV_TYPE_PRE_CC3220FS   (PRCM_DEV_TYPE_FLAG_PRE_PROD| \
+                                      PRCM_DEV_TYPE_FLAG_3220|     \
+                                      PRCM_DEV_TYPE_FLAG_F|        \
+                                      PRCM_DEV_TYPE_FLAG_SECURE)
+
+#define PRCM_DEV_TYPE_PRE_CC3220ZS   (PRCM_DEV_TYPE_FLAG_PRE_PROD| \
+                                      PRCM_DEV_TYPE_FLAG_3220|     \
+                                      PRCM_DEV_TYPE_FLAG_Z|        \
+                                      PRCM_DEV_TYPE_FLAG_SECURE)
+
+#define PRCM_DEV_TYPE_CC3220RS       (PRCM_DEV_TYPE_FLAG_3220|     \
+                                      PRCM_DEV_TYPE_FLAG_R|        \
+                                      PRCM_DEV_TYPE_FLAG_SECURE)
+
+#define PRCM_DEV_TYPE_CC3220FS       (PRCM_DEV_TYPE_FLAG_3220|     \
+                                      PRCM_DEV_TYPE_FLAG_F|        \
+                                      PRCM_DEV_TYPE_FLAG_SECURE)
+
+
+#define PRCM_DEV_TYPE_PRE_CC3220Z1   (PRCM_DEV_TYPE_FLAG_PRE_PROD| \
+                                      PRCM_DEV_TYPE_FLAG_3220|     \
+                                      PRCM_DEV_TYPE_FLAG_Z|        \
+                                      PRCM_DEV_TYPE_FLAG_REV1)
+
+#define PRCM_DEV_TYPE_PRE_CC3220Z2   (PRCM_DEV_TYPE_FLAG_PRE_PROD| \
+                                      PRCM_DEV_TYPE_FLAG_3220|     \
+                                      PRCM_DEV_TYPE_FLAG_Z|        \
+                                      PRCM_DEV_TYPE_FLAG_REV2)
 
 //*****************************************************************************
 //
 // API Function prototypes
 //
 //*****************************************************************************
-extern void PRCMSOCReset(void);
 extern void PRCMMCUReset(tBoolean bIncludeSubsystem);
 extern unsigned long PRCMSysResetCauseGet(void);
 
@@ -212,7 +301,6 @@ extern void PRCMI2SClockFreqSet(unsigned long ulI2CClkFreq);
 extern unsigned long PRCMPeripheralClockGet(unsigned long ulPeripheral);
 
 extern void PRCMSleepEnter(void);
-extern void PRCMDeepSleepEnter(void);
 
 extern void PRCMSRAMRetentionEnable(unsigned long ulSramColSel,
                                     unsigned long ulFlags);
@@ -237,6 +325,7 @@ extern void PRCMHibernateWakeupSourceDisable(unsigned long ulHIBWakupSrc);
 extern void PRCMHibernateIntervalSet(unsigned long long ullTicks);
 
 extern unsigned long long PRCMSlowClkCtrGet(void);
+extern unsigned long long PRCMSlowClkCtrFastGet(void);
 extern void PRCMSlowClkCtrMatchSet(unsigned long long ullTicks);
 extern unsigned long long PRCMSlowClkCtrMatchGet(void);
 
@@ -258,6 +347,13 @@ extern void PRCMRTCMatchGet(unsigned long *ulSecs, unsigned short *usMsec);
 extern void PRCMCC3200MCUInit(void);
 extern unsigned long PRCMHIBRegRead(unsigned long ulRegAddr);
 extern void PRCMHIBRegWrite(unsigned long ulRegAddr, unsigned long ulValue);
+extern unsigned long PRCMCameraFreqSet(unsigned char ulDivider,
+                                                unsigned char ulWidth);
+extern void PRCMIORetentionEnable(unsigned long ulIORetGrpFlags);
+extern void PRCMIORetentionDisable(unsigned long ulIORetGrpFlags);
+extern unsigned long PRCMDeviceTypeGet(void);
+extern void PRCMLPDSEnterKeepDebugIf(void);
+extern void PRCMHibernateCycleTrigger(void);
 
 
 //*****************************************************************************

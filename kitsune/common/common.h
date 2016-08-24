@@ -1,40 +1,16 @@
-//*****************************************************************************
-// common.h
-//
-// Contains the common macro/enum definitions used by different networking apps
-//
-// Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/ 
-// 
-// 
-//  Redistribution and use in source and binary forms, with or without 
-//  modification, are permitted provided that the following conditions 
-//  are met:
-//
-//    Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.
-//
-//    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the 
-//    documentation and/or other materials provided with the   
-//    distribution.
-//
-//    Neither the name of Texas Instruments Incorporated nor the names of
-//    its contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
-//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
-//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-//*****************************************************************************
+/*
+ *   Copyright (C) 2015 Texas Instruments Incorporated
+ *
+ *   All rights reserved. Property of Texas Instruments Incorporated.
+ *   Restricted rights to use, duplicate or disclose this code are
+ *   granted through contract.
+ *
+ *   The program may not be used without the written permission of
+ *   Texas Instruments Incorporated or against the terms and conditions
+ *   stipulated in the agreement under which this program has been supplied,
+ *   and under no circumstances can it be used with non-TI connectivity device.
+ *   
+ */
 
 #ifndef __COMMON__H__
 #define __COMMON__H__
@@ -57,11 +33,27 @@ extern "C"
 // Values for below macros shall be modified as per access-point(AP) properties
 // SimpleLink device will connect to following AP when application is executed
 //
-#define SSID_NAME           "cc3200demo"    /* AP SSID */
-#define SECURITY_TYPE       SL_SEC_TYPE_OPEN/* Security type (OPEN or WEP or WPA*/
+#define SSID_NAME           "cc3220demo"    /* AP SSID */
+#define SECURITY_TYPE       SL_WLAN_SEC_TYPE_OPEN /* Security type (OPEN or WEP or WPA*/
 #define SECURITY_KEY        ""              /* Password of the secured AP */
 #define SSID_LEN_MAX        32
 #define BSSID_LEN_MAX       6
+
+#define SSID_AP_MODE		"<ap-ssid>"
+#define SEC_TYPE_AP_MODE	SL_WLAN_SEC_TYPE_OPEN
+#define PASSWORD_AP_MODE	""
+
+//
+// Values for below macros shall be modified per the access-point's (AP)
+// properties.
+// SimpleLink device will connect to following AP when the application is
+// executed.
+//
+#define ENT_SSID_NAME		"externalhotspot84"
+#define ENT_USERNAME		""
+#define ENT_PASSKEY			""
+#define ENT_SEC_METHOD		SL_WLAN_ENT_EAP_METHOD_PEAP0_MSCHAPv2
+#define ENT_SEC_TYPE		SL_WLAN_SEC_TYPE_WPA_ENT
 
 
 #ifdef NOTERM
@@ -69,9 +61,9 @@ extern "C"
 #define DBG_PRINT(x,...)
 #define ERR_PRINT(x)
 #else
-#define UART_PRINT UARTprintf
-#define DBG_PRINT  UARTprintf
-#define ERR_PRINT(x) UARTprintf("Error [%d] at line [%d] in function [%s]  \n\r",x,__LINE__,__FUNCTION__)
+#define UART_PRINT Report
+#define DBG_PRINT  Report
+#define ERR_PRINT(x) Report("Error [%d] at line [%d] in function [%s]  \n\r",x,__LINE__,__FUNCTION__)
 #endif
 
 // Loop forever, user can change it as per application's requirement
@@ -90,9 +82,7 @@ extern "C"
             }
 
 #define SPAWN_TASK_PRIORITY     9
-#ifndef SL_STOP_TIMEOUT
 #define SL_STOP_TIMEOUT         200
-#endif
 #define UNUSED(x)               ((x) = (x))
 #define SUCCESS                 0
 #define FAILURE                 -1
@@ -110,7 +100,7 @@ typedef enum{
     STATUS_BIT_IP_LEASED,    // If this bit is set: the device has leased IP to 
                              // any connected client
 
-    STATUS_BIT_IP_AQUIRED,   // If this bit is set: the device has acquired an IP
+    STATUS_BIT_IP_ACQUIRED,   // If this bit is set: the device has acquired an IP
     
     STATUS_BIT_SMARTCONFIG_START, // If this bit is set: the SmartConfiguration 
                                   // process is started from SmartConfig app
@@ -124,9 +114,13 @@ typedef enum{
     STATUS_BIT_CONNECTION_FAILED, // If this bit is set: the device(P2P mode)
                                   // connection to client(or reverse way) is failed
 
-    STATUS_BIT_PING_DONE         // If this bit is set: the device has completed
+    STATUS_BIT_PING_DONE,         // If this bit is set: the device has completed
                                  // the ping operation
 
+	STATUS_BIT_IPV6L_ACQUIRED,   // If this bit is set: the device has acquired an IPv6 address
+	STATUS_BIT_IPV6G_ACQUIRED,   // If this bit is set: the device has acquired an IPv6 address
+	STATUS_BIT_AUTHENTICATION_FAILED,
+	STATUS_BIT_RESET_REQUIRED,
 }e_StatusBits;
 
 
@@ -143,7 +137,13 @@ typedef enum{
 #define IS_IP_LEASED(status_variable)        GET_STATUS_BIT(status_variable,\
                                                            STATUS_BIT_IP_LEASED)
 #define IS_IP_ACQUIRED(status_variable)       GET_STATUS_BIT(status_variable,\
-                                                          STATUS_BIT_IP_AQUIRED)
+                                                          STATUS_BIT_IP_ACQUIRED)
+#define IS_IPV6L_ACQUIRED(status_variable)       GET_STATUS_BIT(status_variable,\
+														STATUS_BIT_IPV6L_ACQUIRED)
+#define IS_IPV6G_ACQUIRED(status_variable)       GET_STATUS_BIT(status_variable,\
+														STATUS_BIT_IPV6G_ACQUIRED)
+
+
 #define IS_SMART_CFG_START(status_variable)  GET_STATUS_BIT(status_variable,\
                                                    STATUS_BIT_SMARTCONFIG_START)
 #define IS_P2P_DEV_FOUND(status_variable)    GET_STATUS_BIT(status_variable,\
@@ -154,6 +154,12 @@ typedef enum{
                                                    STATUS_BIT_CONNECTION_FAILED)
 #define IS_PING_DONE(status_variable)        GET_STATUS_BIT(status_variable,\
                                                            STATUS_BIT_PING_DONE)
+
+#define IS_AUTHENTICATION_FAILED(status_variable)   GET_STATUS_BIT(status_variable,\
+														STATUS_BIT_AUTHENTICATION_FAILED)
+
+
+void NotifyReturnToFactoryImage();
 
 //*****************************************************************************
 //

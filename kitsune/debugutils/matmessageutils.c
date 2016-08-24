@@ -119,9 +119,17 @@ bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void * const
     const_MatDesc_t desc;
     pb_ostream_t sizestream;
     uint8_t isFirst = true;
-        
+    uint8_t state;
     
-    while(context->func(isFirst,&desc,context->data)) {
+    
+    
+    do {
+        state = context->func(isFirst,&desc,context->data);
+        
+        if (state == MAT_MESSAGE_FAIL) {
+            break; //still return 1, just means buffers are empty
+        }
+
         isFirst = false;
         
         if (!pb_encode_tag(stream,PB_WT_STRING, field->tag)) {
@@ -142,7 +150,8 @@ bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void * const
         //encode matrix payload
         SetIntMatrix(stream, desc.id, desc.tags, desc.source, desc.data, desc.rows, desc.cols, desc.t1, desc.t2);
     
-    }
+        
+    } while (state == MAT_MESSAGE_CONTINUE);
 
     return 1;
     

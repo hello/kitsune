@@ -76,7 +76,7 @@ bool encode_single_ssid (pb_ostream_t *stream, const pb_field_t *field, void * c
     batched_periodic_data_wifi_access_point* ap = (batched_periodic_data_wifi_access_point *)*arg;
 
 	{
-		static SlGetRxStatResponse_t rxStat;
+		static SlWlanGetRxStatResponse_t rxStat;
 		sl_WlanRxStatGet(&rxStat,0);
 		if( rxStat.AvarageDataCtrlRssi == 0 ) {
 			sl_WlanRxStatStart();  // set statistics mode
@@ -107,7 +107,7 @@ bool encode_single_ssid (pb_ostream_t *stream, const pb_field_t *field, void * c
 bool encode_scanned_ssid (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     int i,n;
 
-	Sl_WlanNetworkEntry_t scan[10];
+	SlWlanNetworkEntry_t scan[10];
 
 	if( arg == NULL ) {
 		return true;
@@ -127,12 +127,12 @@ bool encode_scanned_ssid (pb_ostream_t *stream, const pb_field_t *field, void * 
             LOGI("encode_scanned_ssid: Fail to encode tag for ssid, error %s\n", PB_GET_ERROR(stream));
             return false;
         }
-        ap.antenna = (batched_periodic_data_wifi_access_point_AntennaType)scan[i].reserved[0];
+        ap.antenna = (batched_periodic_data_wifi_access_point_AntennaType)scan[i].Reserved[0];
         ap.has_antenna = true;
-        ap.rssi = scan[i].rssi;
+        ap.rssi = scan[i].Rssi;
         ap.has_rssi = true;
-        scan[i].ssid_len = 0;
-        memcpy( ap.ssid, scan[i].ssid, sizeof(ap.ssid));
+        scan[i].SsidLen = 0;
+        memcpy( ap.ssid, scan[i].Ssid, sizeof(ap.ssid));
         ap.has_ssid = true;
 
         if (!pb_encode_delimited(stream, batched_periodic_data_wifi_access_point_fields, &ap )){

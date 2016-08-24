@@ -14,7 +14,7 @@
 #define LOG2_N_WAVE     (10)
 #define N_WAVE          (1 << LOG2_N_WAVE)        /* dimension of Sinewave[] */
 
-static const uint16_t sin_lut[N_WAVE/4+1] = {
+__attribute__((section(".data"))) static const uint16_t sin_lut[N_WAVE/4+1] = {
   0, 201, 402, 603, 804, 1005, 1206, 1406,
   1607, 1808, 2009, 2209, 2410, 2610, 2811, 3011,
   3211, 3411, 3611, 3811, 4011, 4210, 4409, 4608,
@@ -52,7 +52,7 @@ static const uint16_t sin_lut[N_WAVE/4+1] = {
 
 
 
-uint8_t bitlog(uint32_t n) {
+__attribute__((section(".ramcode"))) uint8_t bitlog(uint32_t n) {
     int16_t b;
     
     // shorten computation for small numbers
@@ -73,7 +73,7 @@ uint8_t bitlog(uint32_t n) {
     return (uint8_t) b;
 }
 
-uint32_t bitexp(uint16_t n) {
+__attribute__((section(".ramcode"))) uint32_t bitexp(uint16_t n) {
     uint16_t b = n/8;
     uint32_t retval;
     
@@ -91,7 +91,8 @@ uint32_t bitexp(uint16_t n) {
     return (retval << (b - 2));
 }
 
-short fxd_sin( uint16_t x ) {
+ __attribute__((section(".ramcode")))
+ short fxd_sin( uint16_t x ) {
 	x &= 0x3FF;
 	if( x > 3*N_WAVE/4 ) {
 		return -sin_lut[N_WAVE - x];
@@ -119,13 +120,26 @@ inline static short fix_mpy(short a, short b)
   return a;
 }
 #endif
+#include "uart_logger.h"
+#include "cmsis_ccs.h"
+#include "arm_math.h"
+typedef union
+{
+    struct {
+    	int16_t LSW; /* Least significant Word */
+        int16_t MSW; /* Most significant Word */
+    }regs;
+    uint32_t pair;
+}pair_t;
+pair_t p1, p2;
 
-int fft(int16_t fr[], int16_t fi[], int32_t m)
+__attribute__((section(".ramcode"))) int fft(int16_t fr[], int16_t fi[], int32_t m)
 {
     int32_t mr, nn, i, j, l, k, istep, n;
+#if 0
     int16_t  wr, wi;
+#endif
 
-    
     n = 1 << m;
     
     if (n > N_WAVE)
@@ -156,7 +170,7 @@ int fft(int16_t fr[], int16_t fi[], int32_t m)
         fi[m] = fi[mr];
         fi[mr] = tmp;
     }
-    
+
     l = 1;
     k = LOG2_N_WAVE - 1;
     while (l < n) {
@@ -168,20 +182,31 @@ int fft(int16_t fr[], int16_t fi[], int32_t m)
         for (m = 0; m < l; ++m) {
             j = m << k;
             /* 0 <= j < N_WAVE/2 */
-            wr = fxd_sin(j + N_WAVE / 4);
-            wi = -fxd_sin(j);
+            p1.regs.LSW =
+            		/*wr =*/ fxd_sin(j + N_WAVE / 4);
+            p1.regs.MSW =
+            		/*wi = */-fxd_sin(j);
             
             for (i = m; i < n; i += istep) {
                 int32_t tr,ti,qr, qi;
 
                 j = i + l;
-                
-                //tr = fix_mpy(wr, fr[j]) - fix_mpy(wi, fi[j]);
-                tr = (int32_t)wr * (int32_t)fr[j] - (int32_t)wi * (int32_t)fi[j];
+
+#ifdef ARM_MATH_CM4
+                p2.regs.LSW = fr[j];
+                p2.regs.MSW = fi[j];
+                tr = (int32_t)__SMUSD( p1.pair, p2.pair  );
+                ti = (int32_t)__SMUADX( p1.pair, p2.pair  );
+#elif
+                p2.regs.LSW = fr[j];
+                p2.regs.MSW = fi[j];
+                tr = (int32_t)p1.regs.LSW * (int32_t)p2.regs.LSW
+				   - (int32_t)p1.regs.MSW * (int32_t)p2.regs.MSW;
+                ti = (int32_t)p1.regs.LSW * (int32_t)p2.regs.MSW
+			       + (int32_t)p1.regs.MSW * (int32_t)p2.regs.LSW;
+#endif
+
                 tr >>= 1;
-                
-                //ti = fix_mpy(wr, fi[j]) + fix_mpy(wi, fr[j]);
-                ti = (int32_t)wr * (int32_t)fi[j] + (int32_t)wi*(int32_t)fr[j];
                 ti >>= 1;
                 
                 qr = fr[i] << 14;
@@ -199,6 +224,7 @@ int fft(int16_t fr[], int16_t fi[], int32_t m)
     return 0;
 }
 
+__attribute__((section(".ramcode")))
 int fftr(int16_t f[], int32_t m)
 {
     int32_t i, N = 1<<(m-1);
@@ -209,13 +235,13 @@ int fftr(int16_t f[], int32_t m)
         f[N+i-1] = f[i];
         f[i] = tt;
     }
-    return fft(fi, fr, m-1);
+    fft(fi, fr, m-1);
 }
 
 //requires 2N memory... for now
 //ndct can be no greater than 8 (ie. length 256)
 //so fr should be length (2^(ndct + 1))
-void dct(int16_t fr[],int16_t fi[],const int16_t ndct) {
+__attribute__((section(".ramcode"))) void dct(int16_t fr[],int16_t fi[],const int16_t ndct) {
     uint32_t i,k;
     int16_t sine,cosine;
     uint16_t stheta;
@@ -264,7 +290,7 @@ void dct(int16_t fr[],int16_t fi[],const int16_t ndct) {
     
 }
 
-void fix_window(int16_t fr[], int32_t n)
+__attribute__((section(".ramcode"))) void fix_window(int16_t fr[], int32_t n)
 {
   int i, j, k;
 
@@ -278,7 +304,7 @@ void fix_window(int16_t fr[], int32_t n)
 }
 
 
-void abs_fft(uint16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t len)
+__attribute__((section(".ramcode"))) void abs_fft(uint16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t len)
 {
     int i;
     for (i=0; i < len ; ++i) {
@@ -287,7 +313,7 @@ void abs_fft(uint16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t
 }
 
 /* call this post-fft  */
-void updateoctogram(const int16_t fr[],const int16_t fi[]) {
+__attribute__((section(".ramcode"))) void updateoctogram(const int16_t fr[],const int16_t fi[]) {
 
 }
 
@@ -297,14 +323,15 @@ void updateoctogram(const int16_t fr[],const int16_t fi[]) {
 // f is both input and output
 // f as input is the PSD bin, and is always positive
 // f as output is the mel bins
-void logpsdmel(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal,uint16_t min_energy) {
+__attribute__((section(".ramcode"))) void logpsdmel(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal,uint16_t min_energy) {
     uint16_t i;
     uint16_t ufr;
     uint16_t ufi;
     uint64_t utemp64;
+    uint64_t non_weighted_energy;
 	uint64_t accumulator64 = 0;
 	int32_t temp32;
-	static const uint8_t spacings[31] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	static const uint8_t spacings[32] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 			1, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 10, 11, 13, 14, 15 };
 
 	static const int16_t binaveragingcoeff[18] = { 0, 0, -1024, -1623, -2048,
@@ -329,12 +356,12 @@ void logpsdmel(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const i
 	accumulator64 = 0;
     
 
-    ifft = 2;
-    psd[0] = 0;
-    for (idx = 1; idx < 32; idx++) {
+    ifft = 1;
+    for (idx = 0; idx < 32; idx++) {
        // assert(idx-1 <= 31);
-        iend = spacings[idx-1];
+        iend = spacings[idx];
         utemp64 = 0;
+        non_weighted_energy = 0;
 
         for (i = 0; i < iend; i++) {
         	uint64_t a = 0;
@@ -346,11 +373,11 @@ void logpsdmel(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const i
             a += (uint32_t)ufi*(uint32_t)ufi;
 
             utemp64 += a * a_weight_q10[ifft] >> 10;
-            
+            non_weighted_energy += a;
             ifft++;
         }
 
-        temp32 = FixedPointLog2Q10(utemp64 + min_energy) + binaveragingcoeff[iend] - log2scaleOfRawSignal*1024;
+        temp32 = FixedPointLog2Q10(non_weighted_energy + min_energy) + binaveragingcoeff[iend] - log2scaleOfRawSignal*1024;
         
         if (temp32 > INT16_MAX) {
             temp32 = INT16_MAX;

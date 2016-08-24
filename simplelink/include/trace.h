@@ -1,38 +1,17 @@
 /*
- * trace.h - CC31xx/CC32xx Host Driver Implementation
+ *   Copyright (C) 2015 Texas Instruments Incorporated
  *
- * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/ 
- * 
- * 
- *  Redistribution and use in source and binary forms, with or without 
- *  modification, are permitted provided that the following conditions 
- *  are met:
+ *   All rights reserved. Property of Texas Instruments Incorporated.
+ *   Restricted rights to use, duplicate or disclose this code are
+ *   granted through contract.
  *
- *    Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer.
- *
- *    Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the   
- *    distribution.
- *
- *    Neither the name of Texas Instruments Incorporated nor the names of
- *    its contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
- *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
- *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
- *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
- *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
- *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
- *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
-*/
+ *   The program may not be used without the written permission of
+ *   Texas Instruments Incorporated or against the terms and conditions
+ *   stipulated in the agreement under which this program has been supplied,
+ *   and under no circumstances can it be used with non-TI connectivity device.
+ *   
+ */
+
  
 
 
@@ -51,28 +30,33 @@ extern "C" {
 /*****************************************************************************/
 
 #define SL_SYNC_SCAN_THRESHOLD  (( _u32 )2000)
-  
-#define _SlDrvAssert(line )
-// { while(1); }
 
-#define _SL_ASSERT(expr)
-//{ if(!(expr)){_SlDrvAssert(__LINE__); } }
-#define _SL_ERROR(expr, error)
-//{ if(!(expr)){return (error); } }
+#ifdef SL_TINY
+#define _SlDrvAssert(line )  { while(1); }  
+#else
+#define _SlDrvAssert() _SlDrvHandleFatalError(SL_DEVICE_EVENT_FATAL_DRIVER_ABORT, 0, 0)
+#endif
+
+#define _SL_ASSERT(expr)            { if(!(expr)){ \
+	_SlDrvAssert(); } \
+}
+#define _SL_ERROR(expr, error)      { if(!(expr)){return (error); } }
 
 #define SL_HANDLING_ASSERT          2
 #define SL_HANDLING_ERROR           1
 #define SL_HANDLING_NONE            0
 
 
-#ifndef SL_TINY_EXT
+#ifndef SL_TINY
 #define SL_SELF_COND_HANDLING       SL_HANDLING_ASSERT
 #define SL_PROTOCOL_HANDLING        SL_HANDLING_ASSERT
-#define SL_DRV_RET_CODE_HANDLING    SL_HANDLING_ASSERT
+#define SL_DRV_RET_CODE_HANDLING    SL_HANDLING_ERROR
 #define SL_NWP_IF_HANDLING          SL_HANDLING_ASSERT
-#define SL_OSI_RET_OK_HANDLING      SL_HANDLING_ASSERT
+#define SL_OSI_RET_OK_HANDLING      SL_HANDLING_ERROR
 #define SL_MALLOC_OK_HANDLING       SL_HANDLING_ASSERT
 #define SL_USER_ARGS_HANDLING       SL_HANDLING_ASSERT
+#define SL_ERR_IN_PROGRESS_HANDLING SL_HANDLING_ERROR
+#define SL_ERR_IN_API_ALLOWED       SL_HANDLING_ERROR
 #else
 #define SL_SELF_COND_HANDLING       SL_HANDLING_NONE
 #define SL_PROTOCOL_HANDLING        SL_HANDLING_NONE
@@ -81,8 +65,25 @@ extern "C" {
 #define SL_OSI_RET_OK_HANDLING      SL_HANDLING_NONE
 #define SL_MALLOC_OK_HANDLING       SL_HANDLING_NONE
 #define SL_USER_ARGS_HANDLING       SL_HANDLING_NONE
+#define SL_ERR_IN_PROGRESS_HANDLING SL_HANDLING_NONE
+#define SL_ERR_IN_API_ALLOWED       SL_HANDLING_NONE
 #endif
 
+
+#if (SL_ERR_IN_PROGRESS_HANDLING == SL_HANDLING_ERROR)
+#define VERIFY_NO_ERROR_HANDLING_IN_PROGRESS() { \
+	    if (SL_IS_RESTART_REQUIRED) return SL_API_ABORTED; }
+#else
+#define VERIFY_NO_ERROR_HANDLING_IN_PROGRESS()
+#endif
+
+#if (SL_ERR_IN_API_ALLOWED == SL_HANDLING_ERROR)
+#define VERIFY_API_ALLOWED(Silo) { \
+        _SlReturnVal_t status = _SlDrvDriverIsApiAllowed(Silo); \
+	    if ( status ) return status; }
+#else
+#define VERIFY_API_ALLOWED(Silo)
+#endif
 
 #if (SL_DRV_RET_CODE_HANDLING == SL_HANDLING_ASSERT)
 #define VERIFY_RET_OK(Func)                     {_SlReturnVal_t _RetVal = (Func); _SL_ASSERT((_SlReturnVal_t)SL_OS_RET_CODE_OK == _RetVal)}
@@ -109,10 +110,8 @@ extern "C" {
 #endif
 
 #if (SL_NWP_IF_HANDLING == SL_HANDLING_ASSERT)
-#define NWP_IF_WRITE_CHECK(fd,pBuff,len)      sl_IfWrite((fd),(pBuff),len)
-//{ _i16 RetSize, ExpSize = (len); RetSize = sl_IfWrite((fd),(pBuff),ExpSize); _SL_ASSERT(ExpSize == RetSize)}
-#define NWP_IF_READ_CHECK(fd,pBuff,len)       sl_IfRead((fd),(pBuff),len)
-//{ _i16 RetSize, ExpSize = (len); RetSize = sl_IfRead((fd),(pBuff),ExpSize);  _SL_ASSERT(ExpSize == RetSize)}
+#define NWP_IF_WRITE_CHECK(fd,pBuff,len)       { _i16 RetSize, ExpSize = (_i16)(len); RetSize = sl_IfWrite((fd),(pBuff),ExpSize); _SL_ASSERT(ExpSize == RetSize)}
+#define NWP_IF_READ_CHECK(fd,pBuff,len)        { _i16 RetSize, ExpSize = (_i16)(len); RetSize = sl_IfRead((fd),(pBuff),ExpSize);  _SL_ASSERT(ExpSize == RetSize)}
 #elif (SL_NWP_IF_HANDLING == SL_HANDLING_ERROR)
 #define NWP_IF_WRITE_CHECK(fd,pBuff,len)       { _SL_ERROR((len == sl_IfWrite((fd),(pBuff),(len))), SL_RET_CODE_NWP_IF_ERROR);}
 #define NWP_IF_READ_CHECK(fd,pBuff,len)        { _SL_ERROR((len == sl_IfRead((fd),(pBuff),(len))),  SL_RET_CODE_NWP_IF_ERROR);}
@@ -122,8 +121,7 @@ extern "C" {
 #endif
 
 #if (SL_OSI_RET_OK_HANDLING == SL_HANDLING_ASSERT)
-#define OSI_RET_OK_CHECK(Func)                  Func
-//{_SlReturnVal_t _RetVal = (Func); _SL_ASSERT((_SlReturnVal_t)SL_OS_RET_CODE_OK == _RetVal)}
+#define OSI_RET_OK_CHECK(Func)                  {_SlReturnVal_t _RetVal = (Func); _SL_ASSERT((_SlReturnVal_t)SL_OS_RET_CODE_OK == _RetVal)}
 #elif (SL_OSI_RET_OK_HANDLING == SL_HANDLING_ERROR)
 #define OSI_RET_OK_CHECK(Func)                  {_SlReturnVal_t _RetVal = (Func); if (SL_OS_RET_CODE_OK != _RetVal) return  _RetVal;}
 #else

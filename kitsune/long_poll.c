@@ -12,34 +12,86 @@
 #include "sl_sync_include_after_simplelink_header.h"
 
 #include "messeji.pb.h"
-#include "sleep_sounds.pb.h"
 
-#define LONG_POLL_HOST "long-poll.sense.in"
-#define LONG_POLL_ENDPOINT "/poll"
+#include "audiotask.h"
+#include "audio_commands.pb.h"
+
+#include "hellofilesystem.h"
+
+#include "sys_time.h"
 
 #define _MAX_RX_RECEIPTS 10
 
+#include "endpoints.h"
+extern volatile bool use_dev_server;
+char * get_messeji_server(void){
+	if(use_dev_server){
+		return DEV_MESSEJI_SERVER;
+	}
+	return PROD_MESSEJI_SERVER;
+}
+
+#define LONG_POLL_HOST MESSEJI_SERVER
+#define LONG_POLL_ENDPOINT MESSEJI_ENDPOINT
+
 xQueueHandle _rx_queue = 0;
 
-static void _on_sleep_sounds( SleepSoundsCommand * cmd ) {}
+static void _on_play_audio( PlayAudio * cmd ) {
+	AudioPlaybackDesc_t desc;
 
+	if( cmd->has_duration_seconds ) {
+		desc.durationInSeconds = cmd->duration_seconds;
+	} else {
+		desc.durationInSeconds = 0;
+	}
+	desc.stream = fs_stream_open(cmd->file_path,HLO_STREAM_READ);
+	ustrncpy(desc.source_name, cmd->file_path, sizeof(desc.source_name));
+	desc.volume = cmd->volume_percent * 60 / 100; //convert from percent to codec range
+	desc.fade_in_ms = cmd->fade_in_duration_seconds * 1000;
+	desc.fade_out_ms = cmd->fade_out_duration_seconds * 1000;
+	if( cmd->has_timeout_fade_out_duration_seconds ) {
+		desc.to_fade_out_ms = cmd->timeout_fade_out_duration_seconds * 1000;
+	} else {
+		desc.to_fade_out_ms = desc.fade_out_ms;
+	}
+
+	desc.onFinished = NULL;
+	desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
+	desc.context = NULL;
+	AudioTask_StartPlayback(&desc);
+}
+static void _on_stop_audio( StopAudio * cmd ) {
+	//TODO use cmd->fade_out_duration_seconds; ?
+	AudioTask_StopPlayback();
+}
+
+bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
 static bool _on_message(pb_istream_t *stream, const pb_field_t *field, void **arg) {
 	Message message;
 
-	LOGI("message parsing\n" );
-	if( !pb_decode(stream,Message_fields,&message) ) {
-		LOGI("message parse fail \n" );
+	LOGI("message parsing\n");
+	message.sender_id.funcs.encode = NULL;
+	message.sender_id.arg = NULL;
+	message.sender_id.funcs.decode = _decode_string_field;
+
+	if (!pb_decode(stream, Message_fields, &message)) {
+		LOGI("message parse fail \n");
 		return false;
 	}
 
-	if( message.has_message_id ) {
+	if (message.has_message_id) {
+		LOGI("message id %d\n", message.message_id );
 		xQueueSend(_rx_queue, (void* )&message.message_id, 0);
 	}
-	if( message.has_sleep_sounds_command ) {
-		_on_sleep_sounds( &message.sleep_sounds_command );
+	if (message.has_play_audio) {
+		_on_play_audio(&message.play_audio);
+	}
+	if (message.has_stop_audio) {
+		_on_stop_audio(&message.stop_audio);
 	}
 
+	vPortFree(message.sender_id.arg);
 	return true;
 }
 static void _get_long_poll_response(pb_field_t ** fields, void ** structdata){
@@ -69,7 +121,9 @@ bool _encode_read_id(pb_ostream_t *stream, const pb_field_t *field, void * const
 	if( _rx_queue ) {
 		while( xQueueReceive(_rx_queue, &id, 0 ) &&
 				//todo check if tag_for_field is necessary here
-				( success =  pb_encode_tag_for_field(stream, field) && pb_encode_fixed64(stream, &id ) ) ) {}
+				( success =  pb_encode_tag_for_field(stream, field) && pb_encode_varint(stream, id ) ) ) {
+			LOGI("ack message id %d\n", id );
+		}
 	}
 	return success;
 }
@@ -97,16 +151,14 @@ static void long_poll_task(void * networkdata) {
     request.message_read_id.funcs.encode = _encode_read_id;
 
 	for (; ;) {
-		while (!wifi_status_get(HAS_IP)) {
-			vTaskDelay(1000);
-		}
+		wait_for_time(WAIT_FOREVER); //need time for SSL
 		if( send_data_pb(LONG_POLL_HOST,
 				LONG_POLL_ENDPOINT,
 				&decode_buf,
 				&decode_buf_size,
 				ReceiveMessageRequest_fields,
 				&request,
-				&pb_cb, &sock, SOCKET_SEC_NONE ) != 0 ) {
+				&pb_cb, &sock, SOCKET_SEC_SSL ) != 0 ) {
 			if( retries++ < 5 ) {
 				vTaskDelay( (1<<retries)*1000 );
 			} else {

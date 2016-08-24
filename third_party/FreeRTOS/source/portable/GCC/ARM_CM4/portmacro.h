@@ -80,6 +80,7 @@ extern "C" {
  * These settings should not be altered.
  *-----------------------------------------------------------
  */
+#include "stdint.h"
 
 /* Type definitions. */
 #define portCHAR		char

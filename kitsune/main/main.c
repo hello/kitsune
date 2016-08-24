@@ -88,6 +88,8 @@
 /* HW interfaces */
 #include "uartstdio.h"
 #include "i2c_if.h"
+#include "timer_if.h"
+#include "udma_if.h"
 
 #include "wifi_cmd.h"
 #include "uart_logger.h"
@@ -109,7 +111,7 @@ extern void vUARTTask(void *pvParameters);
 //                      MACRO DEFINITIONS
 //*****************************************************************************
 #define UART_PRINT               Report
-#define SPAWN_TASK_PRIORITY		 3
+#define SPAWN_TASK_PRIORITY		 9
 
 //****************************************************************************
 //                      LOCAL FUNCTION PROTOTYPES
@@ -125,7 +127,8 @@ extern void (* const g_pfnVectors[])(void);
 extern uVectorEntry __vector_table;
 #endif
 
-
+int sync_ln;
+const char * sync_fnc = NULL;
 
 //*****************************************************************************
 //
@@ -220,40 +223,44 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
 //! \return None
 //
 //*****************************************************************************
+extern void (* const g_pfnVectors[])(void);
+#pragma DATA_SECTION(ulRAMVectorTable, ".ramvecs")
+unsigned long ulRAMVectorTable[256];
 static void
 BoardInit(void)
 {
-/* In case of TI-RTOS vector table is initialize by OS itself */
+	/* In case of TI-RTOS vector table is initialize by OS itself */
 #ifndef USE_TIRTOS
-    //
-    // Set vector table base
-    //
-#if defined(ccs) || defined(gcc)
-    IntVTableBaseSet((unsigned long)&g_pfnVectors[0]);
+	//
+	// Set vector table base
+	//
+#if defined(__TI_COMPILER_VERSION__) || defined(__GNUC__)
+	memcpy(ulRAMVectorTable,g_pfnVectors,16*4);
+#elif defined(__IAR_SYSTEMS_ICC__)
+	memcpy(ulRAMVectorTable,&__vector_table,16*4);
 #endif
-#if defined(ewarm)
-    IntVTableBaseSet((unsigned long)&__vector_table);
-#endif
-#endif
-    //
-    // Enables the clock ticking for scheduler to switch between different
-    // tasks.
-    //
-    // todo figure out why this breaks under sdk 0p5
-    //SysTickPeriodSet(configCPU_CLOCK_HZ/configSYSTICK_CLOCK_HZ);
-    //SysTickEnable();
 
-    // I2C Init
-    //
-    I2C_IF_Open(I2C_MASTER_MODE_STD);
-	
-    //
-    // Enable Processor
-    //
-    MAP_IntMasterEnable();
-    MAP_IntEnable(FAULT_SYSTICK);
+	//
+	// Set vector table base.
+	//
+	IntVTableBaseSet((unsigned long)&ulRAMVectorTable[0]);
 
-    PRCMCC3200MCUInit();
+#endif
+
+	//
+	// Enable Processor
+	//
+	MAP_IntMasterEnable();
+	MAP_IntEnable(FAULT_SYSTICK);
+
+  /*
+	###IMPORTANT NOTE### :
+		PRCMCC3200MCUInit contains all the mandatory bug fixes, ECO enables,
+		initializations for both CC3200 and CC3220. This should be one of the
+		first things to be executed after control comes to MCU Application
+		code. Don’t remove this.
+  */
+  PRCMCC3200MCUInit();
 }
 
 void WatchdogIntHandler(void)
@@ -288,7 +295,7 @@ void start_wdt() {
 void mcu_reset();
 #include "kit_assert.h"
 volatile portTickType last_upload_time = 0;
-#define NWP_WATCHDOG_TIMEOUT
+//#define NWP_WATCHDOG_TIMEOUT
 #define ONE_HOUR (1000*60*60)
 #define FIFTEEN_MINUTES (1000*60*15)
 #define TWENTY_FIVE_HOURS (ONE_HOUR*25)
@@ -299,14 +306,22 @@ void nwp_reset_thread(void* unused) {
 }
 #endif
 
+bool check_button();
 void watchdog_thread(void* unused) {
 #ifdef NWP_WATCHDOG_TIMEOUT
 	int last_nwp_reset_time = 0;
 #endif
+	int button_cnt=0;
 	while (1) {
 		if (xTaskGetTickCount() - last_upload_time > 3*ONE_HOUR) {
 			LOGE("NET TIMEOUT\n");
 			mcu_reset();
+		}
+		if( check_button() && ++button_cnt == 10 ) {
+			LOGE("WDT BUTTON\n");
+			mcu_reset();
+		} else {
+			button_cnt = 0;
 		}
 #ifdef NWP_WATCHDOG_TIMEOUT
 		if (xTaskGetTickCount() - last_upload_time > FIFTEEN_MINUTES
@@ -321,6 +336,13 @@ void watchdog_thread(void* unused) {
 		vTaskDelay(1000);
 	}
 }
+
+void SimpleLinkSocketTriggerEventHandler(SlSockTriggerEvent_t	*pSlTriggerEvent)
+{
+
+}
+
+
 //*****************************************************************************
 //							MAIN FUNCTION
 //*****************************************************************************
@@ -331,38 +353,36 @@ void main()
   //
   BoardInit();
 
-  start_wdt();
   //
   // configure the GPIO pins for LEDvs
   //
   PinMuxConfig();
-
-  //
-  // Set the SD card clock as output pin
-  //
-  MAP_PinDirModeSet(PIN_07,PIN_DIR_MODE_OUT);
+  UDMAInit();
+  simplelink_timerA2_start();
 
 #ifdef _ENABLE_SYSVIEW
   SEGGER_RTT_Init();
   SEGGER_SYSVIEW_Conf();
 #endif
-  //
-  // Start the SimpleLink Host
-  //
+
 
   VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
 
-  wifi_status_init();
+  MAP_PinDirModeSet(PIN_07,PIN_DIR_MODE_OUT);
+  I2C_IF_Open(I2C_MASTER_MODE_FST);
 
   /* Create the UART processing task. */
-  xTaskCreate( vUARTTask, "UARTTask", 2048/(sizeof(portSTACK_TYPE)), NULL, 3, NULL );
-  xTaskCreate( watchdog_thread, "wdtTask", 1280/(sizeof(portSTACK_TYPE)), NULL, 1, NULL );
+  xTaskCreate( vUARTTask, "UARTTask", 1024/(sizeof(portSTACK_TYPE)), NULL, 3, NULL );
+
+#if 0
+  start_wdt();
+  xTaskCreate( watchdog_thread, "wdtTask", 512/(sizeof(portSTACK_TYPE)), NULL, 1, NULL );
+#endif
 
   //
   // Start the task scheduler
   //
   vTaskStartScheduler();
-
 }
 
 //*****************************************************************************

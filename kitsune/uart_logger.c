@@ -222,6 +222,7 @@ _write_file(char * local_name, const char * buffer, WORD size){
 	}
 	return FR_OK;
 }
+
 static FRESULT
 _read_file(char * local_name, char * buffer, WORD buffer_size, WORD *size_read){
 	FIL file_obj;
@@ -266,12 +267,12 @@ _save_newest(const char * buffer, int size){
             DISP("Wr log %d\r\n", counter);
             return _write_file(s, buffer, size);
         }else{
-            return FR_RW_ERROR;
+            return FR_DISK_ERR;
         }
     }else{
 		//LOGW("Write log error: %d \r\n", ret);
 	}
-	return FR_RW_ERROR;
+	return FR_DISK_ERR;
 }
 static FRESULT
 _read_oldest(char * buffer, int size, WORD * read){
@@ -286,7 +287,7 @@ _read_oldest(char * buffer, int size, WORD * read){
 		DISP("Rd log %d\r\n", counter);
 		return _read_file(s,buffer, size, read);
 	}
-	return FR_RW_ERROR;
+	return FR_DISK_ERR;
 }
 static FRESULT
 _remove_oldest(int * rem){
@@ -302,7 +303,7 @@ _remove_oldest(int * rem){
 		*rem = (ret - 1);
 		return _remove_file(s);
 	}
-	return FR_RW_ERROR;
+	return FR_DISK_ERR;
 }
 static uint8_t log_local_enable;
 static void _save_block_queue( TickType_t dly ) {
@@ -322,11 +323,11 @@ static void _save_block_queue( TickType_t dly ) {
 /**
  * PUBLIC functions
  */
-void uart_logger_flush(void){
+void uart_logger_flush_err_shutdown(void){
 	//set the task to exit and wait for it to do so
-	xSemaphoreTake(self.print_sem, portMAX_DELAY);
+	//xSemaphoreTake(self.print_sem, portMAX_DELAY);
 	self.view_tag = self.store_tag = 0;
-	xSemaphoreGive(self.print_sem);
+	//xSemaphoreGive(self.print_sem);
 	//write out whatever's left in the logging block
 	_save_newest((const char*)self.logging_block, self.widx );
 	_save_block_queue(0);
@@ -590,8 +591,12 @@ static bool send_log() {
 	}
 #endif
 	//no timeout on this one...
+#if 0
     return NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
     		sense_log_fields,&self.log, 0, NULL, NULL, NULL, false);
+#else
+    return (bool)1;
+#endif
 }
 
 void analytics_event_task(void * params){
@@ -634,10 +639,13 @@ upload:
 			log.unix_time = time;
 			portTickType now = xTaskGetTickCount();
 			DISP("Analytics: %s\r\n", block);
+#if 0
 			if( !NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
 					sense_log_fields, &log, 0, NULL, NULL, NULL, false) ) {
 				LOGI("Analytics failed to upload\n");
 			}
+#else
+#endif
 			block_len = 0;
 			memset(block, 0, ANALYTICS_MAX_CHUNK_SIZE);
 			vTaskDelayUntil(&now, 1000);
@@ -735,4 +743,28 @@ int Cmd_analytics(int argc, char * argv[]){
 	}
 
 	return 0;
+}
+static int uart_write(void * ctx, const void * buf, size_t size){
+	int i = 0;
+	if( xSemaphoreTake(self.print_sem, 0) != pdPASS ) {
+			return 0;
+	}
+	while(UARTTxBytesFree() > 1 && i < size){
+		//\n gets turned into \r\n so we need 2 minimum
+		UARTwrite((char*)buf+i, 1);
+		i++;
+	}
+	xSemaphoreGive( self.print_sem );
+	return i;
+}
+#undef write
+static hlo_stream_vftbl_t uart_stream_impl = {
+		.write = uart_write,
+};
+hlo_stream_t * uart_stream(void){
+	static hlo_stream_t * stream;
+	if(!stream){
+		stream = hlo_stream_new(&uart_stream_impl,NULL,HLO_STREAM_READ_WRITE);
+	}
+	return stream;
 }
