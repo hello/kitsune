@@ -128,7 +128,7 @@ extern xSemaphoreHandle playback_isr_sem;;
 static volatile unsigned long qqbufsz=0;
 
 
-__attribute__((section(".ramcode")))
+/*ramcode*/
 void DMAPingPongCompleteAppCB_opt()
 {
     unsigned long ulPrimaryIndexTx = 0x4, ulAltIndexTx = 0x24;
@@ -169,7 +169,11 @@ void DMAPingPongCompleteAppCB_opt()
 					+ END_PTR_DEBUG);
 			MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
 
-			FillBuffer(pAudInBuf, (unsigned char*) pong, CB_TRANSFER_SZ * 4);
+			for (i = 0; i< CB_TRANSFER_SZ/2 ; ++i) {
+				pong[i] = pong[i<<1]; //downsample by discarding...
+			}
+			FillBuffer(pAudInBuf, (unsigned char*) pong, CB_TRANSFER_SZ * 2);
+
 		} else {
 			//ALT part of the ping pong
 			if ((pControlTable[ulAltIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M)
@@ -181,8 +185,10 @@ void DMAPingPongCompleteAppCB_opt()
 						+ END_PTR_DEBUG);
 				MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
 
-				FillBuffer(pAudInBuf, (unsigned char*) ping,
-						CB_TRANSFER_SZ * 4);
+				for (i = 0; i< CB_TRANSFER_SZ/2 ; ++i) {
+					pong[i] = pong[i<<1]; //downsample by discarding...
+				}
+				FillBuffer(pAudInBuf, (unsigned char*) pong, CB_TRANSFER_SZ * 2);
 			}
 		}
 

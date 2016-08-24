@@ -3,7 +3,7 @@
 #include "tinytensor_math.h"
 #include "kit_assert.h"
 
-#define DAMP_CELL_STATES 1
+#define DAMPING_FACTOR (250)
 
 typedef enum {
     inputgate,
@@ -68,6 +68,9 @@ static int16_t hard_sigmoid(int32_t x,int8_t in_scale) {
     return (int16_t) temp32;
 }
 
+#include "FreeRTOS.h"
+#include "task.h"
+#include "uart_logger.h"
 __attribute__((section(".ramcode")))
 static void lstm_time_step_forwards(int32_t * cell_state,
                                     Weight_t * output,
@@ -87,31 +90,29 @@ static void lstm_time_step_forwards(int32_t * cell_state,
     uint32_t icell;
     int32_t accumulator32;
     int32_t temp32;
-    int8_t temp8;
+    int temp;
     Weight_t h;
     int8_t tempscale;
-    int32_t bias32;
 
     const Weight_t * weight_row_starts[NUM_GATES];
-    const Weight_t * bias_row_starts[NUM_GATES];
-    const uint32_t total_len = num_cells + num_inputs;
+    Weight_t bias_row_starts[NUM_GATES];
+    uint32_t total_len = num_cells + num_inputs;
     int32_t pre_activations[NUM_GATES];
 
     int16_t activation_forget_gate;
     int16_t activation_input_gate;
     int16_t activation_output_gate;
-    int8_t activation_cell;
-    
+    Weight_t activation_cell;
+
     for (igate = 0; igate < NUM_GATES; igate++) {
         //set up row starts for all weights
         weight_row_starts[igate] = weights[igate];
-        bias_row_starts[igate] = biases[igate];
+        bias_row_starts[igate] = *biases[igate] << QFIXEDPOINT; //to Q14 + QB FROM Q7 + QB
     }
-    
     
     for (icell = 0; icell < num_cells; icell++) {
 //        printf("cell=%d\n",icell);
-        
+
         if (icell == 3) {
             int foo = 3;
             foo++;
@@ -121,24 +122,22 @@ static void lstm_time_step_forwards(int32_t * cell_state,
 
             accumulator32 = 0;
             const Weight_t * w = weight_row_starts[igate];
-            const Weight_t * b = bias_row_starts[igate];
-            const int8_t w_scale = weights_scale[igate];
-            const int8_t b_scale = biases_scale[igate];
-            
+            Weight_t b = bias_row_starts[igate];
+            int8_t w_scale = weights_scale[igate];
+            int8_t b_scale = biases_scale[igate];
+
             accumulator32 = accumulate(total_len,w,input_vec);
             
-            bias32 = *b << QFIXEDPOINT; //to Q14 + QB FROM Q7 + QB
+            temp = b_scale - input_scale - w_scale;
             
-            temp8 = b_scale - input_scale - w_scale;
-            
-            if (temp8 > 0) {
-                bias32 >>= temp8;
+            if (temp > 0) {
+                b >>= temp;
             }
-            else if (temp8 < 0){
-                bias32 <<= -temp8;
+            else if (temp < 0){
+                b <<= -temp;
             }
             
-            accumulator32 += bias32;
+            accumulator32 += b;
             
             if (w_scale > 0) {
                 accumulator32 >>= w_scale;
@@ -154,10 +153,8 @@ static void lstm_time_step_forwards(int32_t * cell_state,
             
             //update indices
             weight_row_starts[igate] += total_len;
-            bias_row_starts[igate] += 1;
-
+            ++bias_row_starts[igate];
         }
-        
 
         //now that we have our activations, process the gates
         activation_forget_gate = hard_sigmoid(pre_activations[forgetgate],input_scale);
@@ -198,15 +195,8 @@ static void lstm_time_step_forwards(int32_t * cell_state,
         if (temp32 < -MAX_WEIGHT) {
             temp32 = -MAX_WEIGHT;
         }
-        
-        
         output[icell] = (Weight_t)temp32;
-        
-    
     }
-
-
-   
 }
 
 
@@ -230,7 +220,7 @@ static void lstm_time_step_forwards(int32_t * cell_state,
 
 __attribute__((section(".ramcode")))
 static void eval_helper(const void * context, Tensor_t * out,const Tensor_t * in,ELayer_t prev_layer_type,
-                        int32_t * cell_state, Weight_t * prev_hidden, uint8_t is_stateful) {
+                        int32_t * cell_state, Weight_t * prev_hidden, uint8_t is_stateful,const uint32_t flags) {
     
     const LstmLayer_t * lstm_layer = (const LstmLayer_t *) context;
     
@@ -270,6 +260,7 @@ static void eval_helper(const void * context, Tensor_t * out,const Tensor_t * in
     uint32_t t;
     uint32_t i;
     int32_t temp32;
+    
     uint8_t current_gate = 0;
     Weight_t * out_row = out->x;
     const Weight_t * in_row = in->x;
@@ -303,16 +294,16 @@ static void eval_helper(const void * context, Tensor_t * out,const Tensor_t * in
                                 num_inputs,
                                 in->scale,
                                 lstm_layer->output_activation);
-     
+        
 
-#if DAMP_CELL_STATES == 1
-        for (i = 0; i < num_hidden_units; i++) {
-            int64_t temp64 = cell_state[i] * 250;
-            temp64 >>= 8;
-            cell_state[i] = (int32_t)temp64;
+        if (flags & NET_FLAG_LSTM_DAMPING) {
+            for (i = 0; i < num_hidden_units; i++) {
+                int64_t temp64 = cell_state[i] * DAMPING_FACTOR;
+                temp64 >>= 8;
+                cell_state[i] = (int32_t)temp64;
+            }
         }
-#endif
-
+     
         /*
         for (i = 0; i < num_hidden_units; i++) {
             if (i != 0) printf(",");
@@ -338,12 +329,12 @@ static void eval_helper(const void * context, Tensor_t * out,const Tensor_t * in
 }
 
 __attribute__((section(".ramcode")))
-static void eval(const void * context,void * layer_state,Tensor_t * out,const Tensor_t * in,ELayer_t prev_layer_type) {
+static void eval(const void * context,void * layer_state,Tensor_t * out,const Tensor_t * in,ELayer_t prev_layer_type,const uint32_t flags) {
     LstmLayerState_t * state = (LstmLayerState_t *)layer_state;
 
     //const void * context, Tensor_t * out,const Tensor_t * in,ELayer_t prev_layer_type, int32_t * cell_state, Weight_t * prev_hidden
     if (state) {
-        eval_helper(context,out,in,prev_layer_type,state->cell_state,state->output,1);
+        eval_helper(context,out,in,prev_layer_type,state->cell_state,state->output,1,flags);
     }
     else {
         
@@ -355,7 +346,7 @@ static void eval(const void * context,void * layer_state,Tensor_t * out,const Te
         MEMSET(cell_state,0,sizeof(cell_state));
         MEMSET(prev_hidden,0,sizeof(prev_hidden));
         
-        eval_helper(context,out,in,prev_layer_type,cell_state,prev_hidden,0);
+        eval_helper(context,out,in,prev_layer_type,cell_state,prev_hidden,0,flags);
     }
     
 }

@@ -19,12 +19,13 @@ extern "C" {
     ((int16_t)(((int32_t)(a * b)) >> QFIXEDPOINT_INT16))
 
 /* INPUTS ARE EXPECTED TO BE IN Q7, JUST POTENTIALLY VERY LARGE IN MAGNITUDE */
+__attribute__((section(".ramcode")))
 void tinytensor_tanh(Weight_t * y, int8_t * out_scale, int32_t x,int8_t in_scale);
 void tinytensor_sigmoid(Weight_t * y, int8_t * out_scale, int32_t x,int8_t in_scale);
 void tinytensor_linear(Weight_t * y, int8_t * out_scale, int32_t x,int8_t in_scale);
 void tinytensor_relu(Weight_t * y, int8_t * out_scale, int32_t x,int8_t in_scale);
 
-    
+
 void tinytensor_vec_softmax_in_place(Weight_t * xvec, uint32_t len, int8_t in_scale);
 
 void tinytensor_descale(Weight_t * y, int8_t * out_scale, int32_t x, int8_t in_scale);
@@ -32,7 +33,10 @@ int8_t tiny_tensor_compare_scaled_numbers(const Weight_t x1, const int8_t scale1
 int8_t tiny_tensor_get_scaling(int32_t x);
 int8_t tiny_tensor_get_descaling(int32_t x);
 
-
+#if ARM_MATH_CM4
+#include "hlo_m4.h"
+#define accumulate hlo_asm_accumulate
+#elif 0
 __attribute__((section(".ramcode")))
 static inline int32_t accumulate(const uint32_t n, const Weight_t * in1, const Weight_t * in2) {
     int32_t accumulator = 0;
@@ -63,10 +67,9 @@ static inline int32_t accumulate(const uint32_t n, const Weight_t * in1, const W
         }
     }
     return accumulator;
-    
 }
+#endif
 
-    
 #ifdef __cplusplus
 }
 #endif
