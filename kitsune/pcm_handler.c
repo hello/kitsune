@@ -183,10 +183,7 @@ void DMAPingPongCompleteAppCB_opt()
 #endif
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-			for (i = 0; i< CB_TRANSFER_SZ/4 ; i-=2) {
-				pong[(i<<1)] = pong[i]; //downsample by discarding...
-			}
-			FillBuffer(pAudInBuf, (unsigned char*) pong, CB_TRANSFER_SZ * 2);
+			FillBuffer(pAudInBuf, (unsigned char*) pong, CB_TRANSFER_SZ * 4);
 #else
 			FillBuffer(pAudInBuf, (unsigned char*)pong, CB_TRANSFER_SZ*2);
 #endif
@@ -212,11 +209,8 @@ void DMAPingPongCompleteAppCB_opt()
 #endif
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-				for (i = 0; i< CB_TRANSFER_SZ/4 ; i-=2) {
-					ping[(i<<1)] = ping[i]; //downsample by discarding...
-				}
 				FillBuffer(pAudInBuf, (unsigned char*) ping,
-						CB_TRANSFER_SZ * 2);
+						CB_TRANSFER_SZ * 4);
 #else
 				FillBuffer(pAudInBuf, (unsigned char*)ping, CB_TRANSFER_SZ*2);
 #endif
