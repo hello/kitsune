@@ -226,6 +226,8 @@ typedef struct{
 	uint8_t threshold;
 	uint16_t reserved;
 	uint32_t timeout;
+	uint8_t is_speech;
+	uint8_t is_speech_finished;
 }nn_keyword_ctx_t;
 
 static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
@@ -239,6 +241,25 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 		((nn_keyword_ctx_t *)ctx)->keyword_detected++;
 	}
 }
+
+static void _speech_detect_callback(void * context, SpeechTransition_t transition) {
+	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)context;
+
+	if (transition == start_speech) {
+		DISP("start speech\r\n");
+	}
+
+	if (transition == stop_speech) {
+		DISP("stop speech\r\n");
+	}
+
+	if (transition == stop_speech && !p->is_speech_finished) {
+		p->is_speech_finished = 1;
+	}
+
+}
+
+
 
 
 extern volatile int sys_volume;
@@ -257,6 +278,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	keyword_net_initialize();
 	nn_keyword_ctx_t nn_ctx = {0};
 	keyword_net_register_callback(&nn_ctx,okay_sense,80,_voice_begin_keyword,_voice_finish_keyword);
+	keyword_net_register_speech_callback(&nn_ctx,_speech_detect_callback);
 
 	//wrap output in hmac stream
 	uint8_t key[AES_BLOCKSIZE];
@@ -276,13 +298,18 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				//todo update this bw rate when switching to adpcm
 				input = hlo_stream_bw_limited( input, AUDIO_NET_RATE*2 - 4, 5000);
 				input = hlo_light_stream( input,true, 300 );
-				input = hlo_stream_en( input );
+//				input = hlo_stream_en( input );
 				light_open = true;
 			}
 			ret = hlo_stream_transfer_all(INTO_STREAM, hmac_payload_str,  (uint8_t*)samples, ret, 4);
 			if ( ret <  0 ) {
 				break;
 			}
+
+			if (nn_ctx.is_speech_finished) {
+				break;
+			}
+
 		} else {
 			keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 		}
