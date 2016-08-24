@@ -242,7 +242,7 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	}
 }
 
-#define STREAM_MP3 0
+#define STREAM_MP3 1
 
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
@@ -336,7 +336,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			desc.p = hlo_filter_mp3_decoder;
 #else
 			output = hlo_stream_sr_cnv( output, UPSAMPLE );
-			desc.p = hlo_filter_data_transfer;// hlo_filter_mp3_decoder;
+			desc.p = hlo_filter_data_transfer;
 #endif
 			desc.stream = output;
 			AudioTask_StartPlayback(&desc);
@@ -743,7 +743,7 @@ void AudioControlTask(void * unused) {
 
 		hlo_stream_t * out;
 #if (STREAM_MP3==1)
-		out = hlo_http_post("dev-speech.hello.is/v1/upload/audio?r=16000&response=mp3", NULL);
+		out = hlo_http_post("dev-speech.hello.is/upload/audio?r=16000&response=mp3", NULL);
 #else
 		out = hlo_http_post("dev-speech.hello.is/upload/audio?r=16000", NULL);
 #endif
