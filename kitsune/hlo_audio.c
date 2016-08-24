@@ -158,21 +158,15 @@ static int16_t _ez_lpf(int16_t now, int16_t prev){
 int ch = 2;
 static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 	int i;
+	static int16_t last;
 	if(size % 2){//buffer must be in multiple of 2 bytes
 		LOGE("audio buffer alignment error\r\n");
 		return HLO_STREAM_ERROR;
 	}
 	int16_t * iter = (int16_t*)buf;
-	int16_t * samples;
-
-	if( size < 8 ) {
-		size = 8;
-	}
-
-	int ret = _read_record_mono(ctx, buf, size);
-	samples = buf;
-
-	for(i = 0; i < size/8; i++){
+	for(i = 0; i < size/2; i++){
+		uint8_t samples[2 * 4];
+		int ret = _read_record_mono(ctx, samples, sizeof(samples));
 		if(ret <= 0){
 			return ret;
 		}else if(ret != sizeof(samples)){
@@ -184,17 +178,17 @@ static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 
 		if (ch > 3) {
 			if (xTaskGetTickCount() - last_play > 100) {
-				*iter = _quad_to_mono( samples);
+				*iter = _quad_to_mono((int16_t*) samples);
 			} else {
-				*iter = _select_channel( samples, ch);
+				*iter = _select_channel((int16_t*) samples, ch);
 			}
 		} else {
-			*iter = _select_channel( samples, ch);
+			*iter = _select_channel((int16_t*) samples, ch);
 		}
+		last = *iter;
 		iter++;
-		samples+=4;
 	}
-	return (int)size/4;
+	return (int)size;
 }
 bool set_volume(int v, unsigned int dly);
 // TODO might need two functions for close of capture and playback?
