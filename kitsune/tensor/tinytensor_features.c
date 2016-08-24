@@ -4,6 +4,8 @@
 #include "fft.h"
 #include "hellomath.h"
 
+#include "uart_logger.h"
+
 #define USE_BACKGROUND_NORMALIZATION (1)
 #define BACKGROUND_NOISE_MAX_ATTENUATION (-2048)
 
@@ -29,7 +31,11 @@
 
 #define SCALE_TO_8_BITS (7)
 
-#define NOMINAL_TARGET (50)
+#define NOMINAL_TARGET (45)
+
+#define SPEECH_ENERGY_HISTORY_SIZE_2N (3)
+#define SPEECH_ENERGY_HISTORY_SIZE (1 << SPEECH_ENERGY_HISTORY_SIZE_2N)
+#define SPEECH_ENERGY_HISTORY_MASK (SPEECH_ENERGY_HISTORY_SIZE - 1)
 
 //hanning window
 __attribute__((section(".ramcode")))
@@ -54,10 +60,140 @@ typedef struct {
     uint32_t binidx;
     uint32_t bintot;
     
+    int32_t speech_energy_accumulator;
+    int16_t speech_energy_history[SPEECH_ENERGY_HISTORY_SIZE];
+
+    int32_t speech_energy_diff_accumulator;
+    int16_t speech_energy_diff_history[SPEECH_ENERGY_HISTORY_SIZE];
+
+    uint32_t speech_frame_counter;
+    int16_t last_speech_energy_average;
+    int16_t last_speech_energy_diff;
+
+    int32_t log_liklihood_of_speech;
+
+
 } TinyTensorFeatures_t;
 
 __attribute__((section(".ramcode")))
 static TinyTensorFeatures_t _this;
+
+
+
+#define ONE_OVER_VARIANCE_Q20 (2000)
+#define LOG_LIKELIHOOD_OF_BACKGROUND_Q20 (-6)
+#define LOG_LIK_MAX (400)
+#define LOG_LIK_MIN (-21)
+#define SPEECH_BIN_START (3)
+#define SPEECH_BIN_END (20)
+#define ENERGY_END (FFT_SIZE/2)
+static void get_speech_energy_ratio(int16_t * fr,int16_t * fi,int16_t scale) {
+    uint32_t i;
+    int32_t log_energy_frac;
+    uint64_t speech_energy = 0;
+    uint64_t total_energy = 0;
+    int32_t diff;
+    uint16_t idx;
+    int16_t avg;
+    int16_t diffavg;
+    int32_t diffdiff;
+    int32_t temp32;
+    int16_t temp16;
+    int16_t talking_feature;
+
+    for (i = SPEECH_BIN_START; i < SPEECH_BIN_END; i++) {
+        speech_energy += fr[i] * fr[i] + fi[i] * fi[i];
+    }
+
+    total_energy = speech_energy;
+
+    for (i = SPEECH_BIN_END; i < ENERGY_END; i++) {
+        total_energy += fr[i] * fr[i] + fi[i] * fi[i];
+    }
+
+
+    //log (a/b) = log(a) - log(b)
+    log_energy_frac = FixedPointLog2Q10(speech_energy) - FixedPointLog2Q10(total_energy);
+
+    //moving average of log energy fraction
+    idx = _this.speech_frame_counter & SPEECH_ENERGY_HISTORY_MASK;
+    _this.speech_energy_accumulator -= _this.speech_energy_history[idx];
+    _this.speech_energy_history[idx] = log_energy_frac;
+    _this.speech_energy_accumulator += log_energy_frac;
+
+    avg = _this.speech_energy_accumulator >> SPEECH_ENERGY_HISTORY_SIZE_2N;
+
+    //moving average of diff of average (so we can compute 2nd derivitaive)
+    diff = avg - _this.last_speech_energy_average;
+    _this.last_speech_energy_average = avg;
+
+    _this.speech_energy_diff_accumulator -= _this.speech_energy_diff_history[idx];
+    _this.speech_energy_diff_history[idx] = diff;
+    _this.speech_energy_diff_accumulator += diff;
+
+    diffavg = _this.speech_energy_diff_accumulator >> SPEECH_ENERGY_HISTORY_SIZE_2N;
+    diffdiff = diffavg - _this.last_speech_energy_diff;
+    _this.last_speech_energy_diff = diffavg;
+
+#define LOG2Q10 (710)
+    temp32 = LOG2Q10 * diffdiff;
+    temp32 >>= 10;
+
+    //exp(log(2) * x) = 2^x
+    //fraction of energy from log fraction of energy
+    temp16 = FixedPointExp2Q10((int16_t)temp32);
+
+    //so this is energy_of_speech_fraction * 2nd derivitive of log_energy_of_spee_fraction (i.e. the tops and bottoms of peaks and troughs, respectively.
+    //so if fraction of speech energy is low, this feature will be low
+    talking_feature = temp16 * diffdiff >> 10;
+
+
+    //log likelihood of gaussian is -x^2/(2 * sigma^2) + some constant if mean is zero
+    //so not talking is a
+    temp32 = -((talking_feature * talking_feature) >> 1); //q20
+    temp32 = ((int64_t)temp32 * ONE_OVER_VARIANCE_Q20) >> 20;
+
+
+    temp32 -= LOG_LIKELIHOOD_OF_BACKGROUND_Q20;
+
+    temp32 = _this.log_liklihood_of_speech - temp32;
+
+
+
+    if (temp32 > LOG_LIK_MAX) {
+        temp32 = LOG_LIK_MAX;
+    }
+
+    if (temp32 < LOG_LIK_MIN) {
+        temp32 = LOG_LIK_MIN;
+    }
+
+    if (temp32 >= 100) {
+    	/*
+        if (_this.speech_detector_callback) {
+            _this.speech_detector_callback(_this.results_context,start_speech);
+        }
+        */
+        DISP("start speech\n");
+    }
+
+    if (temp32 < -20) {
+       /* if (_this.speech_detector_callback) {
+            _this.speech_detector_callback(_this.results_context,stop_speech);
+        }*/
+        DISP("end speech\n\n");
+    }
+
+
+    _this.log_liklihood_of_speech = temp32;
+
+
+    //printf("%d,%d\n",temp32,_this.log_liklihood_of_speech);
+
+
+
+}
+
 
 void tinytensor_features_initialize(void * results_context, tinytensor_audio_feat_callback_t results_callback) {
     memset(&_this,0,sizeof(TinyTensorFeatures_t));
@@ -238,6 +374,7 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
     //PERFORM FFT
     fft(fr,fi,FFT_SIZE_2N);
 
+    get_speech_energy_ratio(fr,fi,temp16);
 
     //GET MEL FEATURES (one time slice in the mel spectrogram)
     tinytensor_features_get_mel_bank(melbank,fr,fi,temp16);
