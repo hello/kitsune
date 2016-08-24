@@ -240,7 +240,6 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	DISP("Playback Task Finished %d\r\n", ret);
 }
 void AudioPlaybackTask(void * data) {
-	InitAudioHelper_p();
 
 	_playback_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	assert(_playback_queue);
@@ -311,8 +310,6 @@ static int _do_capture(const AudioCaptureDesc_t * info){
 void AudioCaptureTask(void * data) {
 	_capture_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	assert(_capture_queue);
-
-	InitAudioHelper();
 
 	AudioCaptureDesc_t bg_info = {0};
 	uint8_t bg_capture_enable = 0;
