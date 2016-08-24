@@ -83,10 +83,10 @@ static char path_buff[PATH_BUF_SIZE];
 // The following are data structures used by FatFs.
 //
 //*****************************************************************************
-static FATFS fsobj;
-static DIR fsdirobj;
-static FILINFO file_info;
-static FIL file_obj;
+ FATFS fsobj;
+ DIR fsdirobj;
+ FILINFO file_info;
+ FIL file_obj;
 
 
 int Cmd_mnt(int argc, char *argv[])

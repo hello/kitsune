@@ -49,8 +49,6 @@ int sl_mode;
 #endif
 
 #define INV_TIME 0xffffffff
-extern
-SyncResponse_Alarm alarm;
 
 typedef struct {
 	void (*get_reply_pb)(pb_field_t ** fields, void ** structdata);

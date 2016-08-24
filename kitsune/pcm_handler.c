@@ -133,7 +133,7 @@ extern xSemaphoreHandle playback_isr_sem;;
 static volatile unsigned long qqbufsz=0;
 
 
-__attribute__((section(".ramcode")))
+/*ramcode*/
 void DMAPingPongCompleteAppCB_opt()
 {
     unsigned long ulPrimaryIndexTx = 0x4, ulAltIndexTx = 0x24;
