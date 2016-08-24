@@ -59,6 +59,7 @@ int sl_mode = ROLE_INVALID;
 #include "limits.h"
 #include "hw_ver.h"
 
+int32_t set_volume(int v, unsigned int dly);
 int send_top(char *, int);
 void mcu_reset()
 {
