@@ -132,6 +132,14 @@ extern xSemaphoreHandle playback_isr_sem;;
 #define swap_endian(x) *(x) = ((*(x)) << 8) | ((*(x)) >> 8);
 static volatile unsigned long qqbufsz=0;
 
+static volatile bool can_playback;
+
+bool is_playback_active(void){
+	return can_playback;
+}
+void set_isr_playback(bool active){
+	can_playback = active;
+}
 
 __attribute__((section(".ramcode")))
 void DMAPingPongCompleteAppCB_opt()
@@ -249,7 +257,7 @@ void DMAPingPongCompleteAppCB_opt()
 
 		if ((pControlTable[ulPrimaryIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
-			if ( qqbufsz > CB_TRANSFER_SZ ) {
+			if ( qqbufsz > CB_TRANSFER_SZ && can_playback) {
 				guiDMATransferCountRx += CB_TRANSFER_SZ*4;
 
 				memcpy(  (void*)ping_p, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
@@ -273,6 +281,7 @@ void DMAPingPongCompleteAppCB_opt()
 #endif
 			} else {
 				memset( ping_p, 0, sizeof(ping_p));
+				guiDMATransferCountRx += CB_TRANSFER_SZ*4;
 			}
 			pucDMASrc = (unsigned char*)ping_p;
 
@@ -285,7 +294,7 @@ void DMAPingPongCompleteAppCB_opt()
 		} else {
 			if ((pControlTable[ulAltIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 					== 0) {
-				if ( qqbufsz > CB_TRANSFER_SZ ) {
+				if ( qqbufsz > CB_TRANSFER_SZ && can_playback) {
 					guiDMATransferCountRx += CB_TRANSFER_SZ*4;
 
 					memcpy(  (void*)pong_p,  (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
@@ -308,6 +317,7 @@ void DMAPingPongCompleteAppCB_opt()
 #endif
 				} else {
 					memset( pong_p, 0, sizeof(pong_p));
+					guiDMATransferCountRx += CB_TRANSFER_SZ*4;
 				}
 				pucDMASrc = (unsigned char*)pong_p;
 
