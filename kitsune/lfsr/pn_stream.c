@@ -31,7 +31,7 @@ typedef struct {
 } hlo_stream_transfer_t;
 
 typedef struct {
-	uint32_t buf[2048 * 8];
+	uint32_t buf[2048 * 4];
 	uint32_t idx;
 } write_buf_context_t;
 
@@ -86,6 +86,7 @@ static int read(void * ctx, void * buf, size_t size) {
 }
 
 static int write(void * ctx, const void * buf, size_t size) {
+	/*
 	write_buf_context_t * pctx = (write_buf_context_t *) ctx;
 
 	const uint32_t space_left = sizeof(pctx->buf) - sizeof(uint32_t) * pctx->idx;
@@ -110,7 +111,14 @@ static int write(void * ctx, const void * buf, size_t size) {
 		DISP("pn_write_task write complete\r\n");
 		return HLO_STREAM_EOF;
 	}
+	*/
+	static int count = 0;
 
+	if (count++ > 40) {
+		count = 0;
+		DISP("write done.\r\n");
+		return HLO_STREAM_EOF;
+	}
 	return size;
 
 }
@@ -129,7 +137,7 @@ void pn_stream_init(void) {
 
 	_p_read_stream = hlo_stream_new(&_read_tbl,NULL,HLO_STREAM_READ);
 
-	_p_write_stream = hlo_stream_new(&_read_tbl,NULL,HLO_STREAM_WRITE);
+	_p_write_stream = hlo_stream_new(&_write_tbl,NULL,HLO_STREAM_WRITE);
 
 	pn_init_with_mask_12();
 
@@ -166,7 +174,7 @@ static uint8_t stop_signal(void) {
 #define DETECTION_THRESHOLD   (1000)
 
 void pn_write_task( void * params ) {
-
+/*
 	int i;
 	int j;
 	int maxindices[4];
@@ -179,7 +187,7 @@ void pn_write_task( void * params ) {
 	int32_t corr[CORR_SEARCH_WINDOW][4];
 
 	ctx.idx = 0;
-
+	*/
 	hlo_stream_transfer_t * p = (hlo_stream_transfer_t *)params;
 
 	_write_bytes_count = 0;
@@ -188,12 +196,13 @@ void pn_write_task( void * params ) {
 
 	//git decision bits not raw audio
 
-	hlo_filter_data_transfer(p->input,p->output,&ctx,p->signal);
+	//hlo_filter_data_transfer(p->input,p->output,&ctx,p->signal);
+	hlo_filter_data_transfer(p->input,p->output,NULL,p->signal);
 
 	//set back to normal
 	hlo_audio_set_read_type(mono_from_quad_by_channel);
 
-
+/*
 
 	DISP("got %d bytes, starting correlation...\r\n",_write_bytes_count);
 	vTaskDelay(1000);
@@ -292,7 +301,7 @@ int cmd_audio_self_test(int argc, char* argv[]) {
 	outgoing_path.output =  hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_PLAYBACK);
 
 	incoming_path.input  = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_RECORD);
-	incoming_path.output  = pn_write_stream_open;
+	incoming_path.output  = pn_write_stream_open();
 
 	set_volume(64, portMAX_DELAY);
 
@@ -310,7 +319,7 @@ int cmd_audio_self_test(int argc, char* argv[]) {
 
 	DISP("launching pn_write_task\r\n");
 
-	if (xTaskCreate(pn_write_task, "pn_write_task", 60000 / 4, &incoming_path, 4, NULL) == NULL) {
+	if (xTaskCreate(pn_write_task, "pn_write_task", 20000 / 4, &incoming_path, 5, NULL) == NULL) {
 		DISP("problem creating pn_write_task\r\n");
 	}
 
