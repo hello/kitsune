@@ -27,7 +27,8 @@ static volatile uint32_t last_play;
 
 #define LOCK() xSemaphoreTakeRecursive(lock,portMAX_DELAY)
 #define UNLOCK() xSemaphoreGiveRecursive(lock)
-
+extern bool is_playback_active(void);
+extern void set_isr_playback(bool active);
 ////------------------------------
 // playback stream driver
 
@@ -50,24 +51,17 @@ static int _reinit_playback(unsigned int sr, unsigned int initial_vol){
 
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
-/*		if(audio_playback_started){ */
-			if(!xSemaphoreTake(playback_isr_sem,5000)){
-				LOGI("ISR Failed\r\n");
+		if(!is_playback_active()){
+			set_isr_playback(true);
+		}
+		if(!xSemaphoreTake(playback_isr_sem,5000)){
+			LOGI("ISR Failed\r\n");
 #if 0
-				return _reinit_playback(playback_sr, initial_vol);
+			return _reinit_playback(playback_sr, initial_vol);
 #else
-//				mcu_reset();
-				return HLO_STREAM_ERROR;
+			return HLO_STREAM_ERROR;
 #endif
-			}
-/*		}else{
-			audio_playback_started = 1;
-			LOGI("Init playback\n");
-			ret = _reinit_playback(playback_sr, initial_vol);
-			if(ret) return ret;
-			Audio_Start();
-			return 0;
-		}*/
+		}
 	}
 	last_play = xTaskGetTickCount();
 	int written = min(PING_PONG_CHUNK_SIZE, size);
@@ -238,6 +232,7 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint32_t direction){
 	LOCK();
 	if(direction == HLO_AUDIO_PLAYBACK) {
 		playback_sr = sr;
+		set_isr_playback(false);
 	} else if(direction == HLO_AUDIO_RECORD){
 		record_sr = sr;
 	}else{
