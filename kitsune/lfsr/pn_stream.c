@@ -11,7 +11,9 @@
 #include "uart_logger.h"
 #include "i2c_cmd.h"
 #include "hellofilesystem.h"
-
+#include "rom_map.h"
+#include "hw_memmap.h"
+#include "hellomath.h"
 
 static hlo_stream_t * _p_read_stream = NULL;
 static hlo_stream_t * _p_write_stream = NULL;
@@ -22,8 +24,16 @@ static hlo_stream_vftbl_t _write_tbl;
 static uint32_t _read_bytes_count = 0;
 static uint32_t _write_bytes_count = 0;
 
+/*  TEST CRITERIA  */
+#define NUM_SAMPLES_SEPARTED_FAIL_THRESHOLD (6)
+#define LOG2_THRESHOLD_Q10_FOR_FAILURE (1024)
+
+
+#define AEC_CHANNEL (0)
 #define PN_LEN_SAMPLES PN_LEN_12
 #define PN_INIT pn_init_with_mask_12
+
+#define ABS(x)  (x < 0 ? -x : x)
 
 #define NUM_READ_PERIODS (20)
 #define NUM_WRITE_PERIODS (8)
@@ -124,17 +134,17 @@ static int write(void * ctx, const void * buf, size_t size) {
 		size = space_left;
 	}
 
+
 	//copy over
 	memcpy(&pctx->buf[pctx->idx],buf,size);
 	pctx->idx += size/sizeof(uint32_t);
 
 	//if size written is equal to the space that was left, then that was the last copy.
-	_write_bytes_count += size;
-
 	if (size >= space_left) {
 		return HLO_STREAM_EOF;
 	}
 
+	_write_bytes_count += size;
 
 	return size;
 
@@ -189,14 +199,25 @@ void pn_write_task( void * params ) {
 	uint8_t found_peak = 0;
 	uint8_t the_byte;
 	int16_t sums[4][8];
-	int16_t last_sums[4][8];
-
+	int16_t sums_history[4][256];
+	int32_t iend;
+	int32_t idx;
+	int16_t max_indices[4];
+	int32_t idx_diff;
+	int32_t a1,a2;
+	int32_t maxlogdiff;
 	write_buf_context_t ctx;
 	TickType_t tick_count_start;
 	TickType_t tick_count_end;
-	ctx.idx = 0;
+	uint8_t fail = 0;
 
 	hlo_stream_transfer_t * p = (hlo_stream_transfer_t *)params;
+
+
+	ctx.idx = 0;
+
+	memset(sums_history,0,sizeof(sums_history));
+
 	p->output->ctx = &ctx;
 	tick_count_start = xTaskGetTickCount();
 
@@ -218,7 +239,6 @@ void pn_write_task( void * params ) {
 	DISP("got %d bytes in %d ticks, starting correlation...\r\n",_write_bytes_count,tick_count_end - tick_count_start);
 	vTaskDelay(20);
 
-	memset(&last_sums[0][0],0,sizeof(last_sums));
 
 	for (corrnumber = CORR_SEARCH_START_IDX; corrnumber < CORR_SEARCH_WINDOW + CORR_SEARCH_START_IDX; corrnumber++) {
 		PN_INIT();
@@ -254,9 +274,9 @@ void pn_write_task( void * params ) {
 			break;
 		}
 
-		memcpy(last_sums,sums,sizeof(last_sums));
-
+		MAP_WatchdogIntClear(WDT_BASE);
 	}
+
 
 	if (!found_peak) {
 		DISP("NO PEAKS FOUND\r\n");
@@ -264,46 +284,99 @@ void pn_write_task( void * params ) {
 		return;
 	}
 
-
-
-	for (j = 0; j < 4; j++) {
-
-		for (i = 0; i < 8; i++) {
-			DISP("%d,",last_sums[j][7-i]);
-		}
-
-		for (i = 0; i < 8; i++) {
-			DISP("%d,",sums[j][7-i]);
-		}
-
-		DISP("\n");
-
+	if (corrnumber == 0) {
+		corrnumber++;
 	}
 
+	corrnumber--;
+	iend = corrnumber + 256/8;
+
+	if (iend >= WRITE_BUF_LEN_IN_BYTES_PER_CHANNEL) {
+		iend = WRITE_BUF_LEN_IN_BYTES_PER_CHANNEL - 1;
+	}
+
+	idx = 0;
+	for (; corrnumber < iend; corrnumber++,idx += 8) {
+		PN_INIT();
+		the_byte = 0x00;
+
+		memset(&sums[0][0],0,sizeof(sums));
+
+		for (i = 0; i < CORR_LEN; i++) {
+			pn_correlate_4x(ctx.buf[i + corrnumber],sums,&the_byte);
+		}
+
+		//copy out to sums
+		for (j = 0; j < 4; j++) {
+			for (i = 0; i < 8; i++) {
+				sums_history[j][idx + 7 - i] = sums[j][i];
+			}
+		}
+	}
+
+
+	//PRINT
 	/*
-	for (j = 0; j < 4; j++) {
-		max = 0;
-		for (i = 0; i < CORR_SEARCH_WINDOW; i++) {
-			if (corr[i][0] > max) {
-				max = corr[i][0];
-				maxidx = i;
-			}
-
-			if (corr[i][0] < -max) {
-				max = -corr[i][0];
-				maxidx = i;
-			}
+	for (i = 0; i < 256; i++) {
+		for (j = 0; j < 4; j++) {
+			if (j != 0) DISP(",");
+			DISP("%d",sums_history[j][i]);
 		}
-
-		maxindices[j] = maxidx;
-		DISP("maxidx=%d\r\n",maxidx);
-	}
-
-
-	for (i = -10; i < 64; i++ ) {
-		DISP("%d\r\n",corr[i+maxindices[0]][0]);
+		DISP("\n");
+		vTaskDelay(50);
 	}
 	*/
+
+	//go find the first peaks
+	for (j = 0; j < 4; j++) {
+		idx = 0;
+		for (i = 0; i < 24; i++) {
+
+			if (sums_history[j][i] > sums_history[j][idx]) {
+				idx = i;
+			}
+		}
+
+		max_indices[j] = idx;
+	}
+
+	maxlogdiff = 0;
+	for (j = 0; j < 4; j++) {
+		if (j == AEC_CHANNEL) {
+			continue;
+		}
+
+		for (i = j + 1; i < 4; i++) {
+			if (i == AEC_CHANNEL) {
+				continue;
+			}
+
+			a1 = ABS(sums_history[j][max_indices[j]]);
+			a1 = FixedPointLog2Q10(a1);
+
+			a2 = ABS(sums_history[i][max_indices[i]]);
+			a2 = FixedPointLog2Q10(a2);
+			DISP("{a1=%d,a2=%d,idx1=%d,idx2=%d\r\n",a1,a2,max_indices[j],max_indices[i]);
+			if (  ABS(a1-a2) > LOG2_THRESHOLD_Q10_FOR_FAILURE  ) {
+				DISP("SELF-TEST FAILED: LOG2 AMPLITUDE MISMATCH=%d between channels %d and %d\r\n",ABS(a1-a2),j,i);
+				fail = 1;
+			}
+
+			idx = ABS(max_indices[j] - max_indices[i]);
+
+			if (idx > NUM_SAMPLES_SEPARTED_FAIL_THRESHOLD) {
+				DISP("SELF-TEST FAILED: INDICES TOO FAR APART at %d counts between chanels %d and %d\r\n",idx,j,i);
+				fail = 1;
+			}
+		}
+	}
+
+	if (!fail) {
+		DISP("TEST SUCCESS\r\n");
+	}
+
+	//make sure the peaks are within three samples (3cm or so) of each other
+
 	DISP("pn_write_task completed\r\n");
 
 	vTaskDelete(NULL);
