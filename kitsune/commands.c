@@ -1653,7 +1653,7 @@ static void checkFaults() {
 }
 
 void init_download_task( int stack );
-
+void init_audio(void);
 void launch_tasks() {
 	checkFaults();
 
@@ -1683,6 +1683,7 @@ void launch_tasks() {
 	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
 
+	init_audio();
 
 	// Create audio tasks for playback and record
 	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
@@ -2066,7 +2067,8 @@ tCmdLineEntry g_sCmdTable[] = {
 
 void init_audio(void){
 	// Reset codec
-	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
+
+    MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
 	vTaskDelay(10);
 	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
 
@@ -2255,8 +2257,6 @@ void vUARTTask(void *pvParameters) {
 	start_top_boot_watcher();
 
 //#define DEMO
-
-	init_audio();
 
 #ifndef DEMO
 	if( on_charger ) {
