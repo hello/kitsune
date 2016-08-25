@@ -22,22 +22,24 @@ static hlo_stream_vftbl_t _write_tbl;
 static uint32_t _read_bytes_count = 0;
 static uint32_t _write_bytes_count = 0;
 
-#define PN_LEN_SAMPLES PN_LEN_14
+#define PN_LEN_SAMPLES PN_LEN_12
+#define PN_INIT pn_init_with_mask_12
 
-//five periods
-#define WRITE_BYTES_MAX (PN_LEN_SAMPLES * 5 * sizeof(int16_t))
+#define NUM_READ_PERIODS (20)
+#define NUM_WRITE_PERIODS (8)
+#define WRITE_BYTES_MAX (PN_LEN_SAMPLES * NUM_READ_PERIODS * sizeof(int16_t))
 
 //delay just to just before the start of the second sequence
-#define WRITE_TASK_STARTUP_DELAY ((PN_LEN_SAMPLES - 100) * 1000 / AUDIO_CAPTURE_PLAYBACK_RATE)
-#define TIME_TO_COMPLETE_TASKS (10 * PN_LEN_SAMPLES * 1000 / AUDIO_CAPTURE_PLAYBACK_RATE)
+#define WRITE_TASK_STARTUP_DELAY ( (PN_LEN_SAMPLES - 64) * 1000 / AUDIO_CAPTURE_PLAYBACK_RATE)
+#define TIME_TO_COMPLETE_TASKS (10000)
 
 //1.1x the PN sequence length, from bits to bytes
-#define READ_BUF_LEN_IN_BYTES_PER_CHANNEL (11 * PN_LEN_SAMPLES / 10 / 8)
+#define WRITE_BUF_LEN_IN_BYTES_PER_CHANNEL (NUM_WRITE_PERIODS * PN_LEN_SAMPLES / 8)
 
 //in bytes
-#define CORR_LEN              (PN_LEN_SAMPLES / 8)
+#define CORR_LEN              (PN_LEN_SAMPLES * (NUM_WRITE_PERIODS - 1) / 8)
 
-#define CORR_SEARCH_WINDOW    (PN_LEN_SAMPLES / 16 / 8 + 100)
+#define CORR_SEARCH_WINDOW    (PN_LEN_SAMPLES / 8 + 100)
 #define CORR_SEARCH_START_IDX (0)
 #define DETECTION_THRESHOLD   (1000)
 
@@ -50,7 +52,7 @@ typedef struct {
 } hlo_stream_transfer_t;
 
 typedef struct {
-	uint32_t buf[READ_BUF_LEN_IN_BYTES_PER_CHANNEL]; //each uint32_t has space for 4 channels
+	uint32_t buf[WRITE_BUF_LEN_IN_BYTES_PER_CHANNEL]; //each uint32_t has space for 4 channels
 	uint32_t idx;
 } write_buf_context_t;
 
@@ -82,10 +84,12 @@ static int read(void * ctx, void * buf, size_t size) {
 	uint8_t bit;
 	int16_t * p16 = (int16_t *)buf;
 
+	//upsamples at 2x
 	for (i = 0; i < size / sizeof(int16_t); i++) {
 		bit =  pn_get_next_bit();
 		if (bit) {
 			p16[i] = 2048;
+
 		}
 		else {
 			p16[i] = -2048;
@@ -153,7 +157,7 @@ void pn_stream_init(void) {
 
 	_p_write_stream = hlo_stream_new(&_write_tbl,NULL,HLO_STREAM_WRITE);
 
-	pn_init_with_mask_14();
+	PN_INIT();
 
 	_read_bytes_count = 0;
 	_write_bytes_count = 0;
@@ -176,19 +180,18 @@ hlo_stream_t * pn_write_stream_open(void){
 }
 
 
-
 void pn_write_task( void * params ) {
 
-	int i;
-	int j;
-	int maxindices[4];
-	int maxidx;
-	int corrnumber;
-	uint8_t found_peak = 0;
-	uint8_t the_byte = 0x00;
+	int32_t corrnumber;
+	int32_t i;
+	int32_t j;
 	int32_t max;
+	uint8_t found_peak = 0;
+	uint8_t the_byte;
+	int16_t sums[4][8];
+	int16_t last_sums[4][8];
+
 	write_buf_context_t ctx;
-	int16_t corr[CORR_SEARCH_WINDOW][4];
 	TickType_t tick_count_start;
 	TickType_t tick_count_end;
 	ctx.idx = 0;
@@ -215,11 +218,10 @@ void pn_write_task( void * params ) {
 	DISP("got %d bytes in %d ticks, starting correlation...\r\n",_write_bytes_count,tick_count_end - tick_count_start);
 	vTaskDelay(20);
 
+	memset(&last_sums[0][0],0,sizeof(last_sums));
 
-
-	for (corrnumber = 0; corrnumber < CORR_SEARCH_WINDOW; corrnumber++) {
-		pn_init_with_mask_14();
-		int16_t sums[4][8];
+	for (corrnumber = CORR_SEARCH_START_IDX; corrnumber < CORR_SEARCH_WINDOW + CORR_SEARCH_START_IDX; corrnumber++) {
+		PN_INIT();
 		the_byte = 0x00;
 
 		memset(&sums[0][0],0,sizeof(sums));
@@ -245,18 +247,38 @@ void pn_write_task( void * params ) {
 			}
 		}
 
+
 		if (max >= DETECTION_THRESHOLD) {
 			DISP("FOUND PEAK AT c=%d\r\n",corrnumber);
 			found_peak = 1;
 			break;
 		}
 
+		memcpy(last_sums,sums,sizeof(last_sums));
+
 	}
 
 	if (!found_peak) {
 		DISP("NO PEAKS FOUND\r\n");
+		vTaskDelete(NULL);
+		return;
 	}
 
+
+
+	for (j = 0; j < 4; j++) {
+
+		for (i = 0; i < 8; i++) {
+			DISP("%d,",last_sums[j][7-i]);
+		}
+
+		for (i = 0; i < 8; i++) {
+			DISP("%d,",sums[j][7-i]);
+		}
+
+		DISP("\n");
+
+	}
 
 	/*
 	for (j = 0; j < 4; j++) {
@@ -325,13 +347,14 @@ int cmd_audio_self_test(int argc, char* argv[]) {
 	outgoing_path.debug = debug;
 
 	incoming_path.input  = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_RECORD);
+
 	incoming_path.output  = pn_write_stream_open();
 	incoming_path.debug = debug;
 
 	set_volume(64, portMAX_DELAY);
 
 	DISP("launching pn_read_task\r\n");
-	if (xTaskCreate(pn_read_task, "pn_read_task", 1024 * 4 / 4, &outgoing_path, 5, NULL) == NULL) {
+	if (xTaskCreate(pn_read_task, "pn_read_task", 1024 * 4 / 4, &outgoing_path, 9, NULL) == NULL) {
 		DISP("problem creating pn_read_task\r\n");
 	}
 
