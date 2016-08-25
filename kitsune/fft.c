@@ -14,7 +14,7 @@
 #define LOG2_N_WAVE     (10)
 #define N_WAVE          (1 << LOG2_N_WAVE)        /* dimension of Sinewave[] */
 
-__attribute__((section(".ramcode"))) static const uint16_t sin_lut[N_WAVE/4+1] = {
+__attribute__((section(".data"))) static const uint16_t sin_lut[N_WAVE/4+1] = {
   0, 201, 402, 603, 804, 1005, 1206, 1406,
   1607, 1808, 2009, 2209, 2410, 2610, 2811, 3011,
   3211, 3411, 3611, 3811, 4011, 4210, 4409, 4608,
@@ -91,7 +91,8 @@ __attribute__((section(".ramcode"))) uint32_t bitexp(uint16_t n) {
     return (retval << (b - 2));
 }
 
-__attribute__((section(".ramcode"))) short fxd_sin( uint16_t x ) {
+ __attribute__((section(".ramcode")))
+ short fxd_sin( uint16_t x ) {
 	x &= 0x3FF;
 	if( x > 3*N_WAVE/4 ) {
 		return -sin_lut[N_WAVE - x];
@@ -119,13 +120,26 @@ inline static short fix_mpy(short a, short b)
   return a;
 }
 #endif
+#include "uart_logger.h"
+#include "cmsis_ccs.h"
+#include "arm_math.h"
+typedef union
+{
+    struct {
+    	int16_t LSW; /* Least significant Word */
+        int16_t MSW; /* Most significant Word */
+    }regs;
+    uint32_t pair;
+}pair_t;
+pair_t p1, p2;
 
 __attribute__((section(".ramcode"))) int fft(int16_t fr[], int16_t fi[], int32_t m)
 {
     int32_t mr, nn, i, j, l, k, istep, n;
+#if 0
     int16_t  wr, wi;
+#endif
 
-    
     n = 1 << m;
     
     if (n > N_WAVE)
@@ -156,7 +170,7 @@ __attribute__((section(".ramcode"))) int fft(int16_t fr[], int16_t fi[], int32_t
         fi[m] = fi[mr];
         fi[mr] = tmp;
     }
-    
+
     l = 1;
     k = LOG2_N_WAVE - 1;
     while (l < n) {
@@ -168,20 +182,31 @@ __attribute__((section(".ramcode"))) int fft(int16_t fr[], int16_t fi[], int32_t
         for (m = 0; m < l; ++m) {
             j = m << k;
             /* 0 <= j < N_WAVE/2 */
-            wr = fxd_sin(j + N_WAVE / 4);
-            wi = -fxd_sin(j);
+            p1.regs.LSW =
+            		/*wr =*/ fxd_sin(j + N_WAVE / 4);
+            p1.regs.MSW =
+            		/*wi = */-fxd_sin(j);
             
             for (i = m; i < n; i += istep) {
                 int32_t tr,ti,qr, qi;
 
                 j = i + l;
-                
-                //tr = fix_mpy(wr, fr[j]) - fix_mpy(wi, fi[j]);
-                tr = (int32_t)wr * (int32_t)fr[j] - (int32_t)wi * (int32_t)fi[j];
+
+#ifdef ARM_MATH_CM4
+                p2.regs.LSW = fr[j];
+                p2.regs.MSW = fi[j];
+                tr = (int32_t)__SMUSD( p1.pair, p2.pair  );
+                ti = (int32_t)__SMUADX( p1.pair, p2.pair  );
+#elif
+                p2.regs.LSW = fr[j];
+                p2.regs.MSW = fi[j];
+                tr = (int32_t)p1.regs.LSW * (int32_t)p2.regs.LSW
+				   - (int32_t)p1.regs.MSW * (int32_t)p2.regs.MSW;
+                ti = (int32_t)p1.regs.LSW * (int32_t)p2.regs.MSW
+			       + (int32_t)p1.regs.MSW * (int32_t)p2.regs.LSW;
+#endif
+
                 tr >>= 1;
-                
-                //ti = fix_mpy(wr, fi[j]) + fix_mpy(wi, fr[j]);
-                ti = (int32_t)wr * (int32_t)fi[j] + (int32_t)wi*(int32_t)fr[j];
                 ti >>= 1;
                 
                 qr = fr[i] << 14;
@@ -199,7 +224,8 @@ __attribute__((section(".ramcode"))) int fft(int16_t fr[], int16_t fi[], int32_t
     return 0;
 }
 
-__attribute__((section(".ramcode"))) int fftr(int16_t f[], int32_t m)
+__attribute__((section(".ramcode")))
+int fftr(int16_t f[], int32_t m)
 {
     int32_t i, N = 1<<(m-1);
     int16_t tt, *fr=f, *fi=&f[N];
@@ -209,7 +235,7 @@ __attribute__((section(".ramcode"))) int fftr(int16_t f[], int32_t m)
         f[N+i-1] = f[i];
         f[i] = tt;
     }
-    return fft(fi, fr, m-1);
+    fft(fi, fr, m-1);
 }
 
 //requires 2N memory... for now

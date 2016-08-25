@@ -618,6 +618,7 @@ void analytics_event_task(void * params){
 	assert(self.analytics_event_queue);
 
 	while(1){
+		portTickType now = xTaskGetTickCount();
 		if(pdTRUE == xQueueReceive(self.analytics_event_queue, &evt, ANALYTICS_WAIT_TIME)){
 			int fit_size = evt.pos + block_len;
 			DISP("Fit to %d Bytes\r\n", fit_size);
@@ -637,7 +638,6 @@ void analytics_event_task(void * params){
 		}else if(block_len != 0){
 upload:
 			log.unix_time = time;
-			portTickType now = xTaskGetTickCount();
 			DISP("Analytics: %s\r\n", block);
 #if 0
 			if( !NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
@@ -648,8 +648,8 @@ upload:
 #endif
 			block_len = 0;
 			memset(block, 0, ANALYTICS_MAX_CHUNK_SIZE);
-			vTaskDelayUntil(&now, 1000);
 		}
+		vTaskDelayUntil(&now, 1000);
 	}
 }
 void uart_block_saver_task(void* params) {
