@@ -356,7 +356,7 @@ void pn_write_task( void * params ) {
 
 			a2 = ABS(sums_history[i][max_indices[i]]);
 			a2 = FixedPointLog2Q10(a2);
-			DISP("{a1=%d,a2=%d,idx1=%d,idx2=%d\r\n",a1,a2,max_indices[j],max_indices[i]);
+			DISP("{chn1=%d,chn2=%d,a1=%d,a2=%d,idx1=%d,idx2=%d\r\n",j,i,a1,a2,max_indices[j],max_indices[i]);
 			if (  ABS(a1-a2) > LOG2_THRESHOLD_Q10_FOR_FAILURE  ) {
 				DISP("SELF-TEST FAILED: LOG2 AMPLITUDE MISMATCH=%d between channels %d and %d\r\n",ABS(a1-a2),j,i);
 				fail = 1;
