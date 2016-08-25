@@ -1703,7 +1703,7 @@ void launch_tasks() {
 	*           AUDIO INIT START
 	********************************************************************************
 	*/
-
+/*
 	// Reset codec
 	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
 	vTaskDelay(10);
@@ -1720,7 +1720,7 @@ void launch_tasks() {
 
 	// McASP and DMA init
 	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
-
+*/
 	hlo_audio_init();
 
 	// Create audio tasks for playback and record

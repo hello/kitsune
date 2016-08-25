@@ -8,6 +8,9 @@
 #include "hw_types.h"
 
 #include "audiohelper.h"
+#include "hw_memmap.h"
+#include "rom_map.h"
+#include "audio_types.h"
 
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
@@ -230,7 +233,25 @@ void hlo_audio_init(void){
 	playback_isr_sem = xSemaphoreCreateBinary();
 	assert(playback_isr_sem);
 
+	// Reset codec
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
+	vTaskDelay(10);
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
 
+	vTaskDelay(20);
+
+#ifdef CODEC_1P5_TEST
+	codec_test_commands();
+#endif
+
+	// Program codec
+	codec_init();
+
+	// McASP and DMA init
+	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
+
+	InitAudioHelper_p();
+	InitAudioHelper();
 
 }
 
