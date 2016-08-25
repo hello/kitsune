@@ -1683,6 +1683,29 @@ void launch_tasks() {
 	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
 
+	/*******************************************************************************
+	*           AUDIO INIT START
+	********************************************************************************
+	*/
+
+	// Reset codec
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
+	vTaskDelay(10);
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
+
+	vTaskDelay(20);
+
+#ifdef CODEC_1P5_TEST
+	codec_test_commands();
+#endif
+
+	// Program codec
+	codec_init();
+
+	// McASP and DMA init
+	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
+
+	hlo_audio_init();
 
 	// Create audio tasks for playback and record
 	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
@@ -1690,6 +1713,11 @@ void launch_tasks() {
 
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 
+
+	/*******************************************************************************
+	*           AUDIO INIT END
+	********************************************************************************
+	*/
 	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
 #endif
 }
@@ -2064,31 +2092,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"nn",cmd_test_neural_net,""},
 		{ 0, 0, 0 } };
 
-void init_audio(void){
-	// Reset codec
-	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
-	vTaskDelay(10);
-	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
 
-	vTaskDelay(20);
-
-#ifdef CODEC_1P5_TEST
-	codec_test_commands();
-#endif
-
-
-	// Program codec
-	codec_init();
-
-	// McASP and DMA init
-	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
-
-	hlo_audio_init();
-
-	InitAudioHelper_p();
-
-	InitAudioHelper();
-}
 // ==============================================================================
 // This is the UARTTask.  It handles command lines received from the RX IRQ.
 // ==============================================================================
@@ -2255,8 +2259,6 @@ void vUARTTask(void *pvParameters) {
 	start_top_boot_watcher();
 
 //#define DEMO
-
-	init_audio();
 
 #ifndef DEMO
 	if( on_charger ) {
