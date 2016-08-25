@@ -15,7 +15,8 @@ extern tCircularBuffer *pRxBuffer;
 #define MODESWITCH_TIMEOUT_MS 500
 
 static xSemaphoreHandle lock;
-static hlo_stream_t * master;
+static hlo_stream_t * master_plbk;
+static hlo_stream_t * master_rec;
 
 static unsigned long record_sr;
 static unsigned long playback_sr;
@@ -216,14 +217,21 @@ void hlo_audio_init(void){
 	lock = xSemaphoreCreateRecursiveMutex();
 	assert(lock);
 	hlo_stream_vftbl_t tbl = { 0 };
-	tbl.write = _write_playback_mono;
-#if 0
+
+	tbl.close = _close;
+
+	tbl.write = NULL;
+#if 1
 	tbl.read = _read_record_mono;			//for 1p0 when return channel is mono
 #else
 	tbl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
 #endif
-	tbl.close = _close;
-	master = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD|HLO_AUDIO_PLAYBACK);
+	master_rec = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD);
+
+	tbl.read = NULL;
+	tbl.write = _write_playback_mono;
+	master_plbk = hlo_stream_new(&tbl, NULL, HLO_AUDIO_PLAYBACK);
+
 	record_isr_sem = xSemaphoreCreateBinary();
 	assert(record_isr_sem);
 	playback_isr_sem = xSemaphoreCreateBinary();
@@ -234,12 +242,14 @@ void hlo_audio_init(void){
 }
 
 hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint32_t direction){
-	hlo_stream_t * ret = master;
+	hlo_stream_t * ret;
 	LOCK();
 	if(direction == HLO_AUDIO_PLAYBACK) {
 		playback_sr = sr;
+		ret = master_plbk;
 	} else if(direction == HLO_AUDIO_RECORD){
 		record_sr = sr;
+		ret = master_rec;
 	}else{
 		LOGW("Unsupported Audio Mode, returning default stream\r\n");
 	}
