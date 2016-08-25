@@ -30,7 +30,7 @@ uint32_t fxd_sqrt_q10(uint32_t x);
 int32_t FixedPointLog2Q10(uint64_t x);
     
 uint8_t CountHighestMsb(uint64_t x);
-    
+
 uint32_t FixedPointExp2Q10(const int16_t x);
     
 int16_t cosvec16(const int16_t * vec1, const int16_t * vec2, uint8_t n);

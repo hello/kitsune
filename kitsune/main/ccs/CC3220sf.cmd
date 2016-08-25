@@ -70,8 +70,9 @@ SECTIONS
 {
     .resetVecs            : > FLASH_BASE
     .init_array           : > FLASH_CODE
-    .text                 : > FLASH_CODE
-    .const                : > FLASH_CODE
+    .text                 : > FLASH_CODE ALIGN(8)
+    .const                : > FLASH_CODE ALIGN(8)
+    .weights              : > FLASH_CODE ALIGN(2048)
     .cinit                : > FLASH_CODE
     .pinit                : > FLASH_CODE
     .binit                : > FLASH_CODE

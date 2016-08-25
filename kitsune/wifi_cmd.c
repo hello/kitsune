@@ -59,6 +59,7 @@ int sl_mode = ROLE_INVALID;
 #include "limits.h"
 #include "hw_ver.h"
 
+int32_t set_volume(int v, unsigned int dly);
 int send_top(char *, int);
 void mcu_reset()
 {
@@ -837,16 +838,6 @@ void load_aes() {
 	*/
 }
 #include "netcfg.h"
-void set_mac_to_device_id() {
-	if( load_device_id() ) {
-		unsigned char mac[6] = {0x5c,0x6b,0x4f,0,0,0};
-		mac[3] = device_id[DEVICE_ID_SZ-3];
-		mac[4] = device_id[DEVICE_ID_SZ-2];
-		mac[5] = device_id[DEVICE_ID_SZ-1];
-		sl_NetCfgSet(SL_NETCFG_MAC_ADDRESS_SET, 1, SL_MAC_ADDR_LEN, mac);
-		nwp_reset();
-	}
-}
 bool load_device_id() {
 	static bool loaded = false;
 	if( !loaded ) {
@@ -873,6 +864,16 @@ bool load_device_id() {
 	UARTprintf("\n");
 	*/
 	return true;
+}
+void set_mac_to_device_id() {
+	if( load_device_id() ) {
+		unsigned char mac[6] = {0x5c,0x6b,0x4f,0,0,0};
+		mac[3] = device_id[DEVICE_ID_SZ-3];
+		mac[4] = device_id[DEVICE_ID_SZ-2];
+		mac[5] = device_id[DEVICE_ID_SZ-1];
+		sl_NetCfgSet(SL_NETCFG_MAC_ADDRESS_SET, 1, SL_MAC_ADDR_LEN, mac);
+		nwp_reset();
+	}
 }
 
 static void _on_morpheus_command_success(void * structdata){

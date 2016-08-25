@@ -1,7 +1,7 @@
 #include "dump_xsum.h"
 #include "hash_functions.h"
 
-#include <assert.h>
+#include "kit_assert.h"
 
 DUMP_XSUM_TYPE dump_xsum_compute( unsigned char * data, unsigned int size ) {
   return (DUMP_XSUM_TYPE)hash((char*)data, size, 0xA5239b5);
