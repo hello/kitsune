@@ -1922,7 +1922,7 @@ int Cmd_SyncID(int argc, char * argv[]);
 int Cmd_time_test(int argc, char * argv[]);
 int cmd_file_sync_upload(int argc, char *argv[]);
 
-extern int ch;
+extern volatile int ch;
 
 int cmd_vol(int argc, char *argv[]) {
  return set_volume(atoi(argv[1]), portMAX_DELAY);;

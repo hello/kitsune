@@ -132,6 +132,7 @@ extern xSemaphoreHandle playback_isr_sem;;
 #define swap_endian(x) *(x) = ((*(x)) << 8) | ((*(x)) >> 8);
 static volatile unsigned long qqbufsz=0;
 
+volatile int ch = 2;
 
 /*ramcode*/
 void DMAPingPongCompleteAppCB_opt()
@@ -184,7 +185,7 @@ void DMAPingPongCompleteAppCB_opt()
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
 			for (i = 0; i< CB_TRANSFER_SZ/4 ; ++i ) {
-				pong[i] = pong[i*8]; //downsample by discarding...
+				pong[i] = pong[i*8+ch]; //downsample by discarding...
 			}
 			FillBuffer(pAudInBuf, (unsigned char*) pong, CB_TRANSFER_SZ/2 );
 #else
@@ -213,7 +214,7 @@ void DMAPingPongCompleteAppCB_opt()
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
 				for (i = 0; i< CB_TRANSFER_SZ/4 ; ++i ) {
-					ping[i] = ping[i*8]; //downsample by discarding...
+					ping[i] = ping[i*8+ch]; //downsample by discarding...
 				}
 				FillBuffer(pAudInBuf, (unsigned char*) ping, CB_TRANSFER_SZ/2 );
 #else
