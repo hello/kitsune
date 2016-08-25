@@ -62,6 +62,13 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 			return HLO_STREAM_ERROR;
 #endif
 		}
+	}else if(IsBufferVacant(pRxBuffer, PLAY_UNDERRUN_WATERMARK) && is_playback_active()){
+		static TickType_t last_warn;
+		if(xTaskGetTickCount() - last_warn > 1000){
+			LOGW("SPKR BUFFER UNDERRUN\r\n");
+			last_warn = xTaskGetTickCount();
+		}
+		set_isr_playback(false);
 	}
 	last_play = xTaskGetTickCount();
 	int written = min(PING_PONG_CHUNK_SIZE, size);
