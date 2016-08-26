@@ -253,8 +253,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	bool light_open = false;
 
 	keyword_net_initialize();
-	nn_keyword_ctx_t nn_ctx;
-	nn_ctx.keyword_detected = -1;
+	nn_keyword_ctx_t nn_ctx = {0};
 	keyword_net_register_callback(&nn_ctx,okay_sense,80,_voice_begin_keyword,_voice_finish_keyword);
 
 	//wrap output in hmac stream
@@ -287,8 +286,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	hlo_stream_close(hmac_payload_str);
 
 	{//now play the swirling thing when we get response
-		play_led_wheel(get_alpha_from_light(),254,0,254,2,18,0);
-		DISP("Wheel\r\n");
+			play_led_wheel(get_alpha_from_light(),140,29,237,2,9,0);
+			DISP("Wheel\r\n");
 	}
 #if 0
 	//lastly, glow with voice output, since we can't do that in half duplex mode, simply queue it to the voice output
@@ -347,29 +346,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		DISP("\r\n===========\r\n");
 		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_PLAYBACK);
 			DISP("Playback Audio\r\n");
-			output = hlo_stream_sr_cnv( output, UPSAMPLE );
-			//hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
+			aud = hlo_light_stream( aud );
 			set_volume(64, portMAX_DELAY);
-
-			int ret;
-			while(1){
-#if 0
-				ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4);
-				if( ret < 0 ) {
-					break;
-				}
-				keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
-				if( nn_ctx.keyword_detected > 1 ) {
-					break;
-				}
-#endif
-				ret = hlo_stream_transfer_between(output,aud,(uint8_t*)samples,sizeof(samples),4);
-
-				if(ret < 0){
-					break;
-				}
-				BREAK_ON_SIG(signal);
-			}
+			hlo_filter_mp3_decoder(output,aud,NULL,signal);
 			DISP("\r\n===========\r\n");
 		hlo_stream_close(aud);
 #endif// USE_PLAYBACK_TASK
@@ -601,7 +580,6 @@ enum mad_flow _mp3_output(void *data,
 	//vTaskDelay(100);
 	return MAD_FLOW_CONTINUE;
 }
-
 /*
  * This is the error callback function. It is called whenever a decoding
  * error occurs. The error is indicated by stream->error; the list of
@@ -762,6 +740,7 @@ void AudioControlTask(void * unused) {
 		in = hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_RECORD);
 
 		hlo_stream_t * out;
+
 #if (STREAM_MP3==1)
 		out = hlo_http_post("dev-speech.hello.is/upload/audio?r=16000&response=mp3", NULL);
 #else

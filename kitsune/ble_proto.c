@@ -148,6 +148,9 @@ static void _factory_reset(){
     deleteFilesInDir(USER_DIR);
 
 	_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET);
+
+	vTaskDelay(5000);
+	mcu_reset(); //just in case top doesn't do it
 }
 
 int Cmd_factory_reset(int argc, char* argv[])
@@ -800,11 +803,12 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				ble_proto_led_fade_in_trippy();
 				set_ble_mode(BLE_PAIRING);
 				LOGI( "PAIRING MODE \n");
-
+#if 0
 				//wifi prescan, forked so we don't block the BLE and it just happens in the background
 				if(!scan_results){
 					scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
 				}
+#endif
 				assert( pdPASS == xTimerStart(pm_timer, 30000));
     		}
         }

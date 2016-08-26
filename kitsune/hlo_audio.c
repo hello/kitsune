@@ -216,14 +216,8 @@ typedef struct{
 	int32_t ctr;
 }light_stream_t;
 
-static int _write_light(void * ctx, const void * buf, size_t size){
+static void _do_lights(void * ctx, const void * buf, size_t size) {
 	light_stream_t * stream = (light_stream_t*)ctx;
-	int rv = hlo_stream_write(stream->base, buf, size);
-	return rv;
-}
-static int _read_light(void * ctx, void * buf, size_t size){
-	light_stream_t * stream = (light_stream_t*)ctx;
-	int rv = hlo_stream_read(stream->base, buf, size);
 	int i;
 
 	int16_t * samples = (int16_t *)buf;
@@ -254,6 +248,17 @@ static int _read_light(void * ctx, void * buf, size_t size){
 			stream->eng = 0;
 		}
 	}
+ }
+
+static int _write_light(void * ctx, const void * buf, size_t size) {
+	light_stream_t * stream = (light_stream_t*)ctx;
+	_do_lights(ctx, buf,size);
+	int rv = hlo_stream_write(stream->base, buf, size);
+}
+static int _read_light(void * ctx, void * buf, size_t size){
+	light_stream_t * stream = (light_stream_t*)ctx;
+	int rv = hlo_stream_read(stream->base, buf, size);
+	_do_lights(ctx, buf,size);
 	return rv;
 }
 static int _close_light(void * ctx){
@@ -282,7 +287,7 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base){
 	stream->base = base;
 
 	DISP("open light\n") ;
-	play_modulation(253,253,253,30,0);
+	play_modulation(140,29,237,30,0);
 
 	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
 }

@@ -2010,6 +2010,7 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 
     if(response_protobuf->has_reset_to_factory_fw && response_protobuf->reset_to_factory_fw) {
     	reset_to_factory_fw();
+    	mcu_reset();
     }
 
     if (response_protobuf->has_audio_control) {
