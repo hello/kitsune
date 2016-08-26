@@ -464,7 +464,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					break;
 				case 'l':
 				case 'L':
-					rstr = hlo_light_stream( rstr );
+					rstr = hlo_light_stream( rstr , true, 0);
 					break;
 				case 'r':
 				case 'R':

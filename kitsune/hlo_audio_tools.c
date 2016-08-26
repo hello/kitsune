@@ -249,6 +249,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	int16_t samples[NSAMPLES];
 	uint8_t hmac[SHA1_SIZE] = {0};
 
+	bool ready = false;
 	bool light_open = false;
 
 	keyword_net_initialize();
@@ -262,9 +263,13 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	assert(hmac_payload_str);
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
+		if( !ready ) {
+			ready = true;
+			stop_led_animation( 0, 33 );
+		}
 		if( nn_ctx.keyword_detected > 0 ) {
 			if( !light_open ) {
-				input = hlo_light_stream( input );
+				input = hlo_light_stream( input,true, 300 );
 				input = hlo_stream_en( input );
 				light_open = true;
 			}
@@ -285,8 +290,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	hlo_stream_close(hmac_payload_str);
 
 	{//now play the swirling thing when we get response
-			play_led_wheel(get_alpha_from_light(),140,29,237,2,9,0);
-			DISP("Wheel\r\n");
+		//	play_led_wheel(get_alpha_from_light(),140,29,237,2,9,0);
+		//	DISP("Wheel\r\n");
 	}
 #if 0
 	//lastly, glow with voice output, since we can't do that in half duplex mode, simply queue it to the voice output
@@ -320,7 +325,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		DISP("\r\n===========\r\n");
 		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_PLAYBACK);
 			DISP("Playback Audio\r\n");
-			aud = hlo_light_stream( aud );
+			aud = hlo_light_stream( aud, false, LED_MAX/4 );
 			set_volume(64, portMAX_DELAY);
 			hlo_filter_mp3_decoder(output,aud,NULL,signal);
 			DISP("\r\n===========\r\n");
@@ -328,8 +333,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	}
 #endif
 	keyword_net_deinitialize();
-
-	stop_led_animation(portMAX_DELAY, 18);
 	return ret;
 }
 

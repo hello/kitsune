@@ -214,6 +214,7 @@ typedef struct{
 	int32_t last_eng;
 	int32_t eng;
 	int32_t ctr;
+	uint32_t off;
 }light_stream_t;
 
 static void _do_lights(void * ctx, const void * buf, size_t size) {
@@ -230,20 +231,22 @@ static void _do_lights(void * ctx, const void * buf, size_t size) {
 			stream->eng = fxd_sqrt(stream->eng/NSAMPLES);
 
 			stream->reduced = 3 * stream->reduced >> 2;
-			stream->reduced += abs(stream->eng - stream->last_eng)<<1;
+			stream->reduced += abs(stream->eng - stream->last_eng);
 
-			stream->lp += ( stream->reduced - stream->lp ) >> 3;
+			stream->lp += ( stream->reduced - stream->lp ) >> 2;
 			//DISP("%d\n", stream->lp) ;
 
 			stream->last_eng = stream->eng;
 
-			if(stream->lp > 253){
-				stream->lp = 253;
+			uint32_t light = stream->lp + stream->off;
+
+			if(light > 253){
+				light = 253;
 			}
-			if( stream->lp < 20 ){
-				stream->lp = 20;
+			if( light < 20 ){
+				light = 20;
 			}
-			set_modulation_intensity( stream->lp );
+			set_modulation_intensity( light );
 			stream->ctr = 0;
 			stream->eng = 0;
 		}
@@ -264,13 +267,11 @@ static int _read_light(void * ctx, void * buf, size_t size){
 static int _close_light(void * ctx){
 	light_stream_t * stream = (light_stream_t*)ctx;
 	DISP("close light\n") ;
-
-	stop_led_animation( 0, 33 );
 	hlo_stream_close(stream->base);
 	vPortFree(stream);
 	return 0;
 }
-hlo_stream_t * hlo_light_stream( hlo_stream_t * base){
+hlo_stream_t * hlo_light_stream( hlo_stream_t * base, bool start, uint32_t offset){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
 		.write = _write_light,
 		.read = _read_light,
@@ -285,9 +286,13 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base){
 	}
 	memset(stream, 0, sizeof(*stream) );
 	stream->base = base;
+	stream->off = offset;
 
+	if( start )
+	{
 	DISP("open light\n") ;
 	play_modulation(140,29,237,30,0);
+	}
 
 	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
 }
