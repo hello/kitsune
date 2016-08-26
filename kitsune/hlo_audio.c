@@ -171,8 +171,6 @@ void hlo_audio_init(void){
 	playback_isr_sem = xSemaphoreCreateBinary();
 	assert(playback_isr_sem);
 
-
-
 }
 
 hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint32_t direction){

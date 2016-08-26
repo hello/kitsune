@@ -555,20 +555,21 @@ enum mad_flow _mp3_output(void *data,
 	}
 
 	int ret;
+	uint32_t buf_size = pcm->length * sizeof(int16_t);
 	if(header)
 	{
 		if(header->samplerate == 16000)
 		{
 			_upsample(i16_samples, pcm->length);
-			ret = hlo_stream_transfer_all(INTO_STREAM, ctx->out, (uint8_t*)i16_samples, 2 * pcm->length * sizeof(int16_t), 4);
+			buf_size <<= 1;
 		}
 		else if(header->samplerate == 32000)
 		{
-			ret = hlo_stream_transfer_all(INTO_STREAM, ctx->out, (uint8_t*)i16_samples, pcm->length * sizeof(int16_t), 4);
+			// do nothing
 		}
-
 	}
 
+	ret = hlo_stream_transfer_all(INTO_STREAM, ctx->out, (uint8_t*)i16_samples, buf_size, 4);
 	if( ret < 0){
 		return MAD_FLOW_BREAK;
 	}

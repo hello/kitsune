@@ -2257,8 +2257,6 @@ void vUARTTask(void *pvParameters) {
 	CreateDefaultDirectories();
 	load_data_server();
 
-
-
 	UARTprintf("*");
 
 	init_download_task( 3072 / 4 );
