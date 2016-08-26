@@ -116,13 +116,8 @@ void hlo_audio_init(void){
 	hlo_stream_vftbl_t tbl = { 0 };
 
 	tbl.close = _close;
-
 	tbl.write = NULL;
-#if 1
-	tbl.read = _read_record_mono;			//for 1p0 when return channel is mono
-#else
-	tbl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
-#endif
+	tbl.read = _read_record_mono;
 	master_rec = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD);
 
 	tbl.read = NULL;
