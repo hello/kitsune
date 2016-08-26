@@ -821,7 +821,7 @@ int Cmd_gesture(int argc, char * argv[]) {
 bool check_button() {
 #define BUTTON_GPIO_BASE_DOUT GPIOA2_BASE
 #define BUTTON_GPIO_BIT_DOUT 0x80
-return MAP_GPIOPinRead(BUTTON_GPIO_BASE_DOUT, BUTTON_GPIO_BIT_DOUT);
+return 0 == MAP_GPIOPinRead(BUTTON_GPIO_BASE_DOUT, BUTTON_GPIO_BIT_DOUT);
 }
 void reset_to_factory_fw();
 
@@ -836,17 +836,37 @@ void thread_fast_i2c_poll(void * unused)  {
 
 	uint32_t delay = 100;
 
-	uint32_t button_cnt;
+	uint32_t button_cnt = 0;
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		uint32_t prox=0;
 
-		if(check_button() && ++button_cnt == 50) {
-			Cmd_factory_reset(0,0); //will reset mcu
-		} else if(button_cnt == 100) {
-			reset_to_factory_fw(); //will reset mcu later
+#define BUTTON_PRESS_TIME 60
+
+		if(check_button() ) {
+			++button_cnt;
+			DISP("b %d\n", button_cnt );
+			if( button_cnt < BUTTON_PRESS_TIME ) {
+				if( button_cnt == 1) {
+					stop_led_animation(portMAX_DELAY, 18);
+					play_led_progress_bar(LED_MAX, 20, 20, 0, portMAX_DELAY);
+				} else {
+					DISP( "%d\n", LED_MAX * button_cnt/BUTTON_PRESS_TIME );
+					set_led_progress_bar( LED_MAX * button_cnt/BUTTON_PRESS_TIME );
+				}
+			}
+			if( button_cnt == 2*BUTTON_PRESS_TIME ) {
+				stop_led_animation(portMAX_DELAY, 18);
+				play_led_animation_solid(LED_MAX,LED_MAX, 20, 20, 1,18, 1);
+			}
 		} else {
+			if( button_cnt >= 2*BUTTON_PRESS_TIME ) {
+				reset_to_factory_fw();
+				Cmd_factory_reset(0,0); //will reset mcu
+			} else if( button_cnt > BUTTON_PRESS_TIME ) {
+				Cmd_factory_reset(0,0); //will reset mcu
+			}
 			button_cnt = 0;
 		}
 
@@ -1676,7 +1696,7 @@ void launch_tasks() {
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  2*1024 / 4, NULL, 3, NULL);
 
 
 #ifdef KIT_INCLUDE_FILE_UPLOAD
@@ -1704,38 +1724,6 @@ void launch_tasks() {
 	********************************************************************************
 	*/
 
-	// Reset codec
-	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
-	vTaskDelay(10);
-	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
-
-	vTaskDelay(20);
-
-#ifdef CODEC_1P5_TEST
-	codec_test_commands();
-#endif
-
-	// Program codec
-	codec_init();
-
-	// McASP and DMA init
-	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
-
-	hlo_audio_init();
-
-	// Create audio tasks for playback and record
-	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
-	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
-
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
-
-
-	/*******************************************************************************
-	*           AUDIO INIT END
-	********************************************************************************
-	*/
-	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
-#endif
 }
 
 
@@ -1940,11 +1928,8 @@ int cmd_pwr_speaker(int argc, char * argv[]);
 
 
 int cmd_button(int argc, char *argv[]) {
-#define LED_GPIO_BASE_DOUT GPIOA2_BASE
-#define LED_GPIO_BIT_DOUT 0x80
 	while(1) {
-		bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
-		LOGF("%d\r", fast);
+		LOGF("%d\r", check_button());
 		vTaskDelay(100);
 	}
 }
@@ -2276,6 +2261,38 @@ void vUARTTask(void *pvParameters) {
 
 //#define DEMO
 
+	// Reset codec
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
+	vTaskDelay(10);
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
+
+	vTaskDelay(20);
+
+#ifdef CODEC_1P5_TEST
+	codec_test_commands();
+#endif
+
+	// Program codec
+	codec_init();
+
+	// McASP and DMA init
+	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
+
+	hlo_audio_init();
+
+	// Create audio tasks for playback and record
+	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
+	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
+
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
+
+
+	/*******************************************************************************
+	*           AUDIO INIT END
+	********************************************************************************
+	*/
+	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
+#endif
 #ifndef DEMO
 	if( on_charger ) {
 		launch_tasks();
