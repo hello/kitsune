@@ -95,8 +95,8 @@
 //                          GLOBAL VARIABLES
 //*****************************************************************************
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-uint32_t ping[(CB_TRANSFER_SZ)];
-uint32_t pong[(CB_TRANSFER_SZ)];
+uint16_t ping[(CB_TRANSFER_SZ*2)];
+uint16_t pong[(CB_TRANSFER_SZ*2)];
 // Ping pong for playback
 uint32_t ping_p[(CB_TRANSFER_SZ)];
 uint32_t pong_p[(CB_TRANSFER_SZ)];
@@ -133,6 +133,7 @@ extern xSemaphoreHandle playback_isr_sem;;
 static volatile unsigned long qqbufsz=0;
 
 static volatile bool can_playback;
+volatile int ch = 2;
 
 bool is_playback_active(void){
 	return can_playback;
@@ -191,10 +192,10 @@ void DMAPingPongCompleteAppCB_opt()
 #endif
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-			for (i = 0; i< CB_TRANSFER_SZ/2 ; ++i) {
-				pong[i] = pong[i<<1]; //downsample by discarding...
+			for (i = 0; i< CB_TRANSFER_SZ/4 ; ++i ) {
+				pong[i] = pong[i*8+ch]; //downsample by discarding...
 			}
-			FillBuffer(pAudInBuf, (unsigned char*) pong, CB_TRANSFER_SZ * 2);
+			FillBuffer(pAudInBuf, (unsigned char*) pong, CB_TRANSFER_SZ/2 );
 #else
 			FillBuffer(pAudInBuf, (unsigned char*)pong, CB_TRANSFER_SZ*2);
 #endif
@@ -220,10 +221,10 @@ void DMAPingPongCompleteAppCB_opt()
 #endif
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-				for (i = 0; i< CB_TRANSFER_SZ/2 ; ++i) {
-					pong[i] = pong[i<<1]; //downsample by discarding...
+				for (i = 0; i< CB_TRANSFER_SZ/4 ; ++i ) {
+					ping[i] = ping[i*8+ch]; //downsample by discarding...
 				}
-				FillBuffer(pAudInBuf, (unsigned char*) pong, CB_TRANSFER_SZ * 2);
+				FillBuffer(pAudInBuf, (unsigned char*) ping, CB_TRANSFER_SZ/2 );
 #else
 				FillBuffer(pAudInBuf, (unsigned char*)ping, CB_TRANSFER_SZ*2);
 #endif

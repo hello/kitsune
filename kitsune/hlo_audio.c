@@ -18,7 +18,8 @@ extern tCircularBuffer *pRxBuffer;
 #define MODESWITCH_TIMEOUT_MS 500
 
 static xSemaphoreHandle lock;
-static hlo_stream_t * master;
+static hlo_stream_t * master_plbk;
+static hlo_stream_t * master_rec;
 
 static unsigned long record_sr;
 static unsigned long playback_sr;
@@ -101,73 +102,6 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 	}
 	return 0;
 }
-static int16_t _select_channel(int16_t * samples, uint8_t ch){
-	return samples[ch];
-}
-static int16_t _quad_to_mono(int16_t * samples){
-	/*
-	 * Word Order
-	 * Left1	Left2	Right1	Right2
-	 * Loopback	MIC1	MIC2	MIC3
-	 *
-	 */
-	//naive approach to pick the strongest number between samples
-	//probably causes a lot of distortion
-	int n1 = abs(samples[1]);
-	int n2 = abs(samples[0]);
-	int n3 = abs(samples[3]);
-	if( n1 >= n2 ){
-		if(n1 >= n3){
-			return samples[1];
-		}else{
-			return samples[3];
-		}
-	}else{
-		if(n2 >= n3){
-			return  samples[0];
-		}else{
-			return samples[3];
-		}
-	}
-}
-static int16_t _ez_lpf(int16_t now, int16_t prev){
-	return (int16_t)(((int32_t)now + prev)/2);
-}
-int ch = 2;
-static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
-	int i;
-	static int16_t last;
-	if(size % 2){//buffer must be in multiple of 2 bytes
-		LOGE("audio buffer alignment error\r\n");
-		return HLO_STREAM_ERROR;
-	}
-	int16_t * iter = (int16_t*)buf;
-	for(i = 0; i < size/2; i++){
-		uint8_t samples[2 * 4];
-		int ret = _read_record_mono(ctx, samples, sizeof(samples));
-		if(ret <= 0){
-			return ret;
-		}else if(ret != sizeof(samples)){
-			return HLO_STREAM_ERROR;
-		}
-	//	*iter = _ez_lpf(_quad_to_mono((int16_t*)samples), last);
-	//	*iter = _ez_lpf(_select_channel((int16_t*)samples, 3), last);
-	//	*iter = _select_channel((int16_t*)samples, 3);
-
-		if (ch > 3) {
-			if (xTaskGetTickCount() - last_play > 100) {
-				*iter = _quad_to_mono((int16_t*) samples);
-			} else {
-				*iter = _select_channel((int16_t*) samples, ch);
-			}
-		} else {
-			*iter = _select_channel((int16_t*) samples, ch);
-		}
-		last = *iter;
-		iter++;
-	}
-	return (int)size;
-}
 bool set_volume(int v, unsigned int dly);
 // TODO might need two functions for close of capture and playback?
 static int _close(void * ctx){
@@ -180,14 +114,21 @@ void hlo_audio_init(void){
 	lock = xSemaphoreCreateRecursiveMutex();
 	assert(lock);
 	hlo_stream_vftbl_t tbl = { 0 };
-	tbl.write = _write_playback_mono;
-#if 0
+
+	tbl.close = _close;
+
+	tbl.write = NULL;
+#if 1
 	tbl.read = _read_record_mono;			//for 1p0 when return channel is mono
 #else
 	tbl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
 #endif
-	tbl.close = _close;
-	master = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD|HLO_AUDIO_PLAYBACK);
+	master_rec = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD);
+
+	tbl.read = NULL;
+	tbl.write = _write_playback_mono;
+	master_plbk = hlo_stream_new(&tbl, NULL, HLO_AUDIO_PLAYBACK);
+
 	record_isr_sem = xSemaphoreCreateBinary();
 	assert(record_isr_sem);
 	playback_isr_sem = xSemaphoreCreateBinary();
@@ -216,13 +157,15 @@ void hlo_audio_init(void){
 }
 
 hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint32_t direction){
-	hlo_stream_t * ret = master;
+	hlo_stream_t * ret;
 	LOCK();
 	if(direction == HLO_AUDIO_PLAYBACK) {
 		playback_sr = sr;
 		set_isr_playback(false);
+		ret = master_plbk;
 	} else if(direction == HLO_AUDIO_RECORD){
 		record_sr = sr;
+		ret = master_rec;
 	}else{
 		LOGW("Unsupported Audio Mode, returning default stream\r\n");
 	}
