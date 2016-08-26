@@ -282,7 +282,7 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base){
 	stream->base = base;
 
 	DISP("open light\n") ;
-	play_modulation(253,253,253,30,0);
+	play_modulation(140,29,237,30,0);
 
 	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
 }

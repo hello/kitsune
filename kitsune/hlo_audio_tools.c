@@ -286,7 +286,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	hlo_stream_close(hmac_payload_str);
 
 	{//now play the swirling thing when we get response
-			play_led_wheel(get_alpha_from_light(),254,0,254,2,18,0);
+			play_led_wheel(get_alpha_from_light(),140,29,237,2,9,0);
 			DISP("Wheel\r\n");
 	}
 #if 0
@@ -321,8 +321,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		DISP("\r\n===========\r\n");
 		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_PLAYBACK);
 			DISP("Playback Audio\r\n");
+			output = hlo_light_stream( output );
 			output = hlo_stream_sr_cnv( output, UPSAMPLE );
-			//hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
 			set_volume(64, portMAX_DELAY);
 
 			int ret;
