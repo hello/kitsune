@@ -33,6 +33,24 @@ static volatile uint32_t last_play;
 #define UNLOCK() xSemaphoreGiveRecursive(lock)
 extern bool is_playback_active(void);
 extern void set_isr_playback(bool active);
+
+////------------------------------
+//codec routines
+static void _reset_codec(void){
+	// Reset codec
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
+	vTaskDelay(10);
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
+
+	vTaskDelay(20);
+
+#ifdef CODEC_1P5_TEST
+	codec_test_commands();
+#endif
+
+	// Program codec
+	codec_init();
+}
 ////------------------------------
 // playback stream driver
 
@@ -108,6 +126,7 @@ static int _close(void * ctx){
 	return HLO_STREAM_NO_IMPL;
 }
 
+
 ////------------------------------
 //  Public API
 void hlo_audio_init(void){
@@ -129,19 +148,7 @@ void hlo_audio_init(void){
 	playback_isr_sem = xSemaphoreCreateBinary();
 	assert(playback_isr_sem);
 
-	// Reset codec
-	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
-	vTaskDelay(10);
-	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
-
-	vTaskDelay(20);
-
-#ifdef CODEC_1P5_TEST
-	codec_test_commands();
-#endif
-
-	// Program codec
-	codec_init();
+	_reset_codec();
 
 	// McASP and DMA init
 	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
