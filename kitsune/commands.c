@@ -813,6 +813,12 @@ int Cmd_gesture(int argc, char * argv[]) {
 	}
 	return 0;
 }
+bool check_button() {
+#define BUTTON_GPIO_BASE_DOUT GPIOA2_BASE
+#define BUTTON_GPIO_BIT_DOUT 0x80
+return MAP_GPIOPinRead(BUTTON_GPIO_BASE_DOUT, BUTTON_GPIO_BIT_DOUT);
+}
+void reset_to_factory_fw();
 
 void thread_fast_i2c_poll(void * unused)  {
 	unsigned int filter_buf[3];
@@ -825,9 +831,19 @@ void thread_fast_i2c_poll(void * unused)  {
 
 	uint32_t delay = 100;
 
+	uint32_t button_cnt;
+
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		uint32_t prox=0;
+
+		if(check_button() && ++button_cnt == 50) {
+			Cmd_factory_reset(0,0); //will reset mcu
+		} else if(button_cnt == 100) {
+			reset_to_factory_fw(); //will reset mcu later
+		} else {
+			button_cnt = 0;
+		}
 
 		if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
 			vTaskDelay(1);
@@ -1866,7 +1882,7 @@ int Cmd_SyncID(int argc, char * argv[]);
 int Cmd_time_test(int argc, char * argv[]);
 int cmd_file_sync_upload(int argc, char *argv[]);
 
-extern int ch;
+extern volatile int ch;
 
 int cmd_vol(int argc, char *argv[]) {
  return set_volume(atoi(argv[1]), portMAX_DELAY);;
@@ -2256,7 +2272,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	start_top_boot_watcher();
 
-	// xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
+	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
 //#define DEMO
 
 #ifndef DEMO

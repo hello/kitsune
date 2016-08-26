@@ -110,6 +110,41 @@ void uart_logc(uint8_t c);	//advanced: directly dumps character to tx block
 int analytics_event( const char *pcString, ...);
 
 hlo_stream_t * uart_stream(void);
+
+extern uint32_t __dwt_tot_CYC_cnt;
+#if 0
+#define STARTCYC \
+volatile unsigned int *DWT_CYCCNT = (volatile unsigned int *)0xE0001004;\
+volatile unsigned int *DWT_CONTROL = (volatile unsigned int *)0xE0001000;\
+volatile unsigned int *SCB_DEMCR = (volatile unsigned int *)0xE000EDFC;\
+*SCB_DEMCR = *SCB_DEMCR | 0x01000000;\
+*DWT_CYCCNT = __dwt_tot_CYC_cnt = 0;\
+*DWT_CONTROL = *DWT_CONTROL | 1 ;
+
+#define DECLCHKCYC \
+volatile unsigned int *DWT_CYCCNT = (volatile unsigned int *)0xE0001004;\
+volatile unsigned int *DWT_CONTROL = (volatile unsigned int *)0xE0001000;\
+volatile unsigned int *SCB_DEMCR = (volatile unsigned int *)0xE000EDFC;\
+
+#define CHKCYC(STR) \
+*DWT_CONTROL = *DWT_CONTROL | 0 ; \
+__dwt_tot_CYC_cnt += *DWT_CYCCNT; \
+DISP("  %d cycles " STR "\n", *DWT_CYCCNT ); \
+*SCB_DEMCR = *SCB_DEMCR | 0x01000000;\
+*DWT_CYCCNT = 0;\
+*DWT_CONTROL = *DWT_CONTROL | 1 ;
+
+#define STOPCYC \
+*DWT_CONTROL = *DWT_CONTROL | 0 ; \
+DISP("%d cycles\n", __dwt_tot_CYC_cnt + *DWT_CYCCNT); \
+vTaskDelay(100);
+#else
+#define STARTCYC
+#define DECLCHKCYC
+#define CHKCYC(STR)
+#define STOPCYC
+#endif
+
 #ifdef __cplusplus
 }
 #endif

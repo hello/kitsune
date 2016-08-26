@@ -221,7 +221,7 @@ extern bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, 
 #include "tensor/keyword_net.h"
 typedef struct{
 	hlo_stream_t * base;
-	uint8_t keyword_detected;
+	int8_t keyword_detected;
 	uint8_t threshold;
 	uint16_t reserved;
 	uint32_t timeout;
@@ -253,7 +253,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	bool light_open = false;
 
 	keyword_net_initialize();
-	nn_keyword_ctx_t nn_ctx = {0};
+	nn_keyword_ctx_t nn_ctx;
+	nn_ctx.keyword_detected = -1;
 	keyword_net_register_callback(&nn_ctx,okay_sense,80,_voice_begin_keyword,_voice_finish_keyword);
 
 	//wrap output in hmac stream
@@ -263,7 +264,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	assert(hmac_payload_str);
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
-		if( nn_ctx.keyword_detected ) {
+		if( nn_ctx.keyword_detected > 0 ) {
 			if( !light_open ) {
 				input = hlo_light_stream( input );
 				input = hlo_stream_en( input );
@@ -426,19 +427,9 @@ int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * outp
 	return ret;
 }
 static void _begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
-	play_led_animation_solid(254, 254, 254, 254 ,1, 18,3);
-	if (keyword == okay_sense) {
-		DISP("OKAY SENSE\r\n");
-	}
+	DISP("OKAY SENSE\r\n");
 }
 static void _finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
-	if (keyword == okay_sense) {
-		DISP("Keyword Done\r\n");
-	}
-
-	if(ctx){
-		((nn_keyword_ctx_t *)ctx)->keyword_detected++;
-	}
 }
 //note that filter and the stream version can not run concurrently
 int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
@@ -632,7 +623,6 @@ int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * c
 	mad_decoder_finish(&decoder);
 	return result;
 }
-
 ////-----------------------------------------
 //commands
 static uint8_t _can_has_sig_stop(void){
@@ -738,8 +728,8 @@ void AudioControlTask(void * unused) {
 
 
 		hlo_stream_t * in;
+
 		in = hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_RECORD);
-		in = hlo_stream_sr_cnv( in, DOWNSAMPLE );
 
 		hlo_stream_t * out;
 #if (STREAM_MP3==1)

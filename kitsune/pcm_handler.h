@@ -58,6 +58,7 @@ extern "C"
 //#define END_PTR                 (4096)-1
 #define CTRL_WRD                (3 | ((CB_TRANSFER_SZ - 1) << 4)) // 4083 =0xFF3
 
+__attribute__((section(".ramcode")))
 extern void DMAPingPongCompleteAppCB_opt();    
 extern void SetupPingPongDMATransferTx();
 extern void SetupPingPongDMATransferRx();

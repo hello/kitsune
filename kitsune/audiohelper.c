@@ -38,12 +38,12 @@ static unsigned char * audio_mem;
 static unsigned char * audio_mem_p;
 
 void InitAudioHelper() {
-	audio_mem = (unsigned char*)pvPortMalloc( AUD_BUFFER_SIZE );
+	audio_mem = (unsigned char*)pvPortMalloc( TX_BUFFER_SIZE );
 }
 
 void InitAudioHelper_p() {
 
-	audio_mem_p = (unsigned char*)pvPortMalloc( AUD_BUFFER_SIZE );
+	audio_mem_p = (unsigned char*)pvPortMalloc( RX_BUFFER_SIZE );
 }
 
 void InitAudioTxRx(uint32_t rate)
@@ -62,7 +62,7 @@ uint8_t InitAudioCapture(void) {
 	if(pTxBuffer == NULL) {
 		pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE, audio_mem);
 	}
-	memset( audio_mem, 0, AUD_BUFFER_SIZE);
+	memset( audio_mem, 0, TX_BUFFER_SIZE);
 
 	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
 
@@ -103,7 +103,7 @@ uint8_t InitAudioPlayback() {
 	if (!pRxBuffer) {
 		pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE, audio_mem_p);
 	}
-	memset( audio_mem_p, 0, AUD_BUFFER_SIZE);
+	memset( audio_mem_p, 0, RX_BUFFER_SIZE);
 
 	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 

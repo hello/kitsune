@@ -4,6 +4,15 @@
 #include "tinytensor_memory.h"
 #include "uart_logger.h"
 
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "stdlib.h"
+
+#include "arm_math.h"
+#include "arm_const_structs.h"
+#include "fft.h"
+
 typedef struct {
 	KeywordCallback_t on_start;
 	KeywordCallback_t on_end;
@@ -23,17 +32,16 @@ typedef struct {
 
 } KeywordNetContext_t;
 
-__attribute__((section(".ramcode")))
 static KeywordNetContext_t _context;
 
-
 __attribute__((section(".ramcode")))
-static void feats_callback(void * p, int8_t * feats) {
+static void feats_callback(void * p, Weight_t * feats) {
 	KeywordNetContext_t * context = (KeywordNetContext_t *)p;
 	Tensor_t * out;
 	Tensor_t temp_tensor;
 	uint32_t i;
 	int j;
+	DECLCHKCYC
 
 	temp_tensor.dims[0] = 1;
 	temp_tensor.dims[1] = 1;
@@ -44,8 +52,9 @@ static void feats_callback(void * p, int8_t * feats) {
 	temp_tensor.scale = 0;
 	temp_tensor.delete_me = 0;
 
-
-	out = tinytensor_eval_stateful_net(&context->net, &context->state, &temp_tensor);
+	CHKCYC(" eval prep");
+	out = tinytensor_eval_stateful_net(&context->net, &context->state, &temp_tensor,NET_FLAG_LSTM_DAMPING);
+	CHKCYC("evalnet");
 
 	if (context->counter++ < 20) {
 		out->delete_me(out);
@@ -53,10 +62,8 @@ static void feats_callback(void * p, int8_t * feats) {
 	}
 	if(context->counter % 50 ==0){
 		Weight_t max = out->x[1];
-		uint32_t maxj = 1;
 		for (j = 2; j < out->dims[3]; j++) {
 			max = max > out->x[j] ? max : out->x[j];
-			maxj = j;
 		}
 
 		for(j = 0 ; j < 10; j++){
@@ -109,9 +116,7 @@ static void feats_callback(void * p, int8_t * feats) {
 
 	//free
 	out->delete_me(out);
-
-
-
+	CHKCYC("eval cmplt");
 }
 
 __attribute__((section(".ramcode")))
@@ -122,7 +127,7 @@ void keyword_net_initialize(void) {
 
     tinytensor_allocate_states(&_context.state, &_context.net);
 
-	tinytensor_features_initialize(&_context,feats_callback);
+	tinytensor_features_initialize(&_context,feats_callback, NULL);
 }
 
 __attribute__((section(".ramcode")))
@@ -141,23 +146,90 @@ void keyword_net_register_callback(void * target_context, Keyword_t keyword, int
 	_context.callbacks[keyword].activation_threshold = threshold;
 
 }
-
 __attribute__((section(".ramcode")))
 void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples) {
 	tinytensor_features_add_samples(samples,nsamples);
 }
 
-#include "FreeRTOS.h"
-#include "task.h"
-#include "stdlib.h"
+uint32_t __dwt_tot_CYC_cnt;
+#if 0
+int cmd_test_neural_net2(int argc, char * argv[])
+    {
 
-__attribute__((section(".ramcode")))
+#define L 512
+#define SR 8000
+#define FREQ 697
+
+	int i,k;
+		q31_t fr[512];
+		q31_t fi[512];
+
+
+		q31_t f_int[1024];
+		q31_t f_mag[512];
+
+		memset(f_int, 0, sizeof(f_int));
+		for (i = 0; i < L; i++) {
+			fr[i] = 32768 * (0.5f * sinf(2.0f * PI * FREQ * i / SR));
+			fi[i] = 0;
+			f_int[2*i+1] = 0;
+			f_int[2*i] = 0;
+		}
+        DISP("%d", fr[0]);
+		for (i = 1; i < L; i++) {
+			DISP(",%d", fr[i]);
+			vTaskDelay(2);
+		}DISP("\n");
+
+		 q31_t hanning_window_q31[L];
+		for (i = 0; i < L; i++) {
+			hanning_window_q31[i] = (q31_t) (0.5f * 2147483647.0f
+					* (1.0f - cosf(2.0f*PI*i / L)));
+		}
+        // Apply the window to the input buffer
+        arm_mult_q31(hanning_window_q31, fr, fr, L);
+
+        arm_rfft_instance_q31 fftr_inst;
+        arm_rfft_init_q31(&fftr_inst, L, 0, 1);
+		STARTCYC
+        arm_rfft_q31(&fftr_inst, fr, f_int );
+//		arm_cfft_q31( &arm_cfft_sR_q31_len64, f_int, 0, 1 );
+	    CHKCYC("ARM FFT");
+
+        arm_cmplx_mag_squared_q31(f_int, f_mag, L);
+
+        DISP("%d,", f_mag[0]);
+		for (i = 1; i < L; i++) {
+			DISP(",%d", f_mag[0]);
+			vTaskDelay(2);
+		}DISP("\n");DISP("\n");
+
+		CHKCYC("-");
+		fft(fr,fi,9);
+		CHKCYC("MY FFT");
+	    STOPCYC
+
+        DISP("%d", fr[i]*fr[i]+ fi[i]*fi[i]);
+		for (i = 1; i < L; i++) {
+			DISP(",%d", fr[i]*fr[i]+ fi[i]*fi[i]);
+			vTaskDelay(2);
+		}DISP("\n");DISP("\n");
+        DISP("%d, %d", fr[i], fi[i]);
+		for (i = 1; i < L; i++) {
+			DISP(",%d, %d", fr[i], fi[i]);
+			vTaskDelay(2);
+		}DISP("\n");DISP("\n");
+		return 0;
+    }
+#endif
+
 int cmd_test_neural_net(int argc, char * argv[]) {
-	int16_t samples[256];
-	uint32_t start = xTaskGetTickCount();
-	int i;
+	int16_t samples[160];
+	int i,k;
 
-	for (i = 0; i < 256; i++) {
+#if 1
+	uint32_t start = xTaskGetTickCount();
+	for (i = 0; i < 160; i++) {
 		samples[i] = rand();
 	}
 	keyword_net_initialize();
@@ -166,14 +238,16 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 
 	DISP("start test\n\n");
 
-	for (i = 0; i < 1024; i++) {
-		keyword_net_add_audio_samples(samples,256);
+	for (k = 0; k < 1024; k++) {
+		STARTCYC
+		CHKCYC("begin");
+		keyword_net_add_audio_samples(samples,160);
+		STOPCYC
 	}
 
 	DISP("\n\nstop test %d\n\n", xTaskGetTickCount() - start);
 
 	keyword_net_deinitialize();
-
 	return 0;
-
+#endif
 }

@@ -89,7 +89,7 @@ static void restart_download_manager(void);
 static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_path);
 static bool get_sha_filename(char* filename, char* sha_fn);
-static int get_complete_filename(char* full_path, char * local_fn, char* path, uint32_t len);
+static int32_t get_complete_filename(char* full_path, char * local_fn, char* path, uint32_t len);
 static bool does_sha_file_exist(char* sha_path);
 static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_func);
 
