@@ -304,11 +304,12 @@ void pn_write_task( void * params ) {
 		return;
 	}
 
-	if (corrnumber < 4) {
-		corrnumber = 4;
+#define PRE_PEAK_CHUNKS (4)
+	if (corrnumber < PRE_PEAK_CHUNKS) {
+		corrnumber = PRE_PEAK_CHUNKS;
 	}
 
-	corrnumber -= 3;
+	corrnumber -= PRE_PEAK_CHUNKS;
 	iend = corrnumber + 256/8;
 
 	if (iend >= WRITE_BUF_LEN_IN_BYTES_PER_CHANNEL) {
@@ -350,7 +351,7 @@ void pn_write_task( void * params ) {
 	//go find the first peaks
 	for (j = 0; j < 4; j++) {
 		idx = 0;
-		for (i = 0; i < 24; i++) {
+		for (i = 0; i < (PRE_PEAK_CHUNKS * 8 + 24); i++) {
 
 			if (sums_history[j][i] > sums_history[j][idx]) {
 				idx = i;
@@ -373,12 +374,12 @@ void pn_write_task( void * params ) {
 #define NOISE_FLOOR (300)
 			a1 = ABS(sums_history[j][max_indices[j]]);
 			a1 -= NOISE_FLOOR;
-			a1 = a1 < 128 ? 128 : a1;
+			a1 = a1 < NOISE_FLOOR ? NOISE_FLOOR : a1;
 			a1 = FixedPointLog2Q10(a1);
 
 			a2 = ABS(sums_history[i][max_indices[i]]);
 			a2 -= NOISE_FLOOR;
-			a2 = a2 < 128 ? 128 : a2;
+			a2 = a2 < NOISE_FLOOR ? NOISE_FLOOR : a2;
 			a2 = FixedPointLog2Q10(a2);
 
 			logdiff = ABS(a2-a1);
