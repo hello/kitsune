@@ -148,6 +148,9 @@ static void _factory_reset(){
     deleteFilesInDir(USER_DIR);
 
 	_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET);
+
+	vTaskDelay(5000);
+	mcu_reset(); //just in case top doesn't do it
 }
 
 int Cmd_factory_reset(int argc, char* argv[])
