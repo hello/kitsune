@@ -33,7 +33,7 @@ static uint32_t _write_bytes_count = 0;
 #define PN_LEN_SAMPLES PN_LEN_12
 #define PN_INIT pn_init_with_mask_12
 
-#define ABS(x)  (x < 0 ? -x : x)
+#define ABS(x)  ( (x) < 0 ? -(x) : (x) )
 
 #define NUM_READ_PERIODS (20)
 #define NUM_WRITE_PERIODS (8)
@@ -98,11 +98,11 @@ static int read(void * ctx, void * buf, size_t size) {
 	for (i = 0; i < size / sizeof(int16_t); i++) {
 		bit =  pn_get_next_bit();
 		if (bit) {
-			p16[i] = 2048;
+			p16[i] = 4096;
 
 		}
 		else {
-			p16[i] = -2048;
+			p16[i] = -4096;
 		}
 	}
 
@@ -203,9 +203,8 @@ void pn_write_task( void * params ) {
 	int32_t iend;
 	int32_t idx;
 	int16_t max_indices[4];
-	int32_t idx_diff;
 	int32_t a1,a2;
-	int32_t maxlogdiff;
+	int32_t logdiff;
 	write_buf_context_t ctx;
 	TickType_t tick_count_start;
 	TickType_t tick_count_end;
@@ -316,8 +315,8 @@ void pn_write_task( void * params ) {
 
 
 	//PRINT
-	/*
-	for (i = 0; i < 256; i++) {
+
+	for (i = 0; i < 128; i++) {
 		for (j = 0; j < 4; j++) {
 			if (j != 0) DISP(",");
 			DISP("%d",sums_history[j][i]);
@@ -325,7 +324,7 @@ void pn_write_task( void * params ) {
 		DISP("\n");
 		vTaskDelay(50);
 	}
-	*/
+
 
 	//go find the first peaks
 	for (j = 0; j < 4; j++) {
@@ -340,7 +339,6 @@ void pn_write_task( void * params ) {
 		max_indices[j] = idx;
 	}
 
-	maxlogdiff = 0;
 	for (j = 0; j < 4; j++) {
 		if (j == AEC_CHANNEL) {
 			continue;
@@ -351,13 +349,20 @@ void pn_write_task( void * params ) {
 				continue;
 			}
 
+#define NOISE_FLOOR (300)
 			a1 = ABS(sums_history[j][max_indices[j]]);
+			a1 -= NOISE_FLOOR;
+			a1 = a1 < 128 ? 128 : a1;
 			a1 = FixedPointLog2Q10(a1);
 
 			a2 = ABS(sums_history[i][max_indices[i]]);
+			a2 -= NOISE_FLOOR;
+			a2 = a2 < 128 ? 128 : a2;
 			a2 = FixedPointLog2Q10(a2);
-			DISP("{chn1=%d,chn2=%d,a1=%d,a2=%d,idx1=%d,idx2=%d\r\n",j,i,a1,a2,max_indices[j],max_indices[i]);
-			if (  ABS(a1-a2) > LOG2_THRESHOLD_Q10_FOR_FAILURE  ) {
+
+			logdiff = ABS(a2-a1);
+			DISP("{chn1=%d,chn2=%d,a1=%d,a2=%d,idx1=%d,idx2=%d}\r\n",j,i,a1,a2,max_indices[j],max_indices[i]);
+			if (  logdiff > LOG2_THRESHOLD_Q10_FOR_FAILURE  ) {
 				DISP("SELF-TEST FAILED: LOG2 AMPLITUDE MISMATCH=%d between channels %d and %d\r\n",ABS(a1-a2),j,i);
 				fail = 1;
 			}
