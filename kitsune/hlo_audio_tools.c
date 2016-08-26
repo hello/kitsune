@@ -332,12 +332,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			desc.fade_in_ms = 0;
 			desc.fade_out_ms = 0;
 			desc.to_fade_out_ms = 0;
-#if (STREAM_MP3==1)
 			desc.p = hlo_filter_mp3_decoder;
-#else
-			output = hlo_stream_sr_cnv( output, UPSAMPLE );
-			desc.p = hlo_filter_data_transfer;
-#endif
 			desc.stream = output;
 			AudioTask_StartPlayback(&desc);
 
@@ -602,10 +597,11 @@ enum mad_flow _mp3_error(void *data,
 
 static
 enum mad_flow _mp3_header_cb(void *data,
-						   struct mad_header const *header){
+		struct mad_header const *header){
 
 	return MAD_FLOW_CONTINUE;
 }
+
 int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	mp3_ctx_t mp3 = {0};
 	struct mad_decoder decoder;
@@ -717,13 +713,11 @@ int cmd_confidence(int argc, char *argv[]) {
 	confidence = atoi(argv[1]);
 	return 0;
 }
-void InitAudioHelper();
+
 void AudioControlTask(void * unused) {
 	audio_sig_stop = 0;
 	int ret;
 	bool started = false;
-
-
 
 	for(;;) {
 
@@ -734,9 +728,7 @@ void AudioControlTask(void * unused) {
 			vTaskDelay(1000);
 		}
 
-
 		hlo_stream_t * in;
-
 		in = hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_RECORD);
 
 		hlo_stream_t * out;
@@ -758,7 +750,8 @@ void AudioControlTask(void * unused) {
 		LOGI("Task Stream transfer exited with code %d\r\n", ret);
 
 		hlo_stream_close(in);
-		// hlo_stream_close(out);
+
+		// NOTE: out stream is closed either in hlo_filter_voice_command or in mp3 filter
 
 		vTaskDelay(100);
 	}
