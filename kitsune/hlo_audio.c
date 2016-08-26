@@ -304,7 +304,7 @@ void hlo_audio_init(EAudioReadType_t read_type){
 	playback_isr_sem = xSemaphoreCreateBinary();
 	assert(playback_isr_sem);
 
-	hlo_audio_set_read_type(quad_decision_bits_from_quad);
+	hlo_audio_set_read_type(read_type);
 
 }
 

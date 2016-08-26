@@ -14,6 +14,7 @@
 #include "rom_map.h"
 #include "hw_memmap.h"
 #include "hellomath.h"
+#include "network.h"
 
 static hlo_stream_t * _p_read_stream = NULL;
 static hlo_stream_t * _p_write_stream = NULL;
@@ -32,6 +33,7 @@ static uint32_t _write_bytes_count = 0;
 #define AEC_CHANNEL (0)
 #define PN_LEN_SAMPLES PN_LEN_12
 #define PN_INIT pn_init_with_mask_12
+#define PN_AMPLITUDE (3000)
 
 #define ABS(x)  ( (x) < 0 ? -(x) : (x) )
 
@@ -40,7 +42,11 @@ static uint32_t _write_bytes_count = 0;
 #define WRITE_BYTES_MAX (PN_LEN_SAMPLES * NUM_READ_PERIODS * sizeof(int16_t))
 
 //delay just to just before the start of the second sequence
-#define WRITE_TASK_STARTUP_DELAY ( (PN_LEN_SAMPLES - 64) * 1000 / AUDIO_CAPTURE_PLAYBACK_RATE)
+#define CIRCULAR_BUFFER_FILL_TIME_MS (( TX_BUFFER_SIZE / 4 / sizeof(int16_t) * 1000  / AUDIO_CAPTURE_PLAYBACK_RATE))
+#define PN_PERIOD_TIME_MS (PN_LEN_SAMPLES * 1000 / AUDIO_CAPTURE_PLAYBACK_RATE)
+#define NUM_PN_PERIODS_TO_WAIT   (CIRCULAR_BUFFER_FILL_TIME_MS / PN_PERIOD_TIME_MS + 1)
+#define WRITE_TASK_STARTUP_DELAY  (NUM_PN_PERIODS_TO_WAIT * PN_PERIOD_TIME_MS  -  10)
+
 #define TIME_TO_COMPLETE_TASKS (10000)
 
 //1.1x the PN sequence length, from bits to bytes
@@ -49,9 +55,11 @@ static uint32_t _write_bytes_count = 0;
 //in bytes
 #define CORR_LEN              (PN_LEN_SAMPLES * (NUM_WRITE_PERIODS - 1) / 8)
 
-#define CORR_SEARCH_WINDOW    (PN_LEN_SAMPLES / 8 + 100)
-#define CORR_SEARCH_START_IDX (0)
-#define DETECTION_THRESHOLD   (1000)
+//this takes a long time if you don't find a peak
+#define CORR_SEARCH_WINDOW    (PN_LEN_SAMPLES / 8)
+#define CORR_SEARCH_START_IDX (350)
+#define DETECTION_THRESHOLD   (500)
+#define NUM_DETECT            (2)
 
 typedef struct {
 	hlo_stream_t * input;
@@ -98,11 +106,11 @@ static int read(void * ctx, void * buf, size_t size) {
 	for (i = 0; i < size / sizeof(int16_t); i++) {
 		bit =  pn_get_next_bit();
 		if (bit) {
-			p16[i] = 4096;
+			p16[i] = PN_AMPLITUDE;
 
 		}
 		else {
-			p16[i] = -4096;
+			p16[i] = -PN_AMPLITUDE;
 		}
 	}
 
@@ -141,6 +149,7 @@ static int write(void * ctx, const void * buf, size_t size) {
 
 	//if size written is equal to the space that was left, then that was the last copy.
 	if (size >= space_left) {
+		DISP("completed write to buffer\r\n");
 		return HLO_STREAM_EOF;
 	}
 
@@ -196,6 +205,7 @@ void pn_write_task( void * params ) {
 	int32_t i;
 	int32_t j;
 	int32_t max;
+	uint32_t ndetect = 0;
 	uint8_t found_peak = 0;
 	uint8_t the_byte;
 	int16_t sums[4][8];
@@ -268,11 +278,22 @@ void pn_write_task( void * params ) {
 
 
 		if (max >= DETECTION_THRESHOLD) {
-			DISP("FOUND PEAK AT c=%d\r\n",corrnumber);
-			found_peak = 1;
-			break;
+
+			ndetect++;
+
+			if (ndetect >= NUM_DETECT) {
+				DISP("FOUND PEAK AT c=%d\r\n",corrnumber);
+				found_peak = 1;
+				break;
+			}
+		}
+		else {
+			ndetect = 0;
 		}
 
+		if ( ((corrnumber - CORR_SEARCH_START_IDX) % 20) == 0) {
+			DISP("correlation bin = %04d\r\n",corrnumber);
+		}
 		MAP_WatchdogIntClear(WDT_BASE);
 	}
 
@@ -283,11 +304,11 @@ void pn_write_task( void * params ) {
 		return;
 	}
 
-	if (corrnumber == 0) {
-		corrnumber++;
+	if (corrnumber < 4) {
+		corrnumber = 4;
 	}
 
-	corrnumber--;
+	corrnumber -= 3;
 	iend = corrnumber + 256/8;
 
 	if (iend >= WRITE_BUF_LEN_IN_BYTES_PER_CHANNEL) {
@@ -361,7 +382,7 @@ void pn_write_task( void * params ) {
 			a2 = FixedPointLog2Q10(a2);
 
 			logdiff = ABS(a2-a1);
-			DISP("{chn1=%d,chn2=%d,a1=%d,a2=%d,idx1=%d,idx2=%d}\r\n",j,i,a1,a2,max_indices[j],max_indices[i]);
+			DISP("{chA=%d,chB=%d,log2A=%d,log2B=%d,idxA=%d,idxB=%d}\r\n",j,i,a1,a2,max_indices[j],max_indices[i]);
 			if (  logdiff > LOG2_THRESHOLD_Q10_FOR_FAILURE  ) {
 				DISP("SELF-TEST FAILED: LOG2 AMPLITUDE MISMATCH=%d between channels %d and %d\r\n",ABS(a1-a2),j,i);
 				fail = 1;
@@ -406,12 +427,22 @@ int cmd_audio_self_test(int argc, char* argv[]) {
 	hlo_stream_transfer_t outgoing_path; //out to speaker
 	hlo_stream_transfer_t incoming_path; //from mics
 	uint8_t debug = 0;
+	uint8_t disable_playback = 0;
 	pn_stream_init();
 
-	if (argc > 1 && strcmp(argv[1],"d") == 0) {
-		debug = 1;
-		DISP("setting debug\r\n");
+	if (argc > 1)  {
+		if (strcmp(argv[1],"d") == 0) {
+			debug = 1;
+			DISP("setting debug\r\n");
+		}
+
+		if (strcmp(argv[1],"n") == 0) {
+			disable_playback = 1;
+			DISP("setting no playaback\r\n");
+		}
 	}
+
+
 
 	//get decision bits not raw audio
 	hlo_audio_set_read_type(quad_decision_bits_from_quad);
@@ -431,11 +462,14 @@ int cmd_audio_self_test(int argc, char* argv[]) {
 
 	set_volume(64, portMAX_DELAY);
 
-	DISP("launching pn_read_task\r\n");
-	if (xTaskCreate(pn_read_task, "pn_read_task", 1024 * 4 / 4, &outgoing_path, 9, NULL) == NULL) {
-		DISP("problem creating pn_read_task\r\n");
+	if (!disable_playback) {
+		DISP("launching pn_read_task\r\n");
+		if (xTaskCreate(pn_read_task, "pn_read_task", 1024 * 4 / 4, &outgoing_path, 9, NULL) == NULL) {
+			DISP("problem creating pn_read_task\r\n");
+		}
 	}
 
+	DISP("waiting %d ms\r\n",WRITE_TASK_STARTUP_DELAY);
 	vTaskDelay(WRITE_TASK_STARTUP_DELAY);
 
 	DISP("launching pn_write_task, stack=%d bytes\r\n",REQUIRED_WRITE_STACK_SIZE);
