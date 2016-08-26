@@ -2083,6 +2083,47 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"nn",cmd_test_neural_net,""},
 		{ 0, 0, 0 } };
 
+static void audio_init(void)
+{
+	/*******************************************************************************
+	*           AUDIO INIT START
+	********************************************************************************
+	*/
+
+	// Reset codec
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
+	vTaskDelay(10);
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
+
+	vTaskDelay(20);
+
+#ifdef CODEC_1P5_TEST
+	codec_test_commands();
+#endif
+
+	// Program codec
+	codec_init();
+
+	// McASP and DMA init
+	InitAudioTxRx(AUDIO_SAMPLE_RATE);
+
+	hlo_audio_init();
+
+	InitAudioHelper();
+	InitAudioHelper_p();
+
+	// Create audio tasks for playback and record
+	xTaskCreate(AudioPlaybackTask,"playbackTask",(10*1024)/4,NULL,4,NULL);
+
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
+
+	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
+
+	/*******************************************************************************
+	*           AUDIO INIT END
+	********************************************************************************
+	*/
+}
 
 // ==============================================================================
 // This is the UARTTask.  It handles command lines received from the RX IRQ.
@@ -2216,43 +2257,7 @@ void vUARTTask(void *pvParameters) {
 	CreateDefaultDirectories();
 	load_data_server();
 
-	/*******************************************************************************
-	*           AUDIO INIT START
-	********************************************************************************
-	*/
 
-	// Reset codec
-	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
-	vTaskDelay(10);
-	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
-
-	vTaskDelay(20);
-
-#ifdef CODEC_1P5_TEST
-	codec_test_commands();
-#endif
-
-	// Program codec
-	codec_init();
-
-	// McASP and DMA init
-	InitAudioTxRx(AUDIO_SAMPLE_RATE);
-
-	hlo_audio_init();
-
-	InitAudioHelper();
-
-	// Create audio tasks for playback and record
-	xTaskCreate(AudioPlaybackTask,"playbackTask",(10*1024)/4,NULL,4,NULL);
-	// xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
-
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
-
-
-	/*******************************************************************************
-	*           AUDIO INIT END
-	********************************************************************************
-	*/
 
 	UARTprintf("*");
 
@@ -2273,6 +2278,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
 
+	audio_init();
 
 #ifndef BUILD_SERVERS
 	uart_logger_init();
@@ -2286,7 +2292,6 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	start_top_boot_watcher();
 
-	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
 //#define DEMO
 
 #ifndef DEMO
