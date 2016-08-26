@@ -44,14 +44,6 @@ static int _open_playback(){
 
 }
 
-/*
-static int _reinit_playback(unsigned int sr, unsigned int initial_vol){
-	DeinitAudioPlayback();
-	_open_playback(sr, initial_vol);
-	return 0;
-}
-*/
-
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
 		if(!is_playback_active()){
@@ -91,25 +83,7 @@ static int _open_record(){
 	DISP("Open record\r\n");
 	return 0;
 }
-/*
-static int _reinit_record(unsigned int sr, unsigned int vol){
-	DeinitAudioCapture();
-	_open_record(sr, initial_gain?initial_gain:16);
-	return 0;
-}*/
 static int _read_record_mono(void * ctx, void * buf, size_t size){
-
-	/*
-	int ret;
-
-	if(!audio_record_started){
-		audio_record_started = 1;
-		ret = _reinit_record(record_sr, initial_gain);
-		Audio_Start();
-		if(ret) return ret;
-	}
-	*/
-
 	if( !IsBufferSizeFilled(pTxBuffer, LISTEN_WATERMARK) ){
 		if(!xSemaphoreTake(record_isr_sem,5000)){
 			LOGI("ISR Failed\r\n");
