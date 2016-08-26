@@ -678,7 +678,7 @@ void AudioControlTask(void * unused) {
 		in = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_RECORD);
 
 		hlo_stream_t * out;
-		out = hlo_http_post("dev-speech.hello.is/v1/upload/audio?r=16000&response=mp3", NULL);
+		out = hlo_http_post("https://dev-speech.hello.is/v1/upload/audio?r=16000&response=mp3", NULL);
 
 		if( !started ) {
 			ble_proto_led_init();
