@@ -557,6 +557,14 @@ signed int scale(mad_fixed_t sample)
   return sample >> (MAD_F_FRACBITS + 1 - 16);
 }
 
+static void _upsample( int16_t * s, int n) {
+	int i;
+	for(i=n-1;i!=-1;--i) {
+		s[i*2]   = s[i];// i == 0 ? s[i] : (s[i-1]+s[i])/2;
+		s[i*2+1] = s[i];//(s[i]+s[i+1])/2;;
+	}
+}
+
 static
 enum mad_flow _mp3_output(void *data,
 		     struct mad_header const *header,
@@ -571,7 +579,8 @@ enum mad_flow _mp3_output(void *data,
 	for(i = 0; i < pcm->length; i++){
 		i16_samples[i] = scale(pcm->samples[0][i]);
 	}
-	int ret = hlo_stream_transfer_all(INTO_STREAM, ctx->out, (uint8_t*)i16_samples, pcm->length * sizeof(int16_t), 4);
+	_upsample(i16_samples, pcm->length);
+	int ret = hlo_stream_transfer_all(INTO_STREAM, ctx->out, (uint8_t*)i16_samples, 2 * pcm->length * sizeof(int16_t), 4);
 	if( ret < 0){
 		return MAD_FLOW_BREAK;
 	}
