@@ -2209,6 +2209,8 @@ void vUARTTask(void *pvParameters) {
 
 	hlo_audio_init();
 
+	InitAudioHelper();
+
 	// Create audio tasks for playback and record
 	xTaskCreate(AudioPlaybackTask,"playbackTask",(10*1024)/4,NULL,4,NULL);
 	// xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
@@ -2254,7 +2256,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	start_top_boot_watcher();
 
-	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
+	// xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
 //#define DEMO
 
 #ifndef DEMO

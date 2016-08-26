@@ -725,7 +725,7 @@ void AudioControlTask(void * unused) {
 	int ret;
 	bool started = false;
 
-	InitAudioHelper();
+
 
 	for(;;) {
 
