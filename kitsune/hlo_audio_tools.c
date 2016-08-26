@@ -579,8 +579,22 @@ enum mad_flow _mp3_output(void *data,
 	for(i = 0; i < pcm->length; i++){
 		i16_samples[i] = scale(pcm->samples[0][i]);
 	}
-	_upsample(i16_samples, pcm->length);
-	int ret = hlo_stream_transfer_all(INTO_STREAM, ctx->out, (uint8_t*)i16_samples, 2 * pcm->length * sizeof(int16_t), 4);
+
+	int ret;
+	if(header)
+	{
+		if(header->samplerate == 16000)
+		{
+			_upsample(i16_samples, pcm->length);
+			ret = hlo_stream_transfer_all(INTO_STREAM, ctx->out, (uint8_t*)i16_samples, 2 * pcm->length * sizeof(int16_t), 4);
+		}
+		else if(header->samplerate == 32000)
+		{
+			ret = hlo_stream_transfer_all(INTO_STREAM, ctx->out, (uint8_t*)i16_samples, pcm->length * sizeof(int16_t), 4);
+		}
+
+	}
+
 	if( ret < 0){
 		return MAD_FLOW_BREAK;
 	}
@@ -607,6 +621,13 @@ enum mad_flow _mp3_error(void *data,
 		return MAD_FLOW_CONTINUE;
 	}
 }
+
+static
+enum mad_flow _mp3_header_cb(void *data,
+						   struct mad_header const *header){
+
+	return MAD_FLOW_CONTINUE;
+}
 int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	mp3_ctx_t mp3 = {0};
 	struct mad_decoder decoder;
@@ -620,7 +641,7 @@ int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * c
 	/* configure input, output, and error functions */
 
 	mad_decoder_init(&decoder, &mp3,
-		   _mp3_input, 0 /* header */, 0 /* filter */, _mp3_output,
+		   _mp3_input,_mp3_header_cb, 0 /* filter */, _mp3_output,
 		   _mp3_error, 0 /* message */);
 
 	/* start decoding */
