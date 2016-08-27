@@ -2292,6 +2292,8 @@ void vUARTTask(void *pvParameters) {
 	********************************************************************************
 	*/
 	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
+
 #endif
 #ifndef DEMO
 	if( on_charger ) {
@@ -2311,9 +2313,6 @@ void vUARTTask(void *pvParameters) {
 			mac[3], mac[4], mac[5]);
 	print_nwp_version();
 	UARTprintf("> ");
-
-
-	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 
 	/* Loop forever */
 	while (1) {
