@@ -190,10 +190,7 @@ _find_newest_log(FILINFO * info, void * ctx){
 }
 static char*
 _full_log_name(char * full_name, char * local){
-	strcat(full_name, "/");
-	strcat(full_name, SENSE_LOG_FOLDER);
-	strcat(full_name, "/");
-	strcat(full_name, local);
+	usnprintf(full_name, 32, "/" SENSE_LOG_FOLDER "/%s", local);
 	return full_name;
 }
 static FRESULT
