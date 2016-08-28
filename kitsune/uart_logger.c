@@ -588,7 +588,7 @@ static bool send_log() {
 	}
 #endif
 	//no timeout on this one...
-#if 0
+#if 1
     return NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
     		sense_log_fields,&self.log, 0, NULL, NULL, NULL, false);
 #else
