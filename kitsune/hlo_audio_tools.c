@@ -261,6 +261,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	hlo_stream_t * hmac_payload_str = hlo_hmac_stream(output, key, sizeof(key) );
 	assert(hmac_payload_str);
 
+	uint32_t begin = xTaskGetTickCount();
+
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
 		if( nn_ctx.keyword_detected > 0 ) {
 			if( !light_open ) {
@@ -276,7 +278,12 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 		}
 		BREAK_ON_SIG(signal);
-
+		if(nn_ctx.keyword_detected == 0 &&
+				xTaskGetTickCount() - begin > 10*60*1000 ) {
+			hlo_stream_close(hmac_payload_str);
+			keyword_net_deinitialize();
+			return HLO_STREAM_EOF;
+		}
 	}
 
 	// grab the running hmac and drop it in the stream

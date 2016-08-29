@@ -2291,7 +2291,7 @@ void vUARTTask(void *pvParameters) {
 	*           AUDIO INIT END
 	********************************************************************************
 	*/
-	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
+	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 2, NULL);
 	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 
 #endif
