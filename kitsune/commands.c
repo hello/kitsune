@@ -1635,15 +1635,19 @@ static void CreateDefaultDirectories(void) {
 	CreateDirectoryIfNotExist("/usr");
 }
 
-static int Cmd_test_3200_rtc(int argc, char*argv[]) {
+
+
+time_t get_unix_time();
+uint32_t set_unix_time(time_t unix_timestamp_sec);
+int Cmd_test_3200_rtc(int argc, char*argv[]) {
     unsigned int dly = atoi(argv[1]);
 	if( argc != 2 ) {
 		dly = 3000;
 	}
-	set_sl_time(0);
-	LOGF("time is %u\n", get_sl_time() );
+	uint32_t now = get_unix_time();
+	LOGF("time is %u\n", get_unix_time()-now );
 	vTaskDelay(dly);
-	LOGF("time is %u\n", get_sl_time() );
+	LOGF("time is %u\n", get_unix_time()-now );
 	return 0;
 }
 
