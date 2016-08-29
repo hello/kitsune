@@ -241,6 +241,7 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 
 
 extern volatile int sys_volume;
+int32_t set_volume(int v, unsigned int dly)
 
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
