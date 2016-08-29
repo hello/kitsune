@@ -9,6 +9,7 @@
 
 #include "audiohelper.h"
 #include "hw_memmap.h"
+#include "rom.h"
 #include "rom_map.h"
 #include "audio_types.h"
 
@@ -34,19 +35,20 @@ static volatile uint32_t last_play;
 extern bool is_playback_active(void);
 extern void set_isr_playback(bool active);
 
+volatile int sys_volume = 64;
+
 ////------------------------------
 //codec routines
+int32_t codec_test_commands(void);
+int32_t codec_init(void);
 static void _reset_codec(void){
 	// Reset codec
 	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
-	vTaskDelay(10);
-	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
-
 	vTaskDelay(20);
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
+	vTaskDelay(30);
 
-#ifdef CODEC_1P5_TEST
-	codec_test_commands();
-#endif
+	//codec_test_commands();
 
 	// Program codec
 	codec_init();
@@ -62,16 +64,23 @@ static int _open_playback(){
 	return 0;
 
 }
+bool set_volume(int v, unsigned int dly);
 
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
 		if(!is_playback_active()){
 			set_isr_playback(true);
 		}
-		if(!xSemaphoreTake(playback_isr_sem,5000)){
+		if(!xSemaphoreTake(playback_isr_sem,10)){
 			LOGI("ISR Failed\r\n");
-#if 0
-			return _reinit_playback(playback_sr, initial_vol);
+#if 1
+			Audio_Stop();
+			_reset_codec();
+			InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
+			InitAudioPlayback();
+			set_volume(sys_volume, portMAX_DELAY);
+			Audio_Start();
+			return 0;
 #else
 			return HLO_STREAM_ERROR;
 #endif
@@ -104,10 +113,15 @@ static int _open_record(){
 }
 static int _read_record_mono(void * ctx, void * buf, size_t size){
 	if( !IsBufferSizeFilled(pTxBuffer, LISTEN_WATERMARK) ){
-		if(!xSemaphoreTake(record_isr_sem,5000)){
+		if(!xSemaphoreTake(record_isr_sem,10)){
 			LOGI("ISR Failed\r\n");
-#if 0
-			return _reinit_record(record_sr, initial_gain);
+#if 1
+			Audio_Stop();
+			_reset_codec();
+			InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
+			InitAudioCapture();
+			Audio_Start();
+			return 0;
 #else
 //			mcu_reset();
 			return HLO_STREAM_ERROR;
@@ -120,7 +134,6 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 	}
 	return 0;
 }
-bool set_volume(int v, unsigned int dly);
 // TODO might need two functions for close of capture and playback?
 static int _close(void * ctx){
 	return HLO_STREAM_NO_IMPL;

@@ -1723,8 +1723,6 @@ void launch_tasks() {
 	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
 
-	hlo_audio_init();
-
 	// Create audio tasks for playback and record
 	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
 	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
@@ -1925,9 +1923,11 @@ int Cmd_time_test(int argc, char * argv[]);
 int cmd_file_sync_upload(int argc, char *argv[]);
 
 extern volatile int ch;
+extern volatile int sys_volume;
 
 int cmd_vol(int argc, char *argv[]) {
- return set_volume(atoi(argv[1]), portMAX_DELAY);;
+ sys_volume = atoi(argv[1]);
+ return set_volume(sys_volume, portMAX_DELAY);;
 }
 
 
@@ -2275,23 +2275,6 @@ void vUARTTask(void *pvParameters) {
 
 //#define DEMO
 
-	// Reset codec
-	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
-	vTaskDelay(10);
-	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
-
-	vTaskDelay(20);
-
-#ifdef CODEC_1P5_TEST
-	codec_test_commands();
-#endif
-
-	// Program codec
-	codec_init();
-
-	// McASP and DMA init
-	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
-
 	hlo_audio_init();
 
 	// Create audio tasks for playback and record
@@ -2308,7 +2291,6 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 2, NULL);
 	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 
-#endif
 #ifndef DEMO
 	if( on_charger ) {
 		launch_tasks();

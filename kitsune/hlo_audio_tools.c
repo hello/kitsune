@@ -243,6 +243,8 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 }
 
 
+extern volatile int sys_volume;
+
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
 	int ret = 0;
@@ -328,7 +330,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_PLAYBACK);
 			DISP("Playback Audio\r\n");
 			aud = hlo_light_stream( aud );
-			set_volume(64, portMAX_DELAY);
+			set_volume(sys_volume, portMAX_DELAY);
 			hlo_filter_mp3_decoder(output,aud,NULL,signal);
 			DISP("\r\n===========\r\n");
 		hlo_stream_close(aud);

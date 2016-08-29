@@ -416,6 +416,7 @@ char* strsep( char** stringp, const char* delim )
   }
 
 
+extern volatile int sys_volume;
 #include "hlo_pipe.h"
 #include "hlo_audio.h"
 #include "fs_utils.h"
@@ -507,7 +508,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					}else{
 						rstr = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_PLAYBACK);
 					}
-					set_volume(64, portMAX_DELAY);
+					set_volume(sys_volume, portMAX_DELAY);
 				}
 				break;
 				case 'i':
