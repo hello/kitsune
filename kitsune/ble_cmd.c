@@ -36,24 +36,11 @@ static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field
 	data.bssid.arg = &arr;
 
 
-	switch(wifi_ap->SecurityInfo)
-	{
-		case SL_WLAN_SEC_TYPE_OPEN:
-		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_OPEN;
-		break;
-
-		case SL_WLAN_SEC_TYPE_WEP:
-		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WEP;
-		break;
-
-	/*	TODO wtf
-	 * case SL_WLAN_SEC_TYPE_WPA:
+	if( (SL_WLAN_SEC_TYPE_WPA|SL_WLAN_SEC_TYPE_WPA_WPA2) &
+			(SL_WLAN_SCAN_RESULT_SEC_TYPE_BITMAP(wifi_ap->SecurityInfo))) {
 		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA;
-		break;*/
-
-		case SL_WLAN_SEC_TYPE_WPA_WPA2:
-		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2;
-		break;
+	} else {
+		data.security_type = SL_WLAN_SCAN_RESULT_SEC_TYPE_BITMAP(wifi_ap->SecurityInfo);
 	}
 
 	data.rssi = wifi_ap->Rssi;

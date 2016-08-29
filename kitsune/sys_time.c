@@ -103,14 +103,14 @@ static int set_rtc_time(struct tm * dt) {
 	return 0;
 }
 
-static time_t get_unix_time()
+time_t get_unix_time()
 {
     struct tm dt =  {0};
     get_rtc_time(&dt);
     return mktime(&dt);
 }
 
-static uint32_t set_unix_time(time_t unix_timestamp_sec)
+uint32_t set_unix_time(time_t unix_timestamp_sec)
 {
 	if(unix_timestamp_sec > 0) {
 	    //set the RTC

@@ -243,6 +243,8 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 }
 
 
+extern volatile int sys_volume;
+
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
 	int ret = 0;
@@ -261,6 +263,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	get_aes(key);
 	hlo_stream_t * hmac_payload_str = hlo_hmac_stream(output, key, sizeof(key) );
 	assert(hmac_payload_str);
+
+	uint32_t begin = xTaskGetTickCount();
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
 		if( !ready ) {
@@ -281,7 +285,12 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 		}
 		BREAK_ON_SIG(signal);
-
+		if(nn_ctx.keyword_detected == 0 &&
+				xTaskGetTickCount() - begin > 10*60*1000 ) {
+			hlo_stream_close(hmac_payload_str);
+			keyword_net_deinitialize();
+			return HLO_STREAM_EOF;
+		}
 	}
 
 	// grab the running hmac and drop it in the stream
@@ -326,7 +335,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_PLAYBACK);
 			DISP("Playback Audio\r\n");
 			aud = hlo_light_stream( aud, false, LED_MAX/4 );
-			set_volume(64, portMAX_DELAY);
+			set_volume(sys_volume, portMAX_DELAY);
 			hlo_filter_mp3_decoder(output,aud,NULL,signal);
 			DISP("\r\n===========\r\n");
 		hlo_stream_close(aud);

@@ -496,10 +496,10 @@ static bool cancel_alarm() {
 int set_test_alarm(int argc, char *argv[]) {
 	SyncResponse_Alarm alarm;
 	unsigned int now = get_time();
-	alarm.end_time = now + 45;
+	alarm.end_time = now + 205;
 	alarm.start_time = now + 5;
-	alarm.ring_duration_in_second = 40;
-	alarm.ring_offset_from_now_in_second = 5;
+	alarm.ring_duration_in_second = 200;
+	alarm.ring_offset_from_now_in_second = 2;
 	strncpy(alarm.ringtone_path, "/ringtone/tone.raw",
 			strlen("/ringtone/tone.raw"));
 
@@ -1635,15 +1635,19 @@ static void CreateDefaultDirectories(void) {
 	CreateDirectoryIfNotExist("/usr");
 }
 
-static int Cmd_test_3200_rtc(int argc, char*argv[]) {
+
+
+time_t get_unix_time();
+uint32_t set_unix_time(time_t unix_timestamp_sec);
+int Cmd_test_3200_rtc(int argc, char*argv[]) {
     unsigned int dly = atoi(argv[1]);
 	if( argc != 2 ) {
 		dly = 3000;
 	}
-	set_sl_time(0);
-	LOGF("time is %u\n", get_sl_time() );
+	uint32_t now = get_unix_time();
+	LOGF("time is %u\n", get_unix_time()-now );
 	vTaskDelay(dly);
-	LOGF("time is %u\n", get_sl_time() );
+	LOGF("time is %u\n", get_unix_time()-now );
 	return 0;
 }
 
@@ -1719,11 +1723,19 @@ void launch_tasks() {
 	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
 
+	// Create audio tasks for playback and record
+	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
+	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
+
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
+
+
 	/*******************************************************************************
-	*           AUDIO INIT START
+	*           AUDIO INIT END
 	********************************************************************************
 	*/
-
+	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
+#endif
 }
 
 
@@ -1911,9 +1923,11 @@ int Cmd_time_test(int argc, char * argv[]);
 int cmd_file_sync_upload(int argc, char *argv[]);
 
 extern volatile int ch;
+extern volatile int sys_volume;
 
 int cmd_vol(int argc, char *argv[]) {
- return set_volume(atoi(argv[1]), portMAX_DELAY);;
+ sys_volume = atoi(argv[1]);
+ return set_volume(sys_volume, portMAX_DELAY);;
 }
 
 
@@ -2261,23 +2275,6 @@ void vUARTTask(void *pvParameters) {
 
 //#define DEMO
 
-	// Reset codec
-	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
-	vTaskDelay(10);
-	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
-
-	vTaskDelay(20);
-
-#ifdef CODEC_1P5_TEST
-	codec_test_commands();
-#endif
-
-	// Program codec
-	codec_init();
-
-	// McASP and DMA init
-	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
-
 	hlo_audio_init();
 
 	// Create audio tasks for playback and record
@@ -2291,8 +2288,9 @@ void vUARTTask(void *pvParameters) {
 	*           AUDIO INIT END
 	********************************************************************************
 	*/
-	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
-#endif
+	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 2, NULL);
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
+
 #ifndef DEMO
 	if( on_charger ) {
 		launch_tasks();
@@ -2311,9 +2309,6 @@ void vUARTTask(void *pvParameters) {
 			mac[3], mac[4], mac[5]);
 	print_nwp_version();
 	UARTprintf("> ");
-
-
-	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 
 	/* Loop forever */
 	while (1) {
