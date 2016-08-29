@@ -211,6 +211,7 @@ typedef struct{
 	int32_t eng;
 	int32_t ctr;
 	uint32_t off;
+	uint32_t begin;
 }light_stream_t;
 
 static void _do_lights(void * ctx, const void * buf, size_t size) {
@@ -242,6 +243,12 @@ static void _do_lights(void * ctx, const void * buf, size_t size) {
 			if( light < 20 ){
 				light = 20;
 			}
+
+			uint32_t d =  xTaskGetTickCount() - stream->begin;
+			if( d < 1000 ) {
+				light = (light*d/1000);
+			}
+
 			set_modulation_intensity( light );
 			stream->ctr = 0;
 			stream->eng = 0;
@@ -289,6 +296,7 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base, bool start, uint32_t offse
 	DISP("open light\n") ;
 	play_modulation(140,29,237,30,0);
 	}
+	stream->begin = xTaskGetTickCount();
 
 	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
 }
