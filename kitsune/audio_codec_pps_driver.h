@@ -224,7 +224,7 @@ static const reg_value REG_Section_program2[] = {
 #endif
     {  0x7F,0x00},
 //			# reg[0][0][63] = 0xc2                       ; reg(0)(0)(0x3f => 63)     DAC L&R DAC powerup Ldata-LDAC Rdata-RDAC (soft-stepping disable)
-    { 63,0xC2},
+    { 63,0xC0},
 //			# reg[0][0][64] = 0x00                       ; reg(0)(0)(0x40 => 64)     DAC Left and Right DAC unmuted with indep.  vol. ctrl
     { 64,0x00},
 #if (KITSUNE_CODE==1)
