@@ -6,7 +6,7 @@
 typedef enum {
 	none = 0,
 	okay_sense,
-//	stop,
+	okay,
 //	snooze,
 //	alexa,
 	NUM_KEYWORDS
