@@ -227,9 +227,6 @@ typedef struct{
 	uint32_t timeout;
 }nn_keyword_ctx_t;
 
-volatile int 		k = 0;
-
-
 static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	if (keyword == okay_sense) {
 			DISP("OKAY SENSE\r\n");
@@ -238,15 +235,12 @@ static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
 static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	if (keyword == okay_sense) {
 		DISP("Keyword Done\r\n");
-		k = 1;
 		((nn_keyword_ctx_t *)ctx)->keyword_detected++;
 	}
 }
 
 
 extern volatile int sys_volume;
-
-int32_t set_volume(int v, unsigned int dly);
 
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
@@ -268,14 +262,13 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	assert(hmac_payload_str);
 
 	uint32_t begin = xTaskGetTickCount();
-	k = 0;
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
 		if( !ready ) {
 			ready = true;
 			stop_led_animation( 0, 33 );
 		}
-		if( k > 0 ) {
+		if( nn_ctx.keyword_detected > 0 ) {
 			if( !light_open ) {
 				input = hlo_light_stream( input,true, 300 );
 				input = hlo_stream_en( input );
