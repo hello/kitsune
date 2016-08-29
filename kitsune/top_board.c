@@ -13,6 +13,7 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "timers.h"
 //#include "led_cmd.h"
 //#include "led_animations.h"
 #include "uart_logger.h"
@@ -102,6 +103,13 @@ _printchar(uint8_t c){
 
 int sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
 int verify_top_update(void);
+
+static TimerHandle_t boot_timer;
+
+int Cmd_SyncID(int argc, char * argv[]);
+static void boot_check( TimerHandle_t pxTimer ) {
+	Cmd_SyncID(0, 0);
+}
 
 static int32_t
 _encode_and_send(uint8_t* orig, uint32_t size){
@@ -286,17 +294,17 @@ static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_cr
 	uint16_t crc = 0xFFFFu;
 	SlFsFileInfo_t info;
 	sl_FsGetInfo((unsigned char*)name, tok, &info);
-	if(sl_FsOpen((unsigned char*)name, FS_MODE_OPEN_READ, &tok, &hndl)){
-		LOGI("error opening for read %s.\r\n", name);
-		return -1;
+	if(hndl = sl_FsOpen((unsigned char*)name, SL_FS_READ, &tok) < 0){
+		LOGI("error opening for read %s. %d\r\n", name, hndl);
+		return hndl;
 	}else{
 		LOGI("Opened fw for top ota: %s.\r\n", name);
     }
-	uint32_t bytes_to_read = info.FileLen;
+	uint32_t bytes_to_read = info.Len;
 	uint32_t bytes;
 	while(bytes_to_read){
 		bytes = sl_FsRead(hndl,
-				info.FileLen - bytes_to_read,
+				info.Len - bytes_to_read,
 				buffer,
 				min(sizeof(buffer), bytes_to_read));
 		if ( bytes ){
@@ -306,7 +314,7 @@ static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_cr
 	}
 	//sl_FsClose(hndl, 0,0,0);
 	*out_crc = crc;
-	*out_fsize = info.FileLen;
+	*out_fsize = info.Len;
 	*out_handle = hndl;
 	LOGI("Bytes Read %u, crc = %u.\r\n", *out_fsize, *out_crc);
 	return 0;
@@ -355,7 +363,6 @@ int top_board_dfu_begin(const char * bin){
 		LOGI("Already in dfu mode, resetting context\r\n");
 	}
 	return 0;
-
 }
 int wait_for_top_boot(unsigned int timeout) {
 	unsigned int start = xTaskGetTickCount();
@@ -410,6 +417,9 @@ int Cmd_send_top(int argc, char *argv[]){
 }
 void top_board_notify_boot_complete(void){
 	self.top_boot = true;
+	if( boot_timer ) {
+		xTimerStop(boot_timer, portMAX_DELAY);
+	}
 }
 void set_top_update_sha(const char * shasum, unsigned int imgnum){
     _load_top_info(&self.info);
@@ -442,24 +452,10 @@ int verify_top_update(void){
     _load_top_info(&self.info);
     return sf_sha1_verify((char*)self.info.update_sha, "/top/update.bin");
 }
-int Cmd_SyncID(int argc, char * argv[]);
-void _boot_watcher_task(hlo_future_t * result, void * ctx){
-	int retries = 0;
-	while(1){
-		if(self.top_boot == 0){
-			LOGW("Attempting to resync ID\r\n");
-			Cmd_SyncID(0, 0);
-			if(retries++ > 3){
-				LOGE("Unable to boot top board!\r\n");
-			}
-		}else{
-			break;
-		}
-		vTaskDelay(10000);
-	}
-	hlo_future_write(result, NULL, 0, 0);
-	LOGI("top boot watch exit\r\n");
-}
+
 void start_top_boot_watcher(void){
-	hlo_future_destroy(hlo_future_create_task_bg(_boot_watcher_task, NULL, 1024));
+	boot_timer = xTimerCreate("Boot timer",10000,pdTRUE, 0, boot_check);
+	if( boot_timer ) {
+		xTimerStart( boot_timer, portMAX_DELAY );
+	}
 }

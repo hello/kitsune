@@ -69,8 +69,7 @@
 #define GTEST_INCLUDE_GTEST_INTERNAL_GTEST_LINKED_PTR_H_
 
 #include <stdlib.h>
-#include "kit_assert.h"
-
+#include <assert.h>
 #include "gtest/internal/gtest-port.h"
 
 namespace testing {

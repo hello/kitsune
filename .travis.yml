@@ -19,7 +19,7 @@ deploy:
   bucket: hello-firmware
   skip_cleanup: true
   local-dir: exe
-  upload-dir: sense/$TRAVIS_BRANCH
+  upload-dir: sense1p5/$TRAVIS_BRANCH
   on:
     repo: hello/kitsune
     all_branches: true
@@ -30,7 +30,7 @@ deploy:
   bucket: hello-firmware
   skip_cleanup: true
   local-dir: exe
-  upload-dir: sense/$TRAVIS_TAG
+  upload-dir: sense1p5/$TRAVIS_TAG
   on:
     repo: hello/kitsune
     all_branches: true

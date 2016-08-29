@@ -134,6 +134,8 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message, 
 	attempt_count = 0;
 	timeout_counts = message->retry_timeout;
 
+	message->interrupted = false;
+
 	while (1) {
 
 		DEBUG_PRINTF("NT %s%s -- %d",message->host,message->endpoint,attempt_count);
@@ -178,9 +180,12 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message, 
 				while( countdown > 0 ) {
 					NetworkTaskServerSendMessage_t m;
 					if( xQueuePeek( _asyncqueue, &m, 0 ) ) {
-						if( m.priority && xQueueSend( _asyncqueue, ( const void * ) message, 0 ) ) {
-							DEBUG_PRINTF("NT switching to higher priority message");
-							goto next_message;
+						if( m.priority ) {
+							message->interrupted = true;
+							if( xQueueSend( _asyncqueue, ( const void * ) message, 0 ) ) {
+								DEBUG_PRINTF("NT switching to higher priority message");
+								goto next_message;
+							}
 						}
 					}
 					countdown -= 500;
@@ -228,9 +233,6 @@ static void NetworkTask_Thread(void * networkdata) {
 
 	for (; ;) {
 		xQueueReceive( _asyncqueue, &message, portMAX_DELAY );
-		if (message.begin) {
-			message.begin(&message);
-		}
 
 		if( message.response_handle ) {
 			*message.response_handle = nettask_send(&message, &sock);
@@ -238,7 +240,7 @@ static void NetworkTask_Thread(void * networkdata) {
 			nettask_send(&message, &sock);
 		}
 
-		if( message.end ) {
+		if( !message.interrupted && message.end ) {
 			message.end(&message);
 		}
 	}

@@ -54,10 +54,10 @@ unsigned char sha[SHA1_SIZE] = {0};
 /******************************************************************************
    Image file names
 *******************************************************************************/
-#define IMG_BOOT_INFO           "/sys/mcubootinfo.bin"
-#define IMG_FACTORY_DEFAULT     "/sys/mcuimg1.bin"
-#define IMG_USER_1              "/sys/mcuimg2.bin"
-#define IMG_USER_2              "/sys/mcuimg3.bin"
+#define IMG_BOOT_INFO           "/ota/mcubootinfo.bin"
+#define IMG_FACTORY_DEFAULT     "/ota/mcuimg1.bin"
+#define IMG_USER_1              "/ota/mcuimg2.bin"
+#define IMG_USER_2              "/ota/mcuimg3.bin"
 
 /******************************************************************************
    Image status
@@ -104,7 +104,6 @@ sBootInfo_t sBootInfo;
 //*****************************************************************************
 // Local Variables
 //*****************************************************************************
-static long lFileHandle;
 static int  iRetVal;
 static SlFsFileInfo_t pFsFileInfo;
 
@@ -112,7 +111,6 @@ static unsigned long ulFactoryImgToken;
 static unsigned long ulUserImg1Token;
 static unsigned long ulUserImg2Token;
 static unsigned long ulBootInfoToken;
-static unsigned long ulBootInfoCreateFlag;
 
 
 
@@ -139,8 +137,8 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pWlanEvent)
 //*****************************************************************************
 // HTTP Server callback hookup function
 //*****************************************************************************
-void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pHttpEvent,
-                                  SlHttpServerResponse_t *pHttpResponse)
+void SimpleLinkHttpServerCallback(SlNetAppHttpServerEvent_t *pHttpEvent,
+                                  SlNetAppHttpServerResponse_t *pHttpResponse)
 {
 
 }
@@ -167,6 +165,60 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 
 }
 
+void
+UARTprintf(const char *pcString, ...){
+
+}
+void SimpleLinkFatalErrorEventHandler(SlDeviceFatal_t *slFatalErrorEvent){
+
+}
+void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent)
+{
+}
+#include "timer.h"
+static unsigned long g_ulTimerA2Base;
+void simplelink_timerA2_start()
+{
+    // Base address for second timer
+    //
+    g_ulTimerA2Base = TIMERA2_BASE;
+
+    //
+    // Configuring the timerA2
+    //
+    MAP_PRCMPeripheralClkEnable(PRCM_TIMERA2,PRCM_RUN_MODE_CLK);
+    MAP_PRCMPeripheralReset(PRCM_TIMERA2);
+    MAP_TimerConfigure(g_ulTimerA2Base,TIMER_CFG_PERIODIC);
+    MAP_TimerPrescaleSet(g_ulTimerA2Base,TIMER_A,0);
+
+    /* configure the timer counter load value to max 32-bit value */
+    MAP_TimerLoadSet(g_ulTimerA2Base,TIMER_A, 0xFFFFFFFF);
+    //
+    // Enable the GPT
+    //
+    MAP_TimerEnable(g_ulTimerA2Base,TIMER_A);
+
+
+}
+void simplelink_timerA2_stop(){
+	MAP_TimerDisable(g_ulTimerA2Base,TIMER_A);
+}
+unsigned long TimerGetCurrentTimestamp()
+{
+	 return (0xFFFFFFFF - TimerValueGet(g_ulTimerA2Base,TIMER_A));
+}
+void usertraceMALLOC( void * pvAddress, size_t uiSize ) {
+
+}
+
+void usertraceFREE( void * pvAddress, size_t uiSize ) {
+
+}
+void
+vAssertCalled( const char * s )
+{
+
+}
 //*****************************************************************************
 //
 //! Board Initialization & Configuration
@@ -176,6 +228,10 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 //! \return None
 //
 //*****************************************************************************
+
+extern void (* const g_pfnVectors[])(void);
+#pragma DATA_SECTION(ulRAMVectorTable, ".ramvecs")
+unsigned long ulRAMVectorTable[256];
 static void
 BoardInit(void)
 {
@@ -183,20 +239,22 @@ BoardInit(void)
   //
   // Set vector table base
   //
+#ifndef USE_TIRTOS
 #if defined(ccs) || defined(gcc)
-    MAP_IntVTableBaseSet((unsigned long)&g_pfnVectors[0]);
+	memcpy(ulRAMVectorTable,g_pfnVectors,16*4);
 #endif
 
 #if defined(ewarm)
-    MAP_IntVTableBaseSet((unsigned long)&__vector_table);
+	memcpy(ulRAMVectorTable,&__vector_table,16*4);
 #endif
-
+	IntVTableBaseSet((unsigned long)&ulRAMVectorTable[0]);
+#endif
   //
   // Enable Processor Interrupts
   //
   IntMasterEnable();
   IntEnable(FAULT_SYSTICK);
-
+  simplelink_timerA2_start();
   //
   // Mandatory MCU Initialization
   //
@@ -291,37 +349,81 @@ __asm("    .sect \".text:Run\"\n"
 //
 //*****************************************************************************
 int file_len = 0;
+#include "flash.h"
+#define TRANSFER_BUFFER_SIZE (2048)
+static int load_to_flash(long handle, _u32 flash_start, _u32 size){
+	int ret = 0;
+	_u8 buf[TRANSFER_BUFFER_SIZE];
+	_u32 erase_address = flash_start;
+	while(ret == 0 && erase_address < (flash_start + size) ){
+		FlashErase(erase_address);
+		erase_address += 2048;
+	}
+	if( ret == 0){
+		_u32 write_start = flash_start;
+		_u32 read_offset = 0;
+
+		while(size){
+			_u32 bytes_to_xfer = (size >= TRANSFER_BUFFER_SIZE ) ? TRANSFER_BUFFER_SIZE : size; //allow room to grow to
+			ret = sl_FsRead(handle, read_offset, buf, bytes_to_xfer);
+			if(ret < 0){
+				break;
+			}else{
+				ret = FlashProgram((unsigned long *)buf, write_start, bytes_to_xfer);
+				if(ret != 0){
+					break;
+				}
+				write_start += bytes_to_xfer;
+				read_offset += bytes_to_xfer;
+				size -= bytes_to_xfer;
+			}
+		}
+	}
+	return ret;
+}
 int Load(unsigned char *ImgName, unsigned long ulToken) {
 	//
 	// Open the file for reading
 	//
-	iRetVal = sl_FsOpen(ImgName, FS_MODE_OPEN_READ, &ulToken, &lFileHandle);
+	long handle;
+	if(0 != sl_FsGetInfo(ImgName, ulToken, &pFsFileInfo)){
+		return -1;
+	}
+	handle = sl_FsOpen(ImgName, SL_FS_READ, &ulToken);
 	//
 	// Check if successfully opened
 	//
-	if (0 == iRetVal) {
+	if (handle >= 0) {
 		//
 		// Get the file size using File Info structure
 		//
-		iRetVal = sl_FsGetInfo(ImgName, ulToken, &pFsFileInfo);
-		file_len = pFsFileInfo.FileLen;
-		//
-		// Check for failure
-		//
-		if (0 == iRetVal) {
 
-			//
-			// Read the application into SRAM
-			//
-			iRetVal = sl_FsRead(lFileHandle, 0,
-					(unsigned char *) APP_IMG_SRAM_OFFSET, pFsFileInfo.FileLen);
-		}
+		file_len = pFsFileInfo.Len;
+		//
+		// Read the application into SRAM
+		//TODO finish this
+		/** legacy, for reference
+		iRetVal = sl_FsRead(lFileHandle, 0,
+				(unsigned char *) APP_IMG_SRAM_OFFSET, pFsFileInfo.Len);
+		*/
+		iRetVal = load_to_flash(handle, APP_IMG_FLASH_OFFSET, file_len);
+		sl_FsClose(handle, 0,0,0);
+		return iRetVal;
+
 	}
-	return iRetVal != pFsFileInfo.FileLen;
+	return -1;
 }
-int Test(unsigned int img) {
+int GetSize(const unsigned char * name){
+	SlFsFileInfo_t info = {0};
+	if(0 == sl_FsGetInfo(name, 0, &info)){
+		return info.Len;
+	}else{
+		return 0;
+	}
+}
+int Test(unsigned int img, int len) {
 	SHA1_Init(&sha1ctx);
-	SHA1_Update(&sha1ctx, (unsigned char *) APP_IMG_SRAM_OFFSET, file_len);
+	SHA1_Update(&sha1ctx, (unsigned char *) APP_IMG_FLASH_OFFSET, len);
 	SHA1_Final(sha, &sha1ctx);
 
 	return memcmp(sha, sBootInfo.sha[img], SHA1_SIZE) == 0;
@@ -336,7 +438,8 @@ void Execute() {
     // Execute the application.
     //
     start_wdt(); //if we do load something bad, the wdt will get us back and we can load the other image...
-    Run(APP_IMG_SRAM_OFFSET);
+    simplelink_timerA2_stop();
+    Run(APP_IMG_FLASH_OFFSET);
 }
 void LoadAndExecute(unsigned char *ImgName, unsigned long ulToken)
 {
@@ -344,7 +447,6 @@ void LoadAndExecute(unsigned char *ImgName, unsigned long ulToken)
 		Execute();
 	}
 }
-
 
 //*****************************************************************************
 //
@@ -365,8 +467,7 @@ static long BootInfoWrite(sBootInfo_t *psBootInfo)
   //
   // Open the boot info file for write
   //
-  if( 0 == sl_FsOpen((unsigned char *)IMG_BOOT_INFO, FS_MODE_OPEN_WRITE,
-                      &ulToken, &lFileHandle) )
+  if((lFileHandle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, SL_FS_WRITE, &ulToken)) >= 0 )
   {
     //
     // Write the boot info
@@ -435,7 +536,7 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 
 		case IMG_ACT_USER1:
 			Load((unsigned char *) IMG_USER_2, ulUserImg2Token);
-			if (!Test(IMG_ACT_USER2)) {
+			if (!Test(IMG_ACT_USER2, GetSize((const unsigned char *)IMG_USER_2))) {
 				LoadAndExecute((unsigned char *) IMG_USER_1, ulUserImg1Token);
 			} else {
 				Execute();
@@ -444,7 +545,7 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 
 		default:
 			Load((unsigned char *) IMG_USER_1, ulUserImg2Token);
-			if (!Test(IMG_ACT_USER1)) {
+			if (!Test(IMG_ACT_USER1, GetSize((const unsigned char *)IMG_USER_1))) {
 				LoadAndExecute((unsigned char *) IMG_USER_2, ulUserImg1Token);
 			} else {
 				Execute();
@@ -466,7 +567,7 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 
 		case IMG_ACT_USER1:
 			Load((unsigned char *) IMG_USER_1, ulUserImg2Token);
-			if (!Test(IMG_ACT_USER1)) {
+			if (!Test(IMG_ACT_USER1,  GetSize((const unsigned char *)IMG_USER_1))) {
 				LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulUserImg1Token);
 			} else {
 				Execute();
@@ -475,7 +576,7 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 
 		case IMG_ACT_USER2:
 			Load((unsigned char *) IMG_USER_2, ulUserImg2Token);
-			if (!Test(IMG_ACT_USER2)) {
+			if (!Test(IMG_ACT_USER2,  GetSize((const unsigned char *)IMG_USER_2))) {
 				LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulUserImg1Token);
 			} else {
 				Execute();
@@ -493,35 +594,6 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 	//
 	LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT, ulFactoryImgToken);
 
-}
-
-//*****************************************************************************
-//
-//! Checks if the device is secure
-//!
-//! This function checks if the device is a secure device or not.
-//!
-//! \return Returns \b true if device is secure, \b false otherwise
-//
-//*****************************************************************************
-static inline tBoolean IsSecureMCU()
-{
-  unsigned long ulChipId;
-
-  ulChipId =(HWREG(GPRCM_BASE + GPRCM_O_GPRCM_EFUSE_READ_REG2) >> 16) & 0x1F;
-
-  if((ulChipId != DEVICE_IS_CC3101RS) &&(ulChipId != DEVICE_IS_CC3101S))
-  {
-    //
-    // Return non-Secure
-    //
-    return false;
-  }
-
-  //
-  // Return secure
-  //
-  return true;
 }
 
 //*****************************************************************************
@@ -574,7 +646,10 @@ static int CreateDefaultBootInfo(sBootInfo_t *psBootInfo)
     return -1;
 }
 
+void SimpleLinkSocketTriggerEventHandler(SlSockTriggerEvent_t	*pSlTriggerEvent)
+{
 
+}
 //*****************************************************************************
 //
 //! Main function
@@ -601,47 +676,26 @@ int main()
   //
   sBootInfo.ucActiveImg = IMG_ACT_FACTORY;
   sBootInfo.ulImgStatus = IMG_STATUS_NOTEST;
-
-  //
-  // Initialize boot info file create flag
-  //
-  ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE;
-
-  //
-  // Check if its a secure MCU
-  //
-  if ( IsSecureMCU() )
-  {
-    ulFactoryImgToken     = FACTORY_IMG_TOKEN;
-    ulUserImg1Token       = USER_IMG_1_TOKEN;
-    ulUserImg2Token       = USER_IMG_2_TOKEN;
-    ulBootInfoToken       = USER_BOOT_INFO_TOKEN;
-    ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_OPEN_FLAG_SECURE|
-                            _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST|
-                            _FS_FILE_PUBLIC_WRITE|_FS_FILE_OPEN_FLAG_VENDOR;
-  }
-
-
   //
   // Start slhost to get NVMEM service
   //
   sl_Start(NULL, NULL, NULL);
+  sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(0, 0, 0, 0), NULL, 0);
 
   //
   // Open Boot info file for reading
   //
-  iRetVal = sl_FsOpen((unsigned char *)IMG_BOOT_INFO,
-                        FS_MODE_OPEN_READ,
-                        &ulBootInfoToken,
-                        &lFileHandle);
+  long handle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO,
+		  SL_FS_READ,
+		  &ulBootInfoToken);
 
   //
   // If successful, load the boot info
   // else create a new file with default boot info.
   //
-  if( 0 == iRetVal )
+  if( handle >= 0 )
   {
-    iRetVal = sl_FsRead(lFileHandle,0,
+    iRetVal = sl_FsRead(handle,0,
                          (unsigned char *)&sBootInfo,
                          sizeof(sBootInfo_t));
 
@@ -652,18 +706,16 @@ int main()
     //
     // Create a new boot info file
     //
-    iRetVal = sl_FsOpen((unsigned char *)IMG_BOOT_INFO,
-                        FS_MODE_OPEN_CREATE(2*sizeof(sBootInfo_t),
-                                            ulBootInfoCreateFlag),
-                                            &ulBootInfoToken,
-                                            &lFileHandle);
+	  handle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO,
+			  	  SL_FS_CREATE|SL_FS_OVERWRITE| SL_FS_CREATE_MAX_SIZE( 2 * sizeof(sBootInfo_t)),
+                 &ulBootInfoToken);
 
     //
     // Create a default boot info
     //
     iRetVal = CreateDefaultBootInfo(&sBootInfo);
 
-    if(iRetVal != 0)
+    if(handle < 0)
     {
       //
       // Can't boot no bootable image found
@@ -677,7 +729,7 @@ int main()
     //
     // Write the default boot info.
     //
-    iRetVal = sl_FsWrite(lFileHandle,0,
+    iRetVal = sl_FsWrite(handle,0,
                          (unsigned char *)&sBootInfo,
                          sizeof(sBootInfo_t));
   }
@@ -685,7 +737,7 @@ int main()
   //
   // Close boot info function
   //
-  sl_FsClose(lFileHandle, 0, 0, 0);
+  sl_FsClose(handle, 0, 0, 0);
 
   //
   // Load and execute the image base on boot info.

@@ -94,9 +94,9 @@
 #define configCPU_CLOCK_HZ				( ( unsigned long )80000000 )
 #define configTICK_RATE_HZ				( ( portTickType ) 1000 )
 //#define configSYSTICK_CLOCK_HZ          ( ( portTickType ) 80000000 )
-#define configMINIMAL_STACK_SIZE		( ( unsigned short ) 70 )
+#define configMINIMAL_STACK_SIZE		( ( unsigned short ) 512/4 )
 
-#define configTOTAL_HEAP_SIZE			( ( size_t ) ( 75 * 1024 ) )
+#define configTOTAL_HEAP_SIZE			( ( size_t ) ( 200 * 1024 ) )
 
 #define configMAX_TASK_NAME_LEN			( 12 )
 #define configUSE_TRACE_FACILITY		1
@@ -111,12 +111,12 @@
 #define configUSE_COUNTING_SEMAPHORES	1
 #define configUSE_ALTERNATIVE_API		1
 
-#define configMAX_PRIORITIES			( 5UL )
+#define configMAX_PRIORITIES			( 10UL )
 #define configMAX_CO_ROUTINE_PRIORITIES ( 2 )
 #define configQUEUE_REGISTRY_SIZE		10
 
 /* Timer related defines. */
-#define configUSE_TIMERS				0
+#define configUSE_TIMERS				1
 #define configTIMER_TASK_PRIORITY		2
 #define configTIMER_QUEUE_LENGTH		20
 #define configTIMER_TASK_STACK_DEPTH	( configMINIMAL_STACK_SIZE * 2 )

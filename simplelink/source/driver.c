@@ -1,38 +1,16 @@
 /*
-* driver.c - CC31xx/CC32xx Host Driver Implementation
-*
-* Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/ 
-* 
-* 
-*  Redistribution and use in source and binary forms, with or without 
-*  modification, are permitted provided that the following conditions 
-*  are met:
-*
-*    Redistributions of source code must retain the above copyright 
-*    notice, this list of conditions and the following disclaimer.
-*
-*    Redistributions in binary form must reproduce the above copyright
-*    notice, this list of conditions and the following disclaimer in the 
-*    documentation and/or other materials provided with the   
-*    distribution.
-*
-*    Neither the name of Texas Instruments Incorporated nor the names of
-*    its contributors may be used to endorse or promote products derived
-*    from this software without specific prior written permission.
-*
-*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
-*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
-*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-*  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
-*  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-*  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
-*  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-*  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-*  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-*  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
-*  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*
-*/
+ *   Copyright (C) 2015 Texas Instruments Incorporated
+ *
+ *   All rights reserved. Property of Texas Instruments Incorporated.
+ *   Restricted rights to use, duplicate or disclose this code are
+ *   granted through contract.
+ *
+ *   The program may not be used without the written permission of
+ *   Texas Instruments Incorporated or against the terms and conditions
+ *   stipulated in the agreement under which this program has been supplied,
+ *   and under no circumstances can it be used with non-TI connectivity device.
+ *   
+ */
 
 /*****************************************************************************/
 /* Include files                                                             */
@@ -41,12 +19,26 @@
 #include "protocol.h"
 #include "driver.h"
 #include "flowcont.h"
-
 /*****************************************************************************/
 /* Macro declarations                                                        */
 /*****************************************************************************/
 
-#define          _SL_PENDING_RX_MSG(pDriverCB)   (RxIrqCnt != (pDriverCB)->RxDoneCnt)
+_u8 gGlobalLockCntRequested=0;
+_u8 gGlobalLockCntReleased=0;
+
+/* static functions declaration */
+static void _SlDrvUpdateApiInProgress(_i8 Value);
+
+
+#define API_IN_PROGRESS_UPDATE_NONE       (0)
+#define API_IN_PROGRESS_UPDATE_INCREMENT  (1)
+#define API_IN_PROGRESS_UPDATE_DECREMENT  (-1)  
+
+#define GLOBAL_LOCK_FLAGS_NONE (0x0)
+#define GLOBAL_LOCK_FLAGS_UPDATE_API_IN_PROGRESS     (0x1) /* Bit 0 */
+#define GLOBAL_LOCK_FLAGS_PROVISIONING_STOP_API      (0x2) /* Bit 1*/
+#define GLOBAL_LOCK_FLAGS_STARTING_DEVICE            (0x4) /* Bit 2 */
+
 
 /*  2 LSB of the N2H_SYNC_PATTERN are for sequence number 
 only in SPI interface
@@ -57,7 +49,6 @@ support backward sync pattern */
 #define N2H_SYNC_SPI_BUGS_MASK                   ((_u32)0x7FFF7F7F) /* Bits 7,15,31 - ignore the SPI (8,16,32 bites bus) error bits  */
 #define BUF_SYNC_SPIM(pBuf)                      ((*(_u32 *)(pBuf)) & N2H_SYNC_SPI_BUGS_MASK)
 
-_u8             _SlDrvProtectAsyncRespSetting(_u8 *pAsyncRsp, _u8 ActionID, _u8 SocketID);
 #define N2H_SYNC_SPIM                            (N2H_SYNC_PATTERN    & N2H_SYNC_SPI_BUGS_MASK)
 #define N2H_SYNC_SPIM_WITH_SEQ(TxSeqNum)         ((N2H_SYNC_SPIM & N2H_SYNC_PATTERN_MASK) | N2H_SYNC_PATTERN_SEQ_NUM_EXISTS | ((TxSeqNum) & (N2H_SYNC_PATTERN_SEQ_NUM_BITS)))
 #define MATCH_WOUT_SEQ_NUM(pBuf)                 ( BUF_SYNC_SPIM(pBuf) ==  N2H_SYNC_SPIM )
@@ -70,13 +61,14 @@ _u8             _SlDrvProtectAsyncRespSetting(_u8 *pAsyncRsp, _u8 ActionID, _u8 
 
 #define OPCODE(_ptr)          (((_SlResponseHeader_t *)(_ptr))->GenHeader.Opcode)         
 #define RSP_PAYLOAD_LEN(_ptr) (((_SlResponseHeader_t *)(_ptr))->GenHeader.Len - _SL_RESP_SPEC_HDR_SIZE)         
-#define SD(_ptr)              (((_SocketAddrResponse_u *)(_ptr))->IpV4.sd)
+#define SD(_ptr)              (((SlSocketAddrResponse_u *)(_ptr))->IpV4.Sd)
 /*  Actual size of Recv/Recvfrom response data  */
-#define ACT_DATA_SIZE(_ptr)   (((_SocketAddrResponse_u *)(_ptr))->IpV4.statusOrLen)
+#define ACT_DATA_SIZE(_ptr)   (((SlSocketAddrResponse_u *)(_ptr))->IpV4.StatusOrLen)
 
 
+/* Internal function prototype declaration */
 
-
+      
 /* General Events handling*/
 #if defined (EXT_LIB_REGISTERED_GENERAL_EVENTS)
 
@@ -127,8 +119,8 @@ void _SlDrvHandleGeneralEvents(SlDeviceEvent_t *slGeneralEvent)
     }
 
 /* At last call the Application specific handler if registered */
-#ifdef sl_GeneralEvtHdlr
-    sl_GeneralEvtHdlr(slGeneralEvent);
+#ifdef slcb_DeviceGeneralEvtHdlr
+    slcb_DeviceGeneralEvtHdlr(slGeneralEvent);
 #endif
 
 }
@@ -187,8 +179,8 @@ void _SlDrvHandleWlanEvents(SlWlanEvent_t *slWlanEvent)
     }
 
 /* At last call the Application specific handler if registered */
-#ifdef sl_WlanEvtHdlr
-    sl_WlanEvtHdlr(slWlanEvent);
+#ifdef slcb_WlanEvtHdlr
+    slcb_WlanEvtHdlr(slWlanEvent);
 #endif
 
 }
@@ -245,8 +237,8 @@ void _SlDrvHandleNetAppEvents(SlNetAppEvent_t *slNetAppEvent)
     }
 
 /* At last call the Application specific handler if registered */
-#ifdef sl_NetAppEvtHdlr
-    sl_NetAppEvtHdlr(slNetAppEvent);
+#ifdef slcb_NetAppEvtHdlr
+    slcb_NetAppEvtHdlr(slNetAppEvent);
 #endif
 
 }
@@ -256,7 +248,7 @@ void _SlDrvHandleNetAppEvents(SlNetAppEvent_t *slNetAppEvent)
 /* Http Server Events handling */
 #if defined (EXT_LIB_REGISTERED_HTTP_SERVER_EVENTS)
 
-typedef _SlEventPropogationStatus_e (*httpServer_callback) (SlHttpServerEvent_t*, SlHttpServerResponse_t*);
+typedef _SlEventPropogationStatus_e (*httpServer_callback) (SlNetAppHttpServerEvent_t*, SlNetAppHttpServerResponse_t*);
 
 static const httpServer_callback  httpServer_callbacks[] =
 {
@@ -288,7 +280,7 @@ static const httpServer_callback  httpServer_callbacks[] =
   Iterates through all the http server event handlers which are
   registered by the external libs/user application.
 ********************************************************************/
-void _SlDrvHandleHttpServerEvents(SlHttpServerEvent_t *slHttpServerEvent, SlHttpServerResponse_t *slHttpServerResponse)
+void _SlDrvHandleHttpServerEvents(SlNetAppHttpServerEvent_t *slHttpServerEvent, SlNetAppHttpServerResponse_t *slHttpServerResponse)
 {
     _u8 i;
 
@@ -303,8 +295,8 @@ void _SlDrvHandleHttpServerEvents(SlHttpServerEvent_t *slHttpServerEvent, SlHttp
     }
 
 /* At last call the Application specific handler if registered */
-#ifdef sl_HttpServerCallback
-    sl_HttpServerCallback(slHttpServerEvent, slHttpServerResponse);
+#ifdef slcb_NetAppHttpServerHdlr
+    slcb_NetAppHttpServerHdlr(slHttpServerEvent, slHttpServerResponse);
 #endif
 
 }
@@ -359,13 +351,130 @@ void _SlDrvHandleSockEvents(SlSockEvent_t *slSockEvent)
     }
 
 /* At last call the Application specific handler if registered */
-#ifdef sl_SockEvtHdlr
-    sl_SockEvtHdlr(slSockEvent);
+#ifdef slcb_SockEvtHdlr
+    slcb_SockEvtHdlr(slSockEvent);
 #endif
 
 }
 
 #endif
+
+
+
+/* Fatal Error Events handling*/
+#if defined (EXT_LIB_REGISTERED_FATAL_ERROR_EVENTS)
+
+typedef _SlEventPropogationStatus_e (*fatal_error_callback) (SlDeviceEvent_t *);
+
+static const fatal_error_callback  fatal_error_callbacks[] =
+{
+#ifdef SlExtLib1FatalErrorEventHandler
+	SlExtLib1FatalErrorEventHandler,
+#endif
+
+#ifdef SlExtLib2FatalErrorEventHandler
+	SlExtLib2FatalErrorEventHandler,
+#endif
+
+#ifdef SlExtLib3FatalErrorEventHandler
+	SlExtLib3FatalErrorEventHandler,
+#endif
+
+#ifdef SlExtLib4FatalErrorEventHandler
+	SlExtLib4FatalErrorEventHandler,
+#endif
+
+#ifdef SlExtLib5FatalErrorEventHandler
+	SlExtLib5FatalErrorEventHandler,
+#endif
+};
+
+#undef _SlDrvHandleFatalErrorEvents
+
+/********************************************************************
+  _SlDrvHandleFatalErrorEvents
+  Iterates through all the fatal error (device) event handlers which are
+  registered by the external libs/user application.
+*********************************************************************/
+void _SlDrvHandleFatalErrorEvents(SlDeviceFatal_t *slFatalErrorEvent)
+{
+    _u8 i;
+
+    /* Iterate over all the extenal libs handlers */
+    for ( i = 0 ; i < sizeof(fatal_error_callbacks)/sizeof(fatal_error_callbacks[0]) ; i++ )
+    {
+        if (EVENT_PROPAGATION_BLOCK == fatal_error_callbacks[i](slFatalErrorEvent) )
+		{
+        	/* exit immediately and do not call the user specific handler as well */
+            return;
+		}
+    }
+
+/* At last call the Application specific handler if registered */
+#ifdef slcb_DeviceFatalErrorEvtHdlr
+    slcb_DeviceFatalErrorEvtHdlr(slFatalErrorEvent);
+#endif
+
+}
+#endif
+
+/* NetApp request handler */
+#if defined (EXT_LIB_REGISTERED_NETAPP_REQUEST_EVENTS)
+
+typedef _SlEventPropogationStatus_e (*netapp_request_callback) (SlNetAppRequest_t*, SlNetAppResponse_t*);
+
+static const netapp_request_callback  netapp_request_callbacks[] =
+{
+#ifdef SlExtLib1NetAppRequestEventHandler
+	SlExtLib1NetAppRequestEventHandler,
+#endif
+
+#ifdef SlExtLib2NetAppRequestEventHandler
+	SlExtLib2NetAppRequestEventHandler,
+#endif
+
+#ifdef SlExtLib3NetAppRequestEventHandler
+	SlExtLib3NetAppRequestEventHandler,
+#endif
+
+#ifdef SlExtLib4NetAppRequestEventHandler
+	SlExtLib4NetAppRequestEventHandler,
+#endif
+
+#ifdef SlExtLib5NetAppRequestEventHandler
+	SlExtLib5NetAppRequestEventHandler,
+#endif
+};
+
+#undef _SlDrvHandleNetAppRequestEvents
+
+/********************************************************************
+  _SlDrvHandleNetAppRequest
+  Iterates through all the netapp request handlers which are
+  registered by the external libs/user application.
+*********************************************************************/
+void _SlDrvHandleNetAppRequestEvents(SlNetAppRequest_t *pNetAppRequest, SlNetAppResponse_t *pNetAppResponse)
+{
+    _u8 i;
+
+    /* Iterate over all the extenal libs handlers */
+    for ( i = 0 ; i < sizeof(netapp_request_callbacks)/sizeof(netapp_request_callbacks[0]) ; i++ )
+    {
+        if (EVENT_PROPAGATION_BLOCK == netapp_request_callbacks[i](pNetAppRequest, pNetAppResponse) )
+		{
+        	/* exit immediately and do not call the user specific handler as well */
+            return;
+		}
+    }
+
+/* At last call the Application specific handler if registered */
+#ifdef slcb_NetAppRequestHdlr
+    slcb_NetAppRequestHdlr(pNetAppRequest, pNetAppResponse);
+#endif
+
+}
+#endif
+
 
 
 #ifndef SL_MEMORY_MGMT_DYNAMIC
@@ -376,22 +485,22 @@ typedef struct
     _u8 AsyncRespBuf[SL_ASYNC_MAX_MSG_LEN];
 }_SlStatMem_t;
 
-_SlStatMem_t g_StatMem;
+static _SlStatMem_t g_StatMem;
 #endif
 
-_u8 _SlDrvProtectAsyncRespSetting(_u8 *pAsyncRsp, _u8 ActionID, _u8 SocketID)
+_u8 _SlDrvProtectAsyncRespSetting(_u8 *pAsyncRsp, _SlActionID_e ActionID, _u8 SocketID)
 {
     _u8 ObjIdx;
 
 
     /* Use Obj to issue the command, if not available try later */
-    ObjIdx = _SlDrvWaitForPoolObj(ActionID, SocketID);
+    ObjIdx = (_u8)_SlDrvWaitForPoolObj(ActionID, SocketID);
 
     if (MAX_CONCURRENT_ACTIONS != ObjIdx)
     {
-        _SlDrvProtectionObjLockWaitForever();
+        SL_DRV_PROTECTION_OBJ_LOCK_FOREVER();
         g_pCB->ObjPool[ObjIdx].pRespArgs = pAsyncRsp;
-        _SlDrvProtectionObjUnLock();
+        SL_DRV_PROTECTION_OBJ_UNLOCK();
     }
 
     return ObjIdx;
@@ -401,27 +510,40 @@ _u8 _SlDrvProtectAsyncRespSetting(_u8 *pAsyncRsp, _u8 ActionID, _u8 SocketID)
 /*****************************************************************************/
 /* Variables                                                                 */
 /*****************************************************************************/
-const _SlSyncPattern_t g_H2NSyncPattern = H2N_SYNC_PATTERN;
-const _SlSyncPattern_t g_H2NCnysPattern = H2N_CNYS_PATTERN;
+static const _SlSyncPattern_t g_H2NSyncPattern = H2N_SYNC_PATTERN;
+
+#ifndef SL_IF_TYPE_UART
+static const _SlSyncPattern_t g_H2NCnysPattern = H2N_CNYS_PATTERN;
+#endif
 _volatile _u8           RxIrqCnt;
 
-#ifndef SL_TINY_EXT
+_u16			g_SlDeviceStatus = 0;
+_SlLockObj_t	GlobalLockObj;
+
+
+#ifndef SL_TINY
+
+
 const _SlActionLookup_t _SlActionLookupTable[] = 
 {
-    {ACCEPT_ID, SL_OPCODE_SOCKET_ACCEPTASYNCRESPONSE, (_SlSpawnEntryFunc_t)_sl_HandleAsync_Accept},
-    {CONNECT_ID, SL_OPCODE_SOCKET_CONNECTASYNCRESPONSE,(_SlSpawnEntryFunc_t)_sl_HandleAsync_Connect},
-    {SELECT_ID, SL_OPCODE_SOCKET_SELECTASYNCRESPONSE,(_SlSpawnEntryFunc_t)_sl_HandleAsync_Select},
-    {GETHOSYBYNAME_ID, SL_OPCODE_NETAPP_DNSGETHOSTBYNAMEASYNCRESPONSE,(_SlSpawnEntryFunc_t)_sl_HandleAsync_DnsGetHostByName},
-    {GETHOSYBYSERVICE_ID, SL_OPCODE_NETAPP_MDNSGETHOSTBYSERVICEASYNCRESPONSE,(_SlSpawnEntryFunc_t)_sl_HandleAsync_DnsGetHostByService}, 
-    {PING_ID, SL_OPCODE_NETAPP_PINGREPORTREQUESTRESPONSE, (_SlSpawnEntryFunc_t)_sl_HandleAsync_PingResponse},
-    {START_STOP_ID, SL_OPCODE_DEVICE_STOP_ASYNC_RESPONSE,(_SlSpawnEntryFunc_t)_sl_HandleAsync_Stop}
+    {ACCEPT_ID, SL_OPCODE_SOCKET_ACCEPTASYNCRESPONSE, (_SlSpawnEntryFunc_t)_SlSocketHandleAsync_Accept},
+    {CONNECT_ID, SL_OPCODE_SOCKET_CONNECTASYNCRESPONSE,(_SlSpawnEntryFunc_t)_SlSocketHandleAsync_Connect},
+    {SELECT_ID, SL_OPCODE_SOCKET_SELECTASYNCRESPONSE,(_SlSpawnEntryFunc_t)_SlSocketHandleAsync_Select},
+    {GETHOSYBYNAME_ID, SL_OPCODE_NETAPP_DNSGETHOSTBYNAMEASYNCRESPONSE,(_SlSpawnEntryFunc_t)_SlNetAppHandleAsync_DnsGetHostByName},
+    {GETHOSYBYSERVICE_ID, SL_OPCODE_NETAPP_MDNSGETHOSTBYSERVICEASYNCRESPONSE,(_SlSpawnEntryFunc_t)_SlNetAppHandleAsync_DnsGetHostByService}, 
+    {PING_ID, SL_OPCODE_NETAPP_PINGREPORTREQUESTRESPONSE, (_SlSpawnEntryFunc_t)_SlNetAppHandleAsync_PingResponse},
+    {NETAPP_RECEIVE_ID, SL_OPCODE_NETAPP_RECEIVE, (_SlSpawnEntryFunc_t)_SlNetAppHandleAsync_NetAppReceive},
+    {START_STOP_ID, SL_OPCODE_DEVICE_STOP_ASYNC_RESPONSE,(_SlSpawnEntryFunc_t)_SlDeviceHandleAsync_Stop},
+    {NETUTIL_CMD_ID, SL_OPCODE_NETUTIL_COMMANDASYNCRESPONSE,(_SlSpawnEntryFunc_t)_SlNetUtilHandleAsync_Cmd},
+	{CLOSE_ID, SL_OPCODE_SOCKET_SOCKETCLOSEASYNCEVENT,(_SlSpawnEntryFunc_t)_SlSocketHandleAsync_Close}
 };
 #else
 const _SlActionLookup_t _SlActionLookupTable[] = 
 {
-    {CONNECT_ID, SL_OPCODE_SOCKET_CONNECTASYNCRESPONSE,(_SlSpawnEntryFunc_t)_sl_HandleAsync_Connect},
-    {GETHOSYBYNAME_ID, SL_OPCODE_NETAPP_DNSGETHOSTBYNAMEASYNCRESPONSE,(_SlSpawnEntryFunc_t)_sl_HandleAsync_DnsGetHostByName},  
-    {START_STOP_ID, SL_OPCODE_DEVICE_STOP_ASYNC_RESPONSE,(_SlSpawnEntryFunc_t)_sl_HandleAsync_Stop}
+    {CONNECT_ID, SL_OPCODE_SOCKET_CONNECTASYNCRESPONSE,(_SlSpawnEntryFunc_t)_SlSocketHandleAsync_Connect},
+    {GETHOSYBYNAME_ID, SL_OPCODE_NETAPP_DNSGETHOSTBYNAMEASYNCRESPONSE,(_SlSpawnEntryFunc_t)_SlNetAppHandleAsync_DnsGetHostByName},  
+    {START_STOP_ID, SL_OPCODE_DEVICE_STOP_ASYNC_RESPONSE,(_SlSpawnEntryFunc_t)_SlDeviceHandleAsync_Stop},
+	{CLOSE_ID, SL_OPCODE_SOCKET_SOCKETCLOSEASYNCEVENT,(_SlSpawnEntryFunc_t)_SlSocketHandleAsync_Close}
 };
 #endif
 
@@ -433,49 +555,57 @@ typedef struct
     _u8  event;
 } OpcodeKeyVal_t;
 
+
 /* The table translates opcode to user's event type */
 const OpcodeKeyVal_t OpcodeTranslateTable[] = 
 {
-{SL_OPCODE_WLAN_SMART_CONFIG_START_ASYNC_RESPONSE, SL_WLAN_SMART_CONFIG_COMPLETE_EVENT},
-{SL_OPCODE_WLAN_SMART_CONFIG_STOP_ASYNC_RESPONSE,SL_WLAN_SMART_CONFIG_STOP_EVENT},
-{SL_OPCODE_WLAN_STA_CONNECTED, SL_WLAN_STA_CONNECTED_EVENT},
-{SL_OPCODE_WLAN_STA_DISCONNECTED,SL_WLAN_STA_DISCONNECTED_EVENT},
-{SL_OPCODE_WLAN_P2P_DEV_FOUND,SL_WLAN_P2P_DEV_FOUND_EVENT},    
-{SL_OPCODE_WLAN_P2P_NEG_REQ_RECEIVED, SL_WLAN_P2P_NEG_REQ_RECEIVED_EVENT},
-{SL_OPCODE_WLAN_CONNECTION_FAILED, SL_WLAN_CONNECTION_FAILED_EVENT},
-{SL_OPCODE_WLAN_WLANASYNCCONNECTEDRESPONSE, SL_WLAN_CONNECT_EVENT},
-{SL_OPCODE_WLAN_WLANASYNCDISCONNECTEDRESPONSE, SL_WLAN_DISCONNECT_EVENT},
-{SL_OPCODE_NETAPP_IPACQUIRED, SL_NETAPP_IPV4_IPACQUIRED_EVENT},
-{SL_OPCODE_NETAPP_IPACQUIRED_V6, SL_NETAPP_IPV6_IPACQUIRED_EVENT},
-{SL_OPCODE_NETAPP_IP_LEASED, SL_NETAPP_IP_LEASED_EVENT},
-{SL_OPCODE_NETAPP_IP_RELEASED, SL_NETAPP_IP_RELEASED_EVENT},
-{SL_OPCODE_SOCKET_TXFAILEDASYNCRESPONSE, SL_SOCKET_TX_FAILED_EVENT},
-{SL_OPCODE_SOCKET_SOCKETASYNCEVENT, SL_SOCKET_ASYNC_EVENT}
+	{SL_OPCODE_WLAN_STA_ASYNCCONNECTEDRESPONSE, SL_WLAN_EVENT_CONNECT},
+	{SL_OPCODE_WLAN_P2PCL_ASYNCCONNECTEDRESPONSE, SL_WLAN_EVENT_P2P_CONNECT},
+	{SL_OPCODE_WLAN_STA_ASYNCDISCONNECTEDRESPONSE, SL_WLAN_EVENT_DISCONNECT},
+	{SL_OPCODE_WLAN_P2PCL_ASYNCDISCONNECTEDRESPONSE,SL_WLAN_EVENT_P2P_DISCONNECT},
+	{SL_OPCODE_WLAN_ASYNC_STA_ADDED, SL_WLAN_EVENT_STA_ADDED},
+	{SL_OPCODE_WLAN_ASYNC_P2PCL_ADDED,SL_WLAN_EVENT_P2P_CLIENT_ADDED},
+	{SL_OPCODE_WLAN_ASYNC_STA_REMOVED, SL_WLAN_EVENT_STA_REMOVED},
+	{SL_OPCODE_WLAN_ASYNC_P2PCL_REMOVED,SL_WLAN_EVENT_P2P_CLIENT_REMOVED},
+	{SL_OPCODE_WLAN_P2P_DEV_FOUND,SL_WLAN_EVENT_P2P_DEVFOUND},    
+	{SL_OPCODE_WLAN_P2P_NEG_REQ_RECEIVED, SL_WLAN_EVENT_P2P_REQUEST},
+	{SL_OPCODE_WLAN_P2P_CONNECTION_FAILED, SL_WLAN_EVENT_P2P_CONNECTFAIL},
+	{SL_OPCODE_WLAN_PROVISIONING_STATUS_ASYNC_EVENT, SL_WLAN_EVENT_PROVISIONING_STATUS},
+	{SL_OPCODE_WLAN_PROVISIONING_PROFILE_ADDED_ASYNC_RESPONSE, SL_WLAN_EVENT_PROVISIONING_PROFILE_ADDED},
+	{SL_OPCODE_WLAN_RX_FILTER_ASYNC_RESPONSE,SL_WLAN_EVENT_RXFILTER},
+
+	{SL_OPCODE_NETAPP_IPACQUIRED, SL_NETAPP_EVENT_IPV4_ACQUIRED},
+	{SL_OPCODE_NETAPP_IPACQUIRED_V6, SL_NETAPP_EVENT_IPV6_ACQUIRED},
+	{SL_OPCODE_NETAPP_IP_LEASED, SL_NETAPP_EVENT_DHCPV4_LEASED},
+	{SL_OPCODE_NETAPP_IP_RELEASED, SL_NETAPP_EVENT_DHCPV4_RELEASED},
+    {SL_OPCODE_NETAPP_IP_COLLISION, SL_NETAPP_EVENT_IP_COLLISION},
+	{SL_OPCODE_NETAPP_IPV4_LOST, SL_NETAPP_EVENT_IPV4_LOST},
+	{SL_OPCODE_NETAPP_DHCP_IPV4_ACQUIRE_TIMEOUT, SL_NETAPP_EVENT_DHCP_IPV4_ACQUIRE_TIMEOUT},
+	{SL_OPCODE_NETAPP_IPV6_LOST_V6, SL_NETAPP_EVENT_IPV6_LOST},
+
+	{SL_OPCODE_SOCKET_TXFAILEDASYNCRESPONSE, SL_SOCKET_TX_FAILED_EVENT},
+	{SL_OPCODE_SOCKET_SOCKETASYNCEVENT, SL_SOCKET_ASYNC_EVENT}
+	
 };
 
 
 
 _SlDriverCb_t* g_pCB = NULL;
 P_SL_DEV_PING_CALLBACK  pPingCallBackFunc = NULL;
-_u8 gFirstCmdMode = 0;
+
 
 /*****************************************************************************/
 /* Function prototypes                                                       */
 /*****************************************************************************/
-_SlReturnVal_t   _SlDrvMsgRead(void);
-_SlReturnVal_t   _SlDrvMsgWrite(_SlCmdCtrl_t  *pCmdCtrl,_SlCmdExt_t  *pCmdExt, _u8 *pTxRxDescBuff);
-_SlReturnVal_t   _SlDrvMsgReadCmdCtx(void);
-_SlReturnVal_t   _SlDrvMsgReadSpawnCtx(void *pValue);
-void             _SlDrvClassifyRxMsg(_SlOpcode_t Opcode );
-_SlReturnVal_t   _SlDrvRxHdrRead(_u8 *pBuf, _u8 *pAlignSize);
-void             _SlDrvShiftDWord(_u8 *pBuf);
-void             _SlDrvDriverCBInit(void);
-void             _SlAsyncEventGenericHandler(void);
-_u8			     _SlDrvWaitForPoolObj(_u8 ActionID, _u8 SocketID);
-void			 _SlDrvReleasePoolObj(_u8 pObj);
-void			 _SlRemoveFromList(_u8* ListIndex, _u8 ItemIndex);
-_SlReturnVal_t	 _SlFindAndSetActiveObj(_SlOpcode_t  Opcode, _u8 Sd);
-
+static _SlReturnVal_t _SlDrvMsgRead(void);
+static _SlReturnVal_t _SlDrvMsgWrite(_SlCmdCtrl_t  *pCmdCtrl,_SlCmdExt_t  *pCmdExt, _u8 *pTxRxDescBuff);
+static _SlReturnVal_t _SlDrvMsgReadCmdCtx(_u16 cmdOpcode, _u8 IsLockRequired);
+static _SlReturnVal_t _SlDrvClassifyRxMsg(_SlOpcode_t Opcode );
+static _SlReturnVal_t _SlDrvRxHdrRead(_u8 *pBuf);
+static void           _SlDrvAsyncEventGenericHandler(_u8 bInCmdContext);
+static void	          _SlDrvRemoveFromList(_u8* ListIndex, _u8 ItemIndex);
+static _SlReturnVal_t _SlDrvFindAndSetActiveObj(_SlOpcode_t  Opcode, _u8 Sd);
+static _SlReturnVal_t _SlDrvObjGlobalLockWaitForever(_u32 Flags);
 
 /*****************************************************************************/
 /* Internal functions                                                        */
@@ -486,28 +616,38 @@ _SlReturnVal_t	 _SlFindAndSetActiveObj(_SlOpcode_t  Opcode, _u8 Sd);
 _SlDrvDriverCBInit - init Driver Control Block
 *****************************************************************************/
 
-void _SlDrvDriverCBInit(void)
+_SlReturnVal_t _SlDrvDriverCBInit(void)
 {
     _u8          Idx =0;
 
 #ifdef SL_MEMORY_MGMT_DYNAMIC
-    g_pCB = sl_Malloc(sizeof(_SlDriverCb_t));
+    g_pCB = (_SlDriverCb_t*)sl_Malloc(sizeof(_SlDriverCb_t));
 #else
     g_pCB = &(g_StatMem.DriverCB);
 #endif
     MALLOC_OK_CHECK(g_pCB);
 
-    
-    _SlDrvMemZero(g_pCB, sizeof(_SlDriverCb_t));
+#ifndef SL_PLATFORM_MULTI_THREADED
+    {
+    	extern _SlNonOsCB_t g__SlNonOsCB;
+    	sl_Memset(&g__SlNonOsCB, 0, sizeof(g__SlNonOsCB));
+    }
+#endif
+
+    _SlDrvMemZero(g_pCB, (_u16)sizeof(_SlDriverCb_t));
     RxIrqCnt = 0;
     OSI_RET_OK_CHECK( sl_SyncObjCreate(&g_pCB->CmdSyncObj, "CmdSyncObj") );
-    sl_SyncObjClear(&g_pCB->CmdSyncObj);
+    SL_DRV_SYNC_OBJ_CLEAR(&g_pCB->CmdSyncObj);
 
-    OSI_RET_OK_CHECK( sl_LockObjCreate(&g_pCB->GlobalLockObj, "GlobalLockObj") );
+	if (GlobalLockObj == NULL)
+	{
+		OSI_RET_OK_CHECK( sl_LockObjCreate(&GlobalLockObj, "GlobalLockObj") );
+	}
+	
     OSI_RET_OK_CHECK( sl_LockObjCreate(&g_pCB->ProtectionLockObj, "ProtectionLockObj") );
 
     /* Init Drv object */
-    _SlDrvMemZero(&g_pCB->ObjPool[0], MAX_CONCURRENT_ACTIONS*sizeof(_SlPoolObj_t));
+    _SlDrvMemZero(&g_pCB->ObjPool[0], (_u16)(MAX_CONCURRENT_ACTIONS*sizeof(_SlPoolObj_t)));
 
     /* place all Obj in the free list*/
     g_pCB->FreePoolIdx = 0;
@@ -518,7 +658,7 @@ void _SlDrvDriverCBInit(void)
         g_pCB->ObjPool[Idx].AdditionalData = SL_MAX_SOCKETS;
 
         OSI_RET_OK_CHECK( sl_SyncObjCreate(&g_pCB->ObjPool[Idx].SyncObj, "SyncObj"));
-        sl_SyncObjClear(&g_pCB->ObjPool[Idx].SyncObj);
+        SL_DRV_SYNC_OBJ_CLEAR(&g_pCB->ObjPool[Idx].SyncObj);
     }
 
      g_pCB->ActivePoolIdx = MAX_CONCURRENT_ACTIONS;
@@ -528,28 +668,33 @@ void _SlDrvDriverCBInit(void)
     g_pCB->FlowContCB.TxPoolCnt = FLOW_CONT_MIN;
     OSI_RET_OK_CHECK(sl_LockObjCreate(&g_pCB->FlowContCB.TxLockObj, "TxLockObj"));
     OSI_RET_OK_CHECK(sl_SyncObjCreate(&g_pCB->FlowContCB.TxSyncObj, "TxSyncObj"));
-    
-    gFirstCmdMode = 0;  
-
+    g_pCB->FlowContCB.MinTxPayloadSize = 1536; /* init maximum length */
+        
+    return SL_OS_RET_CODE_OK;
 }
 
 /*****************************************************************************
 _SlDrvDriverCBDeinit - De init Driver Control Block
 *****************************************************************************/
-void _SlDrvDriverCBDeinit()
+_SlReturnVal_t _SlDrvDriverCBDeinit(void)
 {
     _u8  Idx =0;
 
     /* Flow control de-init */
     g_pCB->FlowContCB.TxPoolCnt = 0;
+
+	SL_SET_DEVICE_STATUS(0);
+    
+	SL_UNSET_DEVICE_STARTED;
+
     OSI_RET_OK_CHECK(sl_LockObjDelete(&g_pCB->FlowContCB.TxLockObj));
     OSI_RET_OK_CHECK(sl_SyncObjDelete(&g_pCB->FlowContCB.TxSyncObj));
     
     OSI_RET_OK_CHECK( sl_SyncObjDelete(&g_pCB->CmdSyncObj) );
-    OSI_RET_OK_CHECK( sl_LockObjDelete(&g_pCB->GlobalLockObj) );
+
     OSI_RET_OK_CHECK( sl_LockObjDelete(&g_pCB->ProtectionLockObj) );
         
- #ifndef SL_TINY_EXT
+ #ifndef SL_TINY
     for (Idx = 0; Idx < MAX_CONCURRENT_ACTIONS; Idx++)
  #endif
     {
@@ -562,19 +707,25 @@ void _SlDrvDriverCBDeinit()
 
 #ifdef SL_MEMORY_MGMT_DYNAMIC
     sl_Free(g_pCB);
-#else
-    g_pCB = NULL;
 #endif
 
 
     g_pCB = NULL;
+
+#ifndef SL_TINY
+    /* Clear the restart device flag  */
+    SL_UNSET_RESTART_REQUIRED;
+#endif
+	return SL_OS_RET_CODE_OK;
 }
 
 /*****************************************************************************
 _SlDrvRxIrqHandler - Interrupt handler 
 *****************************************************************************/
-void _SlDrvRxIrqHandler(void *pValue)
+_SlReturnVal_t _SlDrvRxIrqHandler(void *pValue)
 {
+    (void)pValue;
+
     sl_IfMaskIntHdlr();
 
     RxIrqCnt++;
@@ -585,9 +736,54 @@ void _SlDrvRxIrqHandler(void *pValue)
     }
     else
     {
-        sl_Spawn((_SlSpawnEntryFunc_t)_SlDrvMsgReadSpawnCtx, NULL, 0);
+        (void)sl_Spawn((_SlSpawnEntryFunc_t)_SlDrvMsgReadSpawnCtx, NULL, SL_SPAWN_FLAG_FROM_SL_IRQ_HANDLER);
     }
+	return SL_OS_RET_CODE_OK;
 }
+
+/*****************************************************************************
+_SlDrvDriverIsApiAllowed - on LOCKED state, only 3 commands are allowed
+*****************************************************************************/
+_SlReturnVal_t _SlDrvDriverIsApiAllowed(_u16 Silo)
+{ 
+	if (!SL_IS_COMMAND_ALLOWED) 
+    {
+		if (SL_IS_DEVICE_STOP_IN_PROGRESS)
+		{
+			return SL_RET_CODE_STOP_IN_PROGRESS;
+		}
+
+		if ((SL_IS_DEVICE_LOCKED) && (SL_OPCODE_SILO_FS != Silo))
+		{
+			/* All APIs except the FS ones must be aborted if device is locked */
+			return SL_RET_CODE_DEV_LOCKED; 
+		}
+		if (SL_IS_RESTART_REQUIRED)
+		{
+			/* API has been aborted due command not allowed when Restart required */ 
+			/* The opcodes allowed are: SL_OPCODE_DEVICE_STOP_COMMAND */
+			return SL_API_ABORTED; 
+		}
+
+		if (!SL_IS_DEVICE_STARTED)
+		{
+			return SL_RET_CODE_DEV_NOT_STARTED;
+		}
+
+		
+
+
+		if (( SL_IS_PROVISIONING_ACTIVE || SL_IS_PROVISIONING_INITIATED_BY_USER) && !(SL_IS_PROVISIONING_API_ALLOWED))
+		{
+			/* API has ignored due to provisioning in progress */
+			return SL_RET_CODE_PROVISIONING_IN_PROGRESS;
+		}
+
+    }
+    
+    return SL_OS_RET_CODE_OK;
+}
+
 
 /*****************************************************************************
 _SlDrvCmdOp
@@ -598,9 +794,44 @@ _SlReturnVal_t _SlDrvCmdOp(
     _SlCmdExt_t   *pCmdExt)
 {
     _SlReturnVal_t RetVal;
+    _u8 IsLockRequired = TRUE;
+	
+    IsLockRequired = (SL_IS_PROVISIONING_IN_PROGRESS && (pCmdCtrl->Opcode == SL_OPCODE_DEVICE_STOP_COMMAND)) ? FALSE: TRUE;
 
-    
-    _SlDrvObjLockWaitForever(&g_pCB->GlobalLockObj);
+	if (IsLockRequired)
+	{
+		_u32 GlobalLockFlags = GLOBAL_LOCK_FLAGS_UPDATE_API_IN_PROGRESS;
+
+		/* check the special case of provisioning stop command */
+		if (pCmdCtrl->Opcode == SL_OPCODE_WLAN_PROVISIONING_COMMAND)
+		{	
+			SlWlanProvisioningParams_t *pParams = (SlWlanProvisioningParams_t *)pTxRxDescBuff;
+
+			/* No timeout specifies it is a stop provisioning command */
+			if (pParams->InactivityTimeoutSec == 0)
+			{
+				GlobalLockFlags |= GLOBAL_LOCK_FLAGS_PROVISIONING_STOP_API;			
+			}
+			
+		}
+
+		GlobalLockFlags |= (((_u32)pCmdCtrl->Opcode) << 16);
+		SL_DRV_LOCK_GLOBAL_LOCK_FOREVER(GlobalLockFlags);
+	}
+
+#ifndef SL_TINY 
+    /* In case the global was succesffully taken but error in progress
+    it means it has been released as part of an error handling and we should abort immediately */
+    if (SL_IS_RESTART_REQUIRED)
+    {
+    	  if (IsLockRequired)
+    	  {
+    		  SL_DRV_LOCK_GLOBAL_UNLOCK(TRUE);
+    	  }
+
+          return SL_API_ABORTED;
+    }
+#endif
     
     g_pCB->IsCmdRespWaited = TRUE;
 
@@ -609,27 +840,20 @@ _SlReturnVal_t _SlDrvCmdOp(
 
     /* send the message */
     RetVal = _SlDrvMsgWrite(pCmdCtrl, pCmdExt, pTxRxDescBuff);
-
+	
     if(SL_OS_RET_CODE_OK == RetVal)
     {
-
-#ifndef SL_IF_TYPE_UART    
-        /* Waiting for SPI to stabilize after first command */
-        if( 0 == gFirstCmdMode )
-        {
-            volatile _u32 CountVal = 0;
-            gFirstCmdMode = 1;
-            CountVal = CPU_FREQ_IN_MHZ*USEC_DELAY;
-            while( CountVal-- );
-        }   
-#endif 
         /* wait for respond */
-        RetVal = _SlDrvMsgReadCmdCtx(); /* will free global lock */
+        RetVal = _SlDrvMsgReadCmdCtx(pCmdCtrl->Opcode, IsLockRequired); /* will free global lock */
         SL_TRACE0(DBG_MSG, MSG_314, "_SlDrvCmdOp: exited _SlDrvMsgReadCmdCtx");
     }
     else
     {
-        _SlDrvObjUnLock(&g_pCB->GlobalLockObj);
+    	if (IsLockRequired)
+    	{
+    		SL_DRV_LOCK_GLOBAL_UNLOCK(TRUE);
+    	}
+
     }
     
     return RetVal;
@@ -658,64 +882,91 @@ _SlReturnVal_t _SlDrvDataReadOp(
     VERIFY_PROTOCOL(0 != pCmdExt->RxPayloadLen);
 
     /* Validate socket */
-    if((Sd & BSD_SOCKET_ID_MASK) >= SL_MAX_SOCKETS)
+    if((Sd & SL_BSD_SOCKET_ID_MASK) >= SL_MAX_SOCKETS)
     {
-        return SL_EBADF;
+        return SL_ERROR_BSD_EBADF;
     }
 
     /*Use Obj to issue the command, if not available try later*/
-    ObjIdx = (_u8)_SlDrvWaitForPoolObj(RECV_ID, Sd & BSD_SOCKET_ID_MASK);
+    ObjIdx = (_u8)_SlDrvWaitForPoolObj(RECV_ID, Sd & SL_BSD_SOCKET_ID_MASK);
 
     if (MAX_CONCURRENT_ACTIONS == ObjIdx)
     {
         return SL_POOL_IS_EMPTY;
     }
 
-    _SlDrvProtectionObjLockWaitForever();
+    SL_DRV_PROTECTION_OBJ_LOCK_FOREVER();
 
     pArgsData.pData = pCmdExt->pRxPayload;
     pArgsData.pArgs =  (_u8 *)pTxRxDescBuff;
     g_pCB->ObjPool[ObjIdx].pRespArgs =  (_u8 *)&pArgsData;
 
-    _SlDrvProtectionObjUnLock();
+    SL_DRV_PROTECTION_OBJ_UNLOCK();
 
 
     /* Do Flow Control check/update for DataWrite operation */
-    _SlDrvObjLockWaitForever(&g_pCB->FlowContCB.TxLockObj);
+    SL_DRV_OBJ_LOCK_FOREVER(&g_pCB->FlowContCB.TxLockObj);
 
 
     /* Clear SyncObj for the case it was signalled before TxPoolCnt */
     /* dropped below '1' (last Data buffer was taken)  */
     /* OSI_RET_OK_CHECK( sl_SyncObjClear(&g_pCB->FlowContCB.TxSyncObj) ); */
-    sl_SyncObjClear(&g_pCB->FlowContCB.TxSyncObj);
+    SL_DRV_SYNC_OBJ_CLEAR(&g_pCB->FlowContCB.TxSyncObj);
 
     if(g_pCB->FlowContCB.TxPoolCnt <= FLOW_CONT_MIN)
     {
 
         /* If TxPoolCnt was increased by other thread at this moment,
                  TxSyncObj won't wait here */
-        _SlDrvSyncObjWaitForever(&g_pCB->FlowContCB.TxSyncObj);
+    	SL_DRV_SYNC_OBJ_WAIT_FOREVER(&g_pCB->FlowContCB.TxSyncObj);
        
     }
 
-    _SlDrvObjLockWaitForever(&g_pCB->GlobalLockObj);
-    
+    SL_DRV_LOCK_GLOBAL_LOCK_FOREVER(GLOBAL_LOCK_FLAGS_UPDATE_API_IN_PROGRESS);
 
-    VERIFY_PROTOCOL(g_pCB->FlowContCB.TxPoolCnt > FLOW_CONT_MIN);
+#ifndef SL_TINY    
+	/* In case the global was succesffully taken but error in progress
+	it means it has been released as part of an error handling and we should abort immediately */
+	if (SL_IS_RESTART_REQUIRED)
+	{
+        SL_DRV_LOCK_GLOBAL_UNLOCK(TRUE);
+        return SL_API_ABORTED;
+	}
+#endif
+
+	/* Here we consider the case in which some cmd has been sent to the NWP,
+	   And its allocated packet has not been freed yet. */
+    VERIFY_PROTOCOL(g_pCB->FlowContCB.TxPoolCnt > (FLOW_CONT_MIN - 1));
     g_pCB->FlowContCB.TxPoolCnt--;
 
-    _SlDrvObjUnLock(&g_pCB->FlowContCB.TxLockObj);
+    SL_DRV_OBJ_UNLOCK(&g_pCB->FlowContCB.TxLockObj);
 
     /* send the message */
     RetVal =  _SlDrvMsgWrite(pCmdCtrl, pCmdExt, (_u8 *)pTxRxDescBuff);
 
-    _SlDrvObjUnLock(&g_pCB->GlobalLockObj);
+    SL_DRV_LOCK_GLOBAL_UNLOCK(TRUE);
     
 
     if(SL_OS_RET_CODE_OK == RetVal)
     {
-        /* Wait for response message. Will be signaled by _SlDrvMsgRead. */
-        _SlDrvSyncObjWaitForever(&g_pCB->ObjPool[ObjIdx].SyncObj);
+#ifndef SL_TINY    
+    	/* in case socket is non-blocking one, the async event should be received immediately */
+    	if( g_pCB->SocketNonBlocking & (1<<(Sd & SL_BSD_SOCKET_ID_MASK) ))
+    	{
+             _u16 opcodeAsyncEvent = (pCmdCtrl->Opcode ==  SL_OPCODE_SOCKET_RECV) ? SL_OPCODE_SOCKET_RECVASYNCRESPONSE : SL_OPCODE_SOCKET_RECVFROMASYNCRESPONSE; 
+    	     
+             SL_DRV_SYNC_OBJ_WAIT_TIMEOUT(&g_pCB->ObjPool[ObjIdx].SyncObj,
+                                           SL_DRIVER_TIMEOUT_SHORT,
+                                           opcodeAsyncEvent
+                                           );
+    	}
+    	else
+#endif         
+    	{
+            /* Wait for response message. Will be signaled by _SlDrvMsgRead. */
+            SL_DRV_SYNC_OBJ_WAIT_FOREVER(&g_pCB->ObjPool[ObjIdx].SyncObj);
+    	}
+          
     }
 
     _SlDrvReleasePoolObj(ObjIdx);
@@ -731,58 +982,75 @@ _SlReturnVal_t _SlDrvDataWriteOp(
     void                *pTxRxDescBuff ,
     _SlCmdExt_t         *pCmdExt)
 {
-    _SlReturnVal_t  RetVal = SL_EAGAIN; /*  initiated as SL_EAGAIN for the non blocking mode */
+    _SlReturnVal_t  RetVal = SL_ERROR_BSD_EAGAIN; /*  initiated as SL_EAGAIN for the non blocking mode */
+    _u32 allocTxPoolPkts;
+
+   
     while( 1 )
     {
         /*  Do Flow Control check/update for DataWrite operation */
-    _SlDrvObjLockWaitForever(&g_pCB->FlowContCB.TxLockObj);
+        SL_DRV_OBJ_LOCK_FOREVER(&g_pCB->FlowContCB.TxLockObj);
 
         /*  Clear SyncObj for the case it was signalled before TxPoolCnt */
         /*  dropped below '1' (last Data buffer was taken) */
         /* OSI_RET_OK_CHECK( sl_SyncObjClear(&g_pCB->FlowContCB.TxSyncObj) ); */
-        sl_SyncObjClear(&g_pCB->FlowContCB.TxSyncObj);
+        SL_DRV_SYNC_OBJ_CLEAR(&g_pCB->FlowContCB.TxSyncObj);
 
+        /*  number of tx pool packet that will be used */
+        allocTxPoolPkts = 1 + (pCmdExt->TxPayload1Len-1) / g_pCB->FlowContCB.MinTxPayloadSize; /* MinTxPayloadSize will be updated by Asunc event from NWP */
         /*  we have indication that the last send has failed - socket is no longer valid for operations  */
-        if(g_pCB->SocketTXFailure & (1<<(Sd & BSD_SOCKET_ID_MASK)))
+        if(g_pCB->SocketTXFailure & (1<<(Sd & SL_BSD_SOCKET_ID_MASK)))
         {
-		_SlDrvObjUnLock(&g_pCB->FlowContCB.TxLockObj);
-            return SL_SOC_ERROR;
+		    SL_DRV_OBJ_UNLOCK(&g_pCB->FlowContCB.TxLockObj);
+            return SL_ERROR_BSD_SOC_ERROR;
         }
-        if(g_pCB->FlowContCB.TxPoolCnt <= FLOW_CONT_MIN + 1)
+        if(g_pCB->FlowContCB.TxPoolCnt <= FLOW_CONT_MIN + allocTxPoolPkts)
         {
             /*  we have indication that this socket is set as blocking and we try to  */
             /*  unblock it - return an error */
-            if( g_pCB->SocketNonBlocking && (1<< (Sd & BSD_SOCKET_ID_MASK)))
+            if( g_pCB->SocketNonBlocking & (1<<(Sd & SL_BSD_SOCKET_ID_MASK) ))
             {
-            _SlDrvObjUnLock(&g_pCB->FlowContCB.TxLockObj);
+                SL_DRV_OBJ_UNLOCK(&g_pCB->FlowContCB.TxLockObj);
                 return RetVal;
             }
             /*  If TxPoolCnt was increased by other thread at this moment, */
             /*  TxSyncObj won't wait here */
-        _SlDrvSyncObjWaitForever(&g_pCB->FlowContCB.TxSyncObj);
+
+            SL_DRV_SYNC_OBJ_WAIT_FOREVER(&g_pCB->FlowContCB.TxSyncObj);
         }
-        if(g_pCB->FlowContCB.TxPoolCnt > FLOW_CONT_MIN + 1 )
+        if(g_pCB->FlowContCB.TxPoolCnt > FLOW_CONT_MIN + allocTxPoolPkts )
         {
             break;
         }
         else
         {
-			_SlDrvObjUnLock(&g_pCB->FlowContCB.TxLockObj);
+			SL_DRV_OBJ_UNLOCK(&g_pCB->FlowContCB.TxLockObj);
         }
     }
 
-    _SlDrvObjLockWaitForever(&g_pCB->GlobalLockObj);
-    
+    SL_DRV_LOCK_GLOBAL_LOCK_FOREVER(GLOBAL_LOCK_FLAGS_UPDATE_API_IN_PROGRESS);
 
-    VERIFY_PROTOCOL(g_pCB->FlowContCB.TxPoolCnt > FLOW_CONT_MIN + 1 );
-    g_pCB->FlowContCB.TxPoolCnt--;
+#ifndef SL_TINY    
+	/* In case the global was succesffully taken but error in progress
+	it means it has been released as part of an error handling and we should abort immediately */
+	if (SL_IS_RESTART_REQUIRED)
+	{
+        SL_DRV_LOCK_GLOBAL_UNLOCK(TRUE);
+		return SL_API_ABORTED;
+	}
+#endif
 
-    _SlDrvObjUnLock(&g_pCB->FlowContCB.TxLockObj);
+	/* Here we consider the case in which some cmd has been sent to the NWP,
+	And its allocated packet has not been freed yet. */
+    VERIFY_PROTOCOL(g_pCB->FlowContCB.TxPoolCnt > (FLOW_CONT_MIN + allocTxPoolPkts -1) );
+    g_pCB->FlowContCB.TxPoolCnt -= (_u8)allocTxPoolPkts;
+
+    SL_DRV_OBJ_UNLOCK(&g_pCB->FlowContCB.TxLockObj);
     
     /* send the message */
     RetVal =  _SlDrvMsgWrite(pCmdCtrl, pCmdExt, pTxRxDescBuff);
 
-    _SlDrvObjUnLock(&g_pCB->GlobalLockObj);
+    SL_DRV_LOCK_GLOBAL_UNLOCK(TRUE);
 
     return RetVal;
 }
@@ -790,7 +1058,7 @@ _SlReturnVal_t _SlDrvDataWriteOp(
 /* ******************************************************************************/
 /*  _SlDrvMsgWrite */
 /* ******************************************************************************/
-_SlReturnVal_t _SlDrvMsgWrite(_SlCmdCtrl_t  *pCmdCtrl,_SlCmdExt_t  *pCmdExt, _u8 *pTxRxDescBuff)
+static _SlReturnVal_t _SlDrvMsgWrite(_SlCmdCtrl_t  *pCmdCtrl,_SlCmdExt_t  *pCmdExt, _u8 *pTxRxDescBuff)
 {
     _u8 sendRxPayload = FALSE;
     VERIFY_PROTOCOL(NULL != pCmdCtrl);
@@ -800,9 +1068,9 @@ _SlReturnVal_t _SlDrvMsgWrite(_SlCmdCtrl_t  *pCmdCtrl,_SlCmdExt_t  *pCmdExt, _u8
     g_pCB->FunctionParams.pCmdExt = pCmdExt;
     
     g_pCB->TempProtocolHeader.Opcode   = pCmdCtrl->Opcode;
-    g_pCB->TempProtocolHeader.Len   = _SL_PROTOCOL_CALC_LEN(pCmdCtrl, pCmdExt);
+    g_pCB->TempProtocolHeader.Len   = (_u16)(_SL_PROTOCOL_CALC_LEN(pCmdCtrl, pCmdExt));
 
-    if (pCmdExt && pCmdExt->RxPayloadLen < 0 && pCmdExt->TxPayloadLen)
+    if (pCmdExt && pCmdExt->RxPayloadLen < 0 )
     {
         pCmdExt->RxPayloadLen = pCmdExt->RxPayloadLen * (-1); /* change sign */
         sendRxPayload = TRUE;
@@ -840,17 +1108,70 @@ _SlReturnVal_t _SlDrvMsgWrite(_SlCmdCtrl_t  *pCmdCtrl,_SlCmdExt_t  *pCmdExt, _u8
                            _SL_PROTOCOL_ALIGN_SIZE(pCmdExt->RxPayloadLen));
     }
 
-    /*  Payload */
-    if (pCmdExt && pCmdExt->TxPayloadLen > 0)
-    {
-        /*  If the message has payload, it is mandatory that the message's arguments are protocol aligned. */
+
+	/* if the message has some payload */
+	if (pCmdExt)
+	{
+		/*  If the message has payload, it is mandatory that the message's arguments are protocol aligned. */
         /*  Otherwise the aligning of arguments will create a gap between arguments and payload. */
         VERIFY_PROTOCOL(_SL_IS_PROTOCOL_ALIGNED_SIZE(pCmdCtrl->TxDescLen));
+	
+		/* In case two seperated buffers were supplied we should merge the two buffers*/
+		if ((pCmdExt->TxPayload1Len > 0) && (pCmdExt->TxPayload2Len > 0))
+		{	
+			_u8 BuffInTheMiddle[4]; 
+			_u8 FirstPayloadReminder = 0;
+			_u8 SecondPayloadOffset = 0;
 
-    	NWP_IF_WRITE_CHECK(g_pCB->FD, pCmdExt->pTxPayload, 
-                           _SL_PROTOCOL_ALIGN_SIZE(pCmdExt->TxPayloadLen));
-    }
+			FirstPayloadReminder = pCmdExt->TxPayload1Len & 3; /* calulate the first payload reminder */
+			
+			/* we first write the 4-bytes aligned payload part */
+			pCmdExt->TxPayload1Len -= FirstPayloadReminder;
+			
+			/* writing the first transaction*/
+			NWP_IF_WRITE_CHECK(g_pCB->FD, pCmdExt->pTxPayload1, pCmdExt->TxPayload1Len);
+			
+			/* Only if we the first payload is not aligned we need the intermediate transaction */
+			if (FirstPayloadReminder != 0)
+			{
+				/* here we count how many bytes we need to take from the second buffer */
+				SecondPayloadOffset = 4 - FirstPayloadReminder; 
 
+				/* copy the first payload reminder */
+				sl_Memcpy(&BuffInTheMiddle[0], pCmdExt->pTxPayload1 + pCmdExt->TxPayload1Len, FirstPayloadReminder);
+			
+				/* add the beginnig of the second payload to complete 4-bytes transaction */
+				sl_Memcpy(&BuffInTheMiddle[FirstPayloadReminder], pCmdExt->pTxPayload2, SecondPayloadOffset);
+			
+				/* write the second transaction of the 4-bytes buffer */
+				NWP_IF_WRITE_CHECK(g_pCB->FD, &BuffInTheMiddle[0], 4);
+			}
+
+			
+			/* if we still has bytes to write in the second buffer  */
+			if (pCmdExt->TxPayload2Len > SecondPayloadOffset)
+			{
+				/* write the third transaction (trancuted second payload) */
+				NWP_IF_WRITE_CHECK(g_pCB->FD, 
+								   pCmdExt->pTxPayload2 + SecondPayloadOffset,
+								   _SL_PROTOCOL_ALIGN_SIZE(pCmdExt->TxPayload2Len - SecondPayloadOffset));
+			}
+		
+		}
+		else if (pCmdExt->TxPayload1Len > 0)
+		{
+			/* Only 1 payload supplied (Payload1) so just align to 4 bytes and send it */
+			NWP_IF_WRITE_CHECK(g_pCB->FD, pCmdExt->pTxPayload1, 
+							_SL_PROTOCOL_ALIGN_SIZE(pCmdExt->TxPayload1Len));
+		}
+		else if (pCmdExt->TxPayload2Len > 0)
+		{
+			/* Only 1 payload supplied (Payload2) so just align to 4 bytes and send it */
+			NWP_IF_WRITE_CHECK(g_pCB->FD, pCmdExt->pTxPayload2, 
+							_SL_PROTOCOL_ALIGN_SIZE(pCmdExt->TxPayload2Len));
+		
+		}
+	}
 
     _SL_DBG_CNT_INC(MsgCnt.Write);
 
@@ -875,36 +1196,45 @@ _SlReturnVal_t _SlDrvMsgRead(void)
     _u8               TailBuffer[4];
     _u16              LengthToCopy;
     _u16              AlignedLengthRecv;
-    _u8               AlignSize;
     _u8               *pAsyncBuf = NULL;
     _u16              OpCode;
     _u16              RespPayloadLen;
     _u8               sd = SL_MAX_SOCKETS;
     _SlRxMsgClass_e   RxMsgClass;
-    
 
     /* save params in global CB */
     g_pCB->FunctionParams.AsyncExt.pAsyncBuf      = NULL;
     g_pCB->FunctionParams.AsyncExt.AsyncEvtHandler= NULL;
 
-    
-    VERIFY_RET_OK(_SlDrvRxHdrRead((_u8*)(uBuf.TempBuf), &AlignSize));
 
+
+#ifdef SL_TINY
+	VERIFY_RET_OK(_SlDrvRxHdrRead((_u8*)(uBuf.TempBuf)));
+#else	
+	if (_SlDrvRxHdrRead((_u8*)(uBuf.TempBuf)) == SL_API_ABORTED)
+	{
+        SL_DRV_LOCK_GLOBAL_UNLOCK(TRUE);
+
+		_SlDrvHandleFatalError(SL_DEVICE_EVENT_FATAL_SYNC_LOSS, 0, 0);
+		return SL_API_ABORTED;
+	}
+#endif
     OpCode = OPCODE(uBuf.TempBuf);
-    RespPayloadLen = RSP_PAYLOAD_LEN(uBuf.TempBuf);
+    RespPayloadLen = (_u16)(RSP_PAYLOAD_LEN(uBuf.TempBuf));
 
-
-    /* 'Init Compelete' message bears no valid FlowControl info */
-    if(SL_OPCODE_DEVICE_INITCOMPLETE != OpCode)
     {
         g_pCB->FlowContCB.TxPoolCnt = ((_SlResponseHeader_t *)uBuf.TempBuf)->TxPoolCnt;
         g_pCB->SocketNonBlocking = ((_SlResponseHeader_t *)uBuf.TempBuf)->SocketNonBlocking;
         g_pCB->SocketTXFailure = ((_SlResponseHeader_t *)uBuf.TempBuf)->SocketTXFailure;
+		g_pCB->FlowContCB.MinTxPayloadSize = ((_SlResponseHeader_t *)uBuf.TempBuf)->MinMaxPayload;
 
+		SL_SET_DEVICE_STATUS(((_SlResponseHeader_t *)uBuf.TempBuf)->DevStatus);
+		
         if(g_pCB->FlowContCB.TxPoolCnt > FLOW_CONT_MIN)
         {
-            _SlDrvSyncObjSignal(&g_pCB->FlowContCB.TxSyncObj);
+            SL_DRV_SYNC_OBJ_SIGNAL(&g_pCB->FlowContCB.TxSyncObj);
         }
+
     }
 
     /* Find the RX messaage class and set its async event handler */
@@ -920,27 +1250,30 @@ _SlReturnVal_t _SlDrvMsgRead(void)
             VERIFY_PROTOCOL(NULL == pAsyncBuf);
 
 #ifdef SL_MEMORY_MGMT_DYNAMIC
-        g_pCB->FunctionParams.AsyncExt.pAsyncBuf = sl_Malloc(SL_ASYNC_MAX_MSG_LEN);
+        g_pCB->FunctionParams.AsyncExt.pAsyncBuf = (_u8*)sl_Malloc(SL_ASYNC_MAX_MSG_LEN);
 #else
         g_pCB->FunctionParams.AsyncExt.pAsyncBuf = g_StatMem.AsyncRespBuf;
 #endif
             /* set the local pointer to the allocated one */
             pAsyncBuf = g_pCB->FunctionParams.AsyncExt.pAsyncBuf;
-
-            /* clear the async buffer */
-            _SlDrvMemZero(pAsyncBuf, SL_ASYNC_MAX_MSG_LEN);
             
             MALLOC_OK_CHECK(pAsyncBuf);
+
+			/* clear the async buffer */
+            _SlDrvMemZero(pAsyncBuf, (_u16)SL_ASYNC_MAX_MSG_LEN);
+
 
             sl_Memcpy(pAsyncBuf, uBuf.TempBuf, _SL_RESP_HDR_SIZE);
 			if (_SL_PROTOCOL_ALIGN_SIZE(RespPayloadLen) <= SL_ASYNC_MAX_PAYLOAD_LEN)
 			{
-				AlignedLengthRecv = _SL_PROTOCOL_ALIGN_SIZE(RespPayloadLen);
+				AlignedLengthRecv = (_u16)_SL_PROTOCOL_ALIGN_SIZE(RespPayloadLen);
 			}
 			else
 			{
-				AlignedLengthRecv = _SL_PROTOCOL_ALIGN_SIZE(SL_ASYNC_MAX_PAYLOAD_LEN);
+				AlignedLengthRecv = (_u16)_SL_PROTOCOL_ALIGN_SIZE(SL_ASYNC_MAX_PAYLOAD_LEN);
 			}
+
+			/* complete the read of the entire message to the async buffer */
             if (RespPayloadLen > 0)
             {
                 NWP_IF_READ_CHECK(g_pCB->FD,
@@ -950,7 +1283,7 @@ _SlReturnVal_t _SlDrvMsgRead(void)
         /* In case ASYNC RX buffer length is smaller then the received data length, dump the rest */
 			if ((_SL_PROTOCOL_ALIGN_SIZE(RespPayloadLen) > SL_ASYNC_MAX_PAYLOAD_LEN))
         {
-				AlignedLengthRecv = _SL_PROTOCOL_ALIGN_SIZE(RespPayloadLen) - SL_ASYNC_MAX_PAYLOAD_LEN;
+				AlignedLengthRecv = (_u16)(_SL_PROTOCOL_ALIGN_SIZE(RespPayloadLen) - SL_ASYNC_MAX_PAYLOAD_LEN);
             while (AlignedLengthRecv > 0)
             {
                 NWP_IF_READ_CHECK(g_pCB->FD,TailBuffer,4);
@@ -958,22 +1291,24 @@ _SlReturnVal_t _SlDrvMsgRead(void)
             }
         }
             
-            _SlDrvProtectionObjLockWaitForever();
+            SL_DRV_PROTECTION_OBJ_LOCK_FOREVER();
           
 			if (
-#ifndef SL_TINY_EXT               
+#ifndef SL_TINY               
                 (SL_OPCODE_SOCKET_ACCEPTASYNCRESPONSE == OpCode) || 
                 (SL_OPCODE_SOCKET_ACCEPTASYNCRESPONSE_V6 == OpCode) || 
 #endif                
-                (SL_OPCODE_SOCKET_CONNECTASYNCRESPONSE == OpCode)
+                (SL_OPCODE_SOCKET_CONNECTASYNCRESPONSE == OpCode) ||
+				(SL_OPCODE_SOCKET_SOCKETCLOSEASYNCEVENT == OpCode)
                )
 			{
 				/* go over the active list if exist to find obj waiting for this Async event */
-				sd = ((((_SocketResponse_t *)(pAsyncBuf + _SL_RESP_HDR_SIZE))->sd) & BSD_SOCKET_ID_MASK);
+				sd = ((((SlSocketResponse_t *)(pAsyncBuf + _SL_RESP_HDR_SIZE))->Sd) & SL_BSD_SOCKET_ID_MASK);
 			}
-			_SlFindAndSetActiveObj(OpCode, sd);
+            
+             (void)_SlDrvFindAndSetActiveObj(OpCode, sd);
 
-            _SlDrvProtectionObjUnLock();
+             SL_DRV_PROTECTION_OBJ_UNLOCK();
 
             break;
     case RECV_RESP_CLASS:
@@ -983,16 +1318,16 @@ _SlReturnVal_t _SlDrvMsgRead(void)
                 switch(OpCode)
             {
             case SL_OPCODE_SOCKET_RECVFROMASYNCRESPONSE:
-                ExpArgSize = RECVFROM_IPV4_ARGS_SIZE;
+                ExpArgSize = (_u8)RECVFROM_IPV4_ARGS_SIZE;
                 break;
-#ifndef SL_TINY_EXT                        
+#ifndef SL_TINY                        
             case SL_OPCODE_SOCKET_RECVFROMASYNCRESPONSE_V6:
-                ExpArgSize = RECVFROM_IPV6_ARGS_SIZE;
+                ExpArgSize = (_u8)RECVFROM_IPV6_ARGS_SIZE;
                 break;
 #endif                        
             default:
                 /* SL_OPCODE_SOCKET_RECVASYNCRESPONSE: */
-                ExpArgSize = RECV_ARGS_SIZE;
+                ExpArgSize = (_u8)RECV_ARGS_SIZE;
             }              
 
             /*  Read first 4 bytes of Recv/Recvfrom response to get SocketId and actual  */
@@ -1000,19 +1335,19 @@ _SlReturnVal_t _SlDrvMsgRead(void)
             NWP_IF_READ_CHECK(g_pCB->FD, &uBuf.TempBuf[4], RECV_ARGS_SIZE);
 
             /*  Validate Socket ID and Received Length value.  */
-            VERIFY_PROTOCOL((SD(&uBuf.TempBuf[4])& BSD_SOCKET_ID_MASK) < SL_MAX_SOCKETS);
+            VERIFY_PROTOCOL((SD(&uBuf.TempBuf[4])& SL_BSD_SOCKET_ID_MASK) < SL_MAX_SOCKETS);
 
-                 _SlDrvProtectionObjLockWaitForever();
+            SL_DRV_PROTECTION_OBJ_LOCK_FOREVER();
 
             /* go over the active list if exist to find obj waiting for this Async event */
-				VERIFY_RET_OK(_SlFindAndSetActiveObj(OpCode,SD(&uBuf.TempBuf[4]) & BSD_SOCKET_ID_MASK));
+			VERIFY_RET_OK(_SlDrvFindAndSetActiveObj(OpCode,SD(&uBuf.TempBuf[4]) & SL_BSD_SOCKET_ID_MASK));
 
             /*  Verify data is waited on this socket. The pArgs should have been set by _SlDrvDataReadOp(). */
             VERIFY_SOCKET_CB(NULL !=  ((_SlArgsData_t *)(g_pCB->ObjPool[g_pCB->FunctionParams.AsyncExt.ActionIndex].pData))->pArgs);	
 
             sl_Memcpy( ((_SlArgsData_t *)(g_pCB->ObjPool[g_pCB->FunctionParams.AsyncExt.ActionIndex].pRespArgs))->pArgs, &uBuf.TempBuf[4], RECV_ARGS_SIZE);
 
-            if(ExpArgSize > RECV_ARGS_SIZE)
+            if(ExpArgSize > (_u8)RECV_ARGS_SIZE)
             {
                 NWP_IF_READ_CHECK(g_pCB->FD,
                     ((_SlArgsData_t *)(g_pCB->ObjPool[g_pCB->FunctionParams.AsyncExt.ActionIndex].pRespArgs))->pArgs + RECV_ARGS_SIZE,
@@ -1030,8 +1365,8 @@ _SlReturnVal_t _SlDrvMsgRead(void)
                 /*  therefore check the requested length and read only  */
                 /*  4 bytes aligned data. The rest unaligned (if any) will be read */
                 /*  and copied to a TailBuffer  */
-                LengthToCopy = ACT_DATA_SIZE(&uBuf.TempBuf[4]) & (3);
-                AlignedLengthRecv = ACT_DATA_SIZE(&uBuf.TempBuf[4]) & (~3);
+                LengthToCopy = (_u16)(ACT_DATA_SIZE(&uBuf.TempBuf[4]) & (3));
+                AlignedLengthRecv = (_u16)(ACT_DATA_SIZE(&uBuf.TempBuf[4]) & (~3));
                 if( AlignedLengthRecv >= 4)
                 {
                     NWP_IF_READ_CHECK(g_pCB->FD,((_SlArgsData_t *)(g_pCB->ObjPool[g_pCB->FunctionParams.AsyncExt.ActionIndex].pRespArgs))->pData,AlignedLengthRecv );                      
@@ -1044,8 +1379,8 @@ _SlReturnVal_t _SlDrvMsgRead(void)
                     sl_Memcpy(((_SlArgsData_t *)(g_pCB->ObjPool[g_pCB->FunctionParams.AsyncExt.ActionIndex].pRespArgs))->pData + AlignedLengthRecv,TailBuffer,LengthToCopy);                    
                 }                  
             }
-                 _SlDrvSyncObjSignal(&g_pCB->ObjPool[g_pCB->FunctionParams.AsyncExt.ActionIndex].SyncObj);
-                 _SlDrvProtectionObjUnLock();
+                 SL_DRV_SYNC_OBJ_SIGNAL(&g_pCB->ObjPool[g_pCB->FunctionParams.AsyncExt.ActionIndex].SyncObj);
+                 SL_DRV_PROTECTION_OBJ_UNLOCK();
         }
         break;
 
@@ -1064,7 +1399,7 @@ _SlReturnVal_t _SlDrvMsgRead(void)
         if((NULL != g_pCB->FunctionParams.pCmdExt) && (0 != g_pCB->FunctionParams.pCmdExt->RxPayloadLen))
         {
             /*  Actual size of command's response payload: <msg_payload_len> - <rsp_args_len> */
-            _i16    ActDataSize = RSP_PAYLOAD_LEN(uBuf.TempBuf) - g_pCB->FunctionParams.pCmdCtrl->RxDescLen;
+            _i16    ActDataSize = (_i16)(RSP_PAYLOAD_LEN(uBuf.TempBuf) - g_pCB->FunctionParams.pCmdCtrl->RxDescLen);
 
             g_pCB->FunctionParams.pCmdExt->ActualRxPayloadLen = ActDataSize;
 
@@ -1078,13 +1413,13 @@ _SlReturnVal_t _SlDrvMsgRead(void)
                 /* In case the user supplied Rx buffer length which is smaller then the received data length, copy according to user length */
                 if (ActDataSize > g_pCB->FunctionParams.pCmdExt->RxPayloadLen)
                 {
-                    LengthToCopy = g_pCB->FunctionParams.pCmdExt->RxPayloadLen & (3);
-                    AlignedLengthRecv = g_pCB->FunctionParams.pCmdExt->RxPayloadLen & (~3);
+                    LengthToCopy = (_u16)(g_pCB->FunctionParams.pCmdExt->RxPayloadLen & (3));
+                    AlignedLengthRecv = (_u16)(g_pCB->FunctionParams.pCmdExt->RxPayloadLen & (~3));
                 }
                 else
                 {
-                    LengthToCopy = ActDataSize & (3);
-                    AlignedLengthRecv = ActDataSize & (~3);
+                    LengthToCopy = (_u16)(ActDataSize & (3));
+                    AlignedLengthRecv = (_u16)(ActDataSize & (~3));
                 }
                 /*  Read 4 bytes aligned from interface */
                 /*  therefore check the requested length and read only  */
@@ -1111,8 +1446,8 @@ _SlReturnVal_t _SlDrvMsgRead(void)
                 /* In case the user supplied Rx buffer length which is smaller then the received data length, dump the rest */
                 if (ActDataSize > g_pCB->FunctionParams.pCmdExt->RxPayloadLen)
                 {
-                    /* calculate the rest of the data size to dump */
-                    AlignedLengthRecv = ActDataSize - (g_pCB->FunctionParams.pCmdExt->RxPayloadLen & (~3));
+                    /* calculate the rest of the data size to dump  */
+                    AlignedLengthRecv = (_u16)( (ActDataSize + 3 - g_pCB->FunctionParams.pCmdExt->RxPayloadLen) & (~3) );
                     while( AlignedLengthRecv > 0)
                     {
                         NWP_IF_READ_CHECK(g_pCB->FD,TailBuffer, 4 );
@@ -1128,11 +1463,6 @@ _SlReturnVal_t _SlDrvMsgRead(void)
         break;
     }
 
-    if(AlignSize > 0)
-    {
-        NWP_IF_READ_CHECK(g_pCB->FD, uBuf.TempBuf, AlignSize);
-    }
-
     _SL_DBG_CNT_INC(MsgCnt.Read);
 
     /*  Unmask Interrupt call */
@@ -1143,9 +1473,9 @@ _SlReturnVal_t _SlDrvMsgRead(void)
 
 
 /* ******************************************************************************/
-/*  _SlAsyncEventGenericHandler */
+/*  _SlDrvAsyncEventGenericHandler */
 /* ******************************************************************************/
-void _SlAsyncEventGenericHandler(void)
+static void _SlDrvAsyncEventGenericHandler(_u8 bInCmdContext)
 {
     _u32 SlAsyncEvent = 0;
     _u8  OpcodeFound = FALSE; 
@@ -1157,10 +1487,24 @@ void _SlAsyncEventGenericHandler(void)
 
     /* if no async event registered nothing to do..*/
     if (g_pCB->FunctionParams.AsyncExt.AsyncEvtHandler == NULL)
-        return;
+	{
+		return;
+	}
+    
+	/* In case we in the middle of the provisioning, filter out 
+	   all the async events except the provisioning ones  */
+	if (  (( SL_IS_PROVISIONING_ACTIVE || SL_IS_PROVISIONING_INITIATED_BY_USER) && !(SL_IS_PROVISIONING_API_ALLOWED)) &&
+		  (pHdr->GenHeader.Opcode != SL_OPCODE_WLAN_PROVISIONING_STATUS_ASYNC_EVENT) &&
+		  (pHdr->GenHeader.Opcode != SL_OPCODE_DEVICE_RESET_REQUEST_ASYNC_EVENT) &&
+		  (pHdr->GenHeader.Opcode != SL_OPCODE_DEVICE_INITCOMPLETE) &&
+		  (pHdr->GenHeader.Opcode != SL_OPCODE_WLAN_PROVISIONING_PROFILE_ADDED_ASYNC_RESPONSE) &&
+		  (pHdr->GenHeader.Opcode != SL_OPCODE_NETAPP_REQUEST) )
+	{
+		return;
+	}
 
     /* Iterate through all the opcode in the table */
-    for (i=0; i< (sizeof(OpcodeTranslateTable) / sizeof(OpcodeKeyVal_t)); i++)
+    for (i=0; i< (_u8)(sizeof(OpcodeTranslateTable) / sizeof(OpcodeKeyVal_t)); i++)
     {
         if (OpcodeTranslateTable[i].opcode == pHdr->GenHeader.Opcode)
         {
@@ -1173,9 +1517,21 @@ void _SlAsyncEventGenericHandler(void)
     /* No Async event found in the table */
     if (OpcodeFound == FALSE)
     {
+		if ((pHdr->GenHeader.Opcode & SL_OPCODE_SILO_MASK) == SL_OPCODE_SILO_DEVICE)
+		{
+			DeviceEventInfo_t deviceEvent;
+
+			deviceEvent.pAsyncMsgBuff = g_pCB->FunctionParams.AsyncExt.pAsyncBuf;
+			deviceEvent.bInCmdContext = bInCmdContext;
+
+			g_pCB->FunctionParams.AsyncExt.AsyncEvtHandler(&deviceEvent);
+		}
+		else
+		{
         /* This case handles all the async events handlers of the DEVICE & SOCK Silos which are handled internally.
                  For these cases we send the async even buffer as is */
         g_pCB->FunctionParams.AsyncExt.AsyncEvtHandler(g_pCB->FunctionParams.AsyncExt.pAsyncBuf);
+		}
     }
     else
     {
@@ -1197,8 +1553,25 @@ void _SlAsyncEventGenericHandler(void)
 /* ******************************************************************************/
 /*  _SlDrvMsgReadCmdCtx  */
 /* ******************************************************************************/
-_SlReturnVal_t _SlDrvMsgReadCmdCtx(void)
+static _SlReturnVal_t _SlDrvMsgReadCmdCtx(_u16 cmdOpcode, _u8 IsLockRequired)
 {
+#ifndef SL_TINY
+	_u32 CmdCmpltTimeout;
+	_i16 RetVal=0;
+
+    
+	/* the sl_FsOpen/sl_FsProgram APIs may take long time */
+	if ((cmdOpcode == SL_OPCODE_NVMEM_FILEOPEN) || (cmdOpcode == SL_OPCODE_NVMEM_NVMEMFSPROGRAMMINGCOMMAND))
+	{
+		CmdCmpltTimeout = ((_u32)SL_DRIVER_TIMEOUT_LONG * 10);
+	}
+	else
+	{
+		/* For any FS command, the timeout will be the long one as the commnad response holds the full response data */
+		CmdCmpltTimeout = (SL_OPCODE_SILO_FS & cmdOpcode)? (_u32)(SL_DRIVER_TIMEOUT_LONG) : (_u32)SL_DRIVER_TIMEOUT_SHORT;
+	}
+#endif
+
 
     /*  after command response is received and isCmdRespWaited */
     /*  flag is set FALSE, it is necessary to read out all */
@@ -1210,7 +1583,21 @@ _SlReturnVal_t _SlDrvMsgReadCmdCtx(void)
     {
         if(_SL_PENDING_RX_MSG(g_pCB))
         {
+#ifdef SL_TINY        
             VERIFY_RET_OK(_SlDrvMsgRead());
+#else
+            if (_SlDrvMsgRead() != SL_OS_RET_CODE_OK)
+            {
+				g_pCB->IsCmdRespWaited = FALSE;
+
+				if (IsLockRequired)
+				{
+					SL_DRV_LOCK_GLOBAL_UNLOCK(TRUE);
+				}
+                
+                return SL_API_ABORTED;
+            }
+#endif            
             g_pCB->RxDoneCnt++;
 
             if (CMD_RESP_CLASS == g_pCB->FunctionParams.AsyncExt.RxMsgClass)
@@ -1219,7 +1606,7 @@ _SlReturnVal_t _SlDrvMsgReadCmdCtx(void)
 
                 /*  In case CmdResp has been read without  waiting on CmdSyncObj -  that */
                 /*  Sync object. That to prevent old signal to be processed. */
-                sl_SyncObjClear(&g_pCB->CmdSyncObj);
+                SL_DRV_SYNC_OBJ_CLEAR(&g_pCB->CmdSyncObj);
             }
             else if (ASYNC_EVT_CLASS == g_pCB->FunctionParams.AsyncExt.RxMsgClass)
             {
@@ -1229,7 +1616,7 @@ _SlReturnVal_t _SlDrvMsgReadCmdCtx(void)
                 /*  This way there will be no "dry shots" from CmdResp context to */
                 /*  temporary context, i.e less waste of CPU and faster buffer */
                 /*  release. */
-                _SlAsyncEventGenericHandler();
+                _SlDrvAsyncEventGenericHandler(TRUE);
                 
                 
 #ifdef SL_MEMORY_MGMT_DYNAMIC
@@ -1241,8 +1628,30 @@ _SlReturnVal_t _SlDrvMsgReadCmdCtx(void)
         }
         else
         {
+#ifdef SL_TINY          
             /* CmdSyncObj will be signaled by IRQ */
              _SlDrvSyncObjWaitForever(&g_pCB->CmdSyncObj);
+#else
+
+			RetVal = sl_SyncObjWait(&g_pCB->CmdSyncObj, CmdCmpltTimeout);
+            if (RetVal != 0)
+            {
+				g_pCB->IsCmdRespWaited = FALSE;
+
+				if (IsLockRequired)
+				{
+					SL_DRV_LOCK_GLOBAL_UNLOCK(TRUE);
+				}
+				
+				/* only if device started handle the fatal error */
+				if (SL_IS_DEVICE_STARTED)
+				{
+					_SlDrvHandleFatalError(SL_DEVICE_EVENT_FATAL_NO_CMD_ACK, cmdOpcode, (_u32)CmdCmpltTimeout);
+				}
+                
+                return SL_API_ABORTED;
+            }
+#endif                        
         }
     }
 
@@ -1251,12 +1660,14 @@ _SlReturnVal_t _SlDrvMsgReadCmdCtx(void)
     /*  Spawn _SlDrvMsgReadSpawnCtx to trigger reading these messages from */
     /*  Temporary context. */
     /* sl_Spawn is activated, using a different context */
-
-    _SlDrvObjUnLock(&g_pCB->GlobalLockObj);
+	if (IsLockRequired)
+	{
+		SL_DRV_LOCK_GLOBAL_UNLOCK(TRUE);
+	}
     
     if(_SL_PENDING_RX_MSG(g_pCB))
     {
-        sl_Spawn((_SlSpawnEntryFunc_t)_SlDrvMsgReadSpawnCtx, NULL, 0);
+        (void)sl_Spawn((_SlSpawnEntryFunc_t)_SlDrvMsgReadSpawnCtx, NULL, 0);
     }
 
     return SL_OS_RET_CODE_OK;
@@ -1267,39 +1678,56 @@ _SlReturnVal_t _SlDrvMsgReadCmdCtx(void)
 /* ******************************************************************************/
 _SlReturnVal_t _SlDrvMsgReadSpawnCtx(void *pValue)
 {
+
 #ifdef SL_POLLING_MODE_USED
     _i16 retCode = OSI_OK;
+
     /*  for polling based systems */
     do
     {
-        retCode = sl_LockObjLock(&g_pCB->GlobalLockObj, 0);
-        if ( OSI_OK != retCode )
-        {
-            if (TRUE == g_pCB->IsCmdRespWaited)
-            {
-                _SlDrvSyncObjSignal(&g_pCB->CmdSyncObj);
-                return SL_RET_CODE_OK;
-            }
-        }
+		if (GlobalLockObj != NULL)
+		{
+			retCode = sl_LockObjLock(&GlobalLockObj, 0);
+	
+			if ( OSI_OK != retCode )
+			{
+				if (TRUE == g_pCB->IsCmdRespWaited)
+				{
+					SL_DRV_SYNC_OBJ_SIGNAL(&g_pCB->CmdSyncObj);
+					return SL_RET_CODE_OK;
+				}
+			}
 
+		}
+        
     }
     while (OSI_OK != retCode);
 
 #else
-    _SlDrvObjLockWaitForever(&g_pCB->GlobalLockObj);
+    SL_DRV_LOCK_GLOBAL_LOCK_FOREVER(GLOBAL_LOCK_FLAGS_NONE);
 #endif
 
+    /* pValue paramater is currently not in use */
+    (void)pValue;
 
     /*  Messages might have been read by CmdResp context. Therefore after */
     /*  getting LockObj, check again where the Pending Rx Msg is still present. */
     if(FALSE == (_SL_PENDING_RX_MSG(g_pCB)))
     {
-        _SlDrvObjUnLock(&g_pCB->GlobalLockObj);
+        SL_DRV_LOCK_GLOBAL_UNLOCK(FALSE);
         
         return SL_RET_CODE_OK;
     }
 
+#ifdef SL_TINY
     VERIFY_RET_OK(_SlDrvMsgRead());
+#else
+	if (_SlDrvMsgRead() != SL_OS_RET_CODE_OK)
+	{
+        SL_DRV_LOCK_GLOBAL_UNLOCK(FALSE);
+		return SL_API_ABORTED;
+	}
+#endif
 
     g_pCB->RxDoneCnt++;
 
@@ -1310,7 +1738,7 @@ _SlReturnVal_t _SlDrvMsgReadSpawnCtx(void *pValue)
         /*  to be read */
         VERIFY_PROTOCOL(NULL != g_pCB->FunctionParams.AsyncExt.pAsyncBuf);
    
-        _SlAsyncEventGenericHandler();        
+        _SlDrvAsyncEventGenericHandler(FALSE);        
         
 #ifdef SL_MEMORY_MGMT_DYNAMIC
         sl_Free(g_pCB->FunctionParams.AsyncExt.pAsyncBuf);
@@ -1329,7 +1757,7 @@ _SlReturnVal_t _SlDrvMsgReadSpawnCtx(void *pValue)
         VERIFY_PROTOCOL(0);
     }
 
-    _SlDrvObjUnLock(&g_pCB->GlobalLockObj);
+	SL_DRV_LOCK_GLOBAL_UNLOCK(FALSE);
 
     return(SL_RET_CODE_OK);
 }
@@ -1342,7 +1770,7 @@ _SlReturnVal_t _SlDrvMsgReadSpawnCtx(void *pValue)
 #define SL_OPCODE_SILO_WLAN                             ( 0x1 << SL_OPCODE_SILO_OFFSET )
 #define SL_OPCODE_SILO_SOCKET                           ( 0x2 << SL_OPCODE_SILO_OFFSET )
 #define SL_OPCODE_SILO_NETAPP                           ( 0x3 << SL_OPCODE_SILO_OFFSET )
-#define SL_OPCODE_SILO_NVMEM                            ( 0x4 << SL_OPCODE_SILO_OFFSET )
+#define SL_OPCODE_SILO_FS                               ( 0x4 << SL_OPCODE_SILO_OFFSET )
 #define SL_OPCODE_SILO_NETCFG                           ( 0x5 << SL_OPCODE_SILO_OFFSET )
 
 
@@ -1350,27 +1778,26 @@ _SlReturnVal_t _SlDrvMsgReadSpawnCtx(void *pValue)
 
 /* The Lookup table below holds the event handlers to be called according to the incoming
     RX message SILO type */
-const _SlSpawnEntryFunc_t RxMsgClassLUT[] = {
-    (_SlSpawnEntryFunc_t)_SlDrvDeviceEventHandler, /* SL_OPCODE_SILO_DEVICE */
-#if defined(sl_WlanEvtHdlr) || defined(EXT_LIB_REGISTERED_WLAN_EVENTS)
+static const _SlSpawnEntryFunc_t RxMsgClassLUT[] = {
+    (_SlSpawnEntryFunc_t)_SlDeviceEventHandler, /* SL_OPCODE_SILO_DEVICE */
+#if defined(slcb_WlanEvtHdlr) || defined(EXT_LIB_REGISTERED_WLAN_EVENTS)
     (_SlSpawnEntryFunc_t)_SlDrvHandleWlanEvents,           /* SL_OPCODE_SILO_WLAN */
 #else
     NULL,
 #endif
-#if defined (sl_SockEvtHdlr) || defined(EXT_LIB_REGISTERED_SOCK_EVENTS)
-    (_SlSpawnEntryFunc_t)_SlDrvHandleSockEvents,   /* SL_OPCODE_SILO_SOCKET */
+#if defined (slcb_SockEvtHdlr) || defined(EXT_LIB_REGISTERED_SOCK_EVENTS)
+    (_SlSpawnEntryFunc_t)_SlDrvHandleSockEvents,      /* SL_OPCODE_SILO_SOCKET */
 #else
     NULL,
 #endif
-
-#if defined(sl_NetAppEvtHdlr) || defined(EXT_LIB_REGISTERED_NETAPP_EVENTS)
-    (_SlSpawnEntryFunc_t)_SlDrvHandleNetAppEvents, /* SL_OPCODE_SILO_NETAPP */
+#if defined(slcb_NetAppEvtHdlr) || defined(EXT_LIB_REGISTERED_NETAPP_EVENTS)
+    (_SlSpawnEntryFunc_t)_SlDrvHandleNetAppEvents,    /* SL_OPCODE_SILO_NETAPP */
 #else
     NULL,  
 #endif
-    NULL,                                          /* SL_OPCODE_SILO_NVMEM */
-    NULL,                                          /* SL_OPCODE_SILO_NETCFG */
-    NULL,
+    NULL,                                             /* SL_OPCODE_SILO_FS      */
+    NULL,                                             /* SL_OPCODE_SILO_NETCFG  */
+    (_SlSpawnEntryFunc_t)_SlNetUtilHandleAsync_Cmd,   /* SL_OPCODE_SILO_NETUTIL */
     NULL
 };
 
@@ -1378,7 +1805,7 @@ const _SlSpawnEntryFunc_t RxMsgClassLUT[] = {
 /* ******************************************************************************/
 /*  _SlDrvClassifyRxMsg */
 /* ******************************************************************************/
-void _SlDrvClassifyRxMsg(
+static _SlReturnVal_t _SlDrvClassifyRxMsg(
     _SlOpcode_t         Opcode)
 {
     _SlSpawnEntryFunc_t AsyncEvtHandler = NULL;
@@ -1394,7 +1821,7 @@ void _SlDrvClassifyRxMsg(
 		    RxMsgClass = DUMMY_MSG_CLASS;
 		}
 		else if ( (SL_OPCODE_SOCKET_RECVASYNCRESPONSE == Opcode) || (SL_OPCODE_SOCKET_RECVFROMASYNCRESPONSE == Opcode) 
-#ifndef SL_TINY_EXT                      
+#ifndef SL_TINY                      
                     || (SL_OPCODE_SOCKET_RECVFROMASYNCRESPONSE_V6 == Opcode) 
 #endif                    
                  ) 
@@ -1408,21 +1835,24 @@ void _SlDrvClassifyRxMsg(
         
 		    /* Despite the fact that 4 bits are allocated in the SILO field, we actually have only 6 SILOs
 		      So we can use the 8 options of SILO in look up table */
-		    Silo = ((Opcode >> SL_OPCODE_SILO_OFFSET) & 0x7);
+		    Silo = (_u8)((Opcode >> SL_OPCODE_SILO_OFFSET) & 0x7);
 
-            VERIFY_PROTOCOL(Silo < (sizeof(RxMsgClassLUT)/sizeof(_SlSpawnEntryFunc_t)));
+            VERIFY_PROTOCOL(Silo < (_u8)(sizeof(RxMsgClassLUT)/sizeof(_SlSpawnEntryFunc_t)));
 
-            /* Set the async event hander according to the LUT */
+            /* Set the SILO's async event handler according to the LUT
+			   If this specific event requires a direct async event handler, the 
+			   async event handler will be overwrite according to the action table */
             AsyncEvtHandler = RxMsgClassLUT[Silo];
             
-            if ((SL_OPCODE_NETAPP_HTTPGETTOKENVALUE == Opcode) || (SL_OPCODE_NETAPP_HTTPPOSTTOKENVALUE == Opcode))
+            if ((SL_OPCODE_NETAPP_HTTPGETTOKENVALUE == Opcode) || (SL_OPCODE_NETAPP_HTTPPOSTTOKENVALUE == Opcode) || 
+                (SL_OPCODE_NETAPP_REQUEST == Opcode) || (SL_OPCODE_NETAPP_RESPONSE == Opcode) || (SL_OPCODE_NETAPP_SEND == Opcode))
             {
-                AsyncEvtHandler = _SlDrvNetAppEventHandler;
+                AsyncEvtHandler = _SlNetAppEventHandler;
             }
-#ifndef SL_TINY_EXT            
+#ifndef SL_TINY
             else if (SL_OPCODE_NETAPP_PINGREPORTREQUESTRESPONSE == Opcode)
             {
-                AsyncEvtHandler = (_SlSpawnEntryFunc_t)_sl_HandleAsync_PingResponse;
+                AsyncEvtHandler = (_SlSpawnEntryFunc_t)_SlNetAppHandleAsync_PingResponse;
             }
 #endif
 		}
@@ -1431,61 +1861,101 @@ void _SlDrvClassifyRxMsg(
     g_pCB->FunctionParams.AsyncExt.RxMsgClass = RxMsgClass; 
     g_pCB->FunctionParams.AsyncExt.AsyncEvtHandler = AsyncEvtHandler;
     	 
+	return SL_RET_CODE_OK;
 }
 
 
 /* ******************************************************************************/
 /*  _SlDrvRxHdrRead  */
 /* ******************************************************************************/
-_SlReturnVal_t   _SlDrvRxHdrRead(_u8 *pBuf, _u8 *pAlignSize)
+static _SlReturnVal_t _SlDrvRxHdrRead(_u8 *pBuf)
 {
-     _u32       SyncCnt  = 0;
     _u8        ShiftIdx;  
+    _u8                 TimeoutState = TIMEOUT_STATE_INIT_VAL;
+    _u8         SearchSync = TRUE;
+#if (!defined (SL_TINY)) && (defined(slcb_GetTimestamp))
+     _SlTimeoutParams_t      TimeoutInfo={0};
+#endif
 
 #ifndef SL_IF_TYPE_UART
     /*  1. Write CNYS pattern to NWP when working in SPI mode only  */
     NWP_IF_WRITE_CHECK(g_pCB->FD, (_u8 *)&g_H2NCnysPattern.Short, SYNC_PATTERN_LEN);
 #endif
 
-    /*  2. Read 4 bytes (protocol aligned) */
-    NWP_IF_READ_CHECK(g_pCB->FD, &pBuf[0], 4);
-    _SL_DBG_SYNC_LOG(SyncCnt,pBuf);
+#if (!defined (SL_TINY)) && (defined(slcb_GetTimestamp))
+    _SlDrvStartMeasureTimeout(&TimeoutInfo, SYNC_PATTERN_TIMEOUT_IN_MSEC);
+#endif
 
-    /* Wait for SYNC_PATTERN_LEN from the device */
-    while ( ! N2H_SYNC_PATTERN_MATCH(pBuf, g_pCB->TxSeqNum) )
+    /*  2. Read 8 bytes (protocol aligned) - expected to be the sync pattern */
+    NWP_IF_READ_CHECK(g_pCB->FD, &pBuf[0], 8);
+
+    /* read while first 4 bytes are different than last 4 bytes */
+    while ( *(_u32 *)&pBuf[0] == *(_u32 *)&pBuf[4])
     {
-        /*  3. Debug limit of scan */
-        VERIFY_PROTOCOL(SyncCnt < SL_SYNC_SCAN_THRESHOLD);
+    	 NWP_IF_READ_CHECK(g_pCB->FD, &pBuf[4], 4);
+    }
 
-        /*  4. Read next 4 bytes to Low 4 bytes of buffer */
-        if(0 == (SyncCnt % (_u32)SYNC_PATTERN_LEN))
+
+    /* scan for the sync pattern till found or timeout elapsed (if configured) */
+    while (SearchSync && TimeoutState)
+    {
+    	/* scan till we get the real sync pattern */
+		for (ShiftIdx =0; ShiftIdx <=4 ; ShiftIdx++)
+		{
+		   /* sync pattern found so complete the read to  4 bytes aligned */
+		   if (N2H_SYNC_PATTERN_MATCH(&pBuf[ShiftIdx], g_pCB->TxSeqNum))
+		   {
+				   /* copy the bytes following the sync pattern to the buffer start */
+				   *(_u32 *)&pBuf[0] = *(_u32 *)&pBuf[ShiftIdx + SYNC_PATTERN_LEN];
+
+				  /* read the rest of the byte */
+				  NWP_IF_READ_CHECK(g_pCB->FD, &pBuf[SYNC_PATTERN_LEN - ShiftIdx], ShiftIdx);
+
+				  /* here we except to get the opcode + length or false doubled sync..*/
+				  SearchSync = FALSE;
+				  break;
+		   }
+
+		}
+
+		if (SearchSync == TRUE)
+		{
+			/* sync not found move top 4 bytes to bottom */
+			*(_u32 *)&pBuf[0] = *(_u32 *)&pBuf[4];
+
+			/* read 4 more bytes to the buffer top */
+			NWP_IF_READ_CHECK(g_pCB->FD, &pBuf[4], 4);
+		}
+
+
+ #if (defined (slcb_GetTimestamp)) &&  (!defined (SL_TINY))
+
+        /* if we got here after first timeout detection, it means that we gave
+            one more chance, and we can now exit the loop with timeout expiry  */
+        if (TIMEOUT_ONE_MORE_SHOT == TimeoutState)
         {
-            NWP_IF_READ_CHECK(g_pCB->FD, &pBuf[4], 4);
-            _SL_DBG_SYNC_LOG(SyncCnt,pBuf);
+            TimeoutState =  TIMEOUT_STATE_EXPIRY;
+            break;
+        }
+        
+        /* Timeout occured. do not break now as we want to give one more chance in case
+            the timeout occured due to some external context switch */
+        if (_SlDrvIsTimeoutExpired(&TimeoutInfo))
+        {
+        	TimeoutState = TIMEOUT_ONE_MORE_SHOT;
         }
 
-        /*  5. Shift Buffer Up for checking if the sync is shifted */
-        for(ShiftIdx = 0; ShiftIdx< 7; ShiftIdx++)
-        {
-            pBuf[ShiftIdx] = pBuf[ShiftIdx+1];
-        }             
-        pBuf[7] = 0;
+#endif
+    } /* end of while */
 
-        SyncCnt++;
-    }
+#if (defined (slcb_GetTimestamp)) &&  (!defined (SL_TINY))
+	if (TIMEOUT_STATE_EXPIRY  == TimeoutState)
+	{
+        return SL_API_ABORTED;
+	}
+#endif
 
-    /*  5. Sync pattern found. If needed, complete number of read bytes to multiple of 4 (protocol align) */
-    SyncCnt %= SYNC_PATTERN_LEN;
 
-    if(SyncCnt > 0)
-    {
-        *(_u32 *)&pBuf[0] = *(_u32 *)&pBuf[4];
-        NWP_IF_READ_CHECK(g_pCB->FD, &pBuf[SYNC_PATTERN_LEN - SyncCnt], (_u16)SyncCnt);
-    }
-    else
-    {
-        NWP_IF_READ_CHECK(g_pCB->FD, &pBuf[0], 4);
-    }
 
     /*  6. Scan for Double pattern. */
     while ( N2H_SYNC_PATTERN_MATCH(pBuf, g_pCB->TxSeqNum) )
@@ -1495,12 +1965,9 @@ _SlReturnVal_t   _SlDrvRxHdrRead(_u8 *pBuf, _u8 *pAlignSize)
     }
     g_pCB->TxSeqNum++;
 
-    /*  7. Here we've read Generic Header (4 bytes). Read the Resp Specific header (4 more bytes). */
+    /*  7. Here we've read Generic Header (4 bytes opcode+length).
+     * Now Read the Resp Specific header (4 more bytes). */
     NWP_IF_READ_CHECK(g_pCB->FD, &pBuf[SYNC_PATTERN_LEN], _SL_RESP_SPEC_HDR_SIZE);
-
-    /*  8. Here we've read the entire Resp Header. */
-    /*     Return number bytes needed to be sent after read for NWP Rx 4-byte alignment (protocol alignment) */
-    *pAlignSize = (_u8)((SyncCnt > 0) ? (SYNC_PATTERN_LEN - SyncCnt) : 0);
 
     return SL_RET_CODE_OK;
 }
@@ -1514,42 +1981,75 @@ typedef union
 }_SlBasicCmdMsg_u;
 
 
-#ifndef SL_TINY_EXT
+#ifndef SL_TINY
 _i16 _SlDrvBasicCmd(_SlOpcode_t Opcode)
 {
-    _SlBasicCmdMsg_u       Msg = {0};
+    _SlBasicCmdMsg_u       Msg;
     _SlCmdCtrl_t           CmdCtrl;
 
+    _SlDrvMemZero(&Msg, (_u16)sizeof(_SlBasicCmdMsg_u));
     CmdCtrl.Opcode = Opcode;
     CmdCtrl.TxDescLen = 0;
-    CmdCtrl.RxDescLen = sizeof(_BasicResponse_t);
+    CmdCtrl.RxDescLen = (_SlArgSize_t)sizeof(_BasicResponse_t);
 
 
     VERIFY_RET_OK(_SlDrvCmdOp((_SlCmdCtrl_t *)&CmdCtrl, &Msg, NULL));
 
     return (_i16)Msg.Rsp.status;
 }
+#endif
 
 /*****************************************************************************
-  _SlDrvCmdSend 
+  _SlDrvCmdSend_noLock 
   Send SL command without waiting for command response 
   This function is unprotected and the caller should make 
-  sure global lock is active
+  sure global lock is active. Used to send data within async event handler, where the driver is already locked.
 *****************************************************************************/
+_SlReturnVal_t _SlDrvCmdSend_noLock(
+    _SlCmdCtrl_t  *pCmdCtrl ,
+    void          *pTxRxDescBuff ,
+    _SlCmdExt_t   *pCmdExt)
+{
+    _SlReturnVal_t RetVal;
+    _u8            IsCmdRespWaitedOriginalVal;
+
+       _SlFunctionParams_t originalFuncParms;
+
+    /* save the current RespWait flag before clearing it */
+    IsCmdRespWaitedOriginalVal = g_pCB->IsCmdRespWaited;
+
+    /* save the current command paramaters */
+       sl_Memcpy(&originalFuncParms,  &g_pCB->FunctionParams, sizeof(_SlFunctionParams_t));
+
+    g_pCB->IsCmdRespWaited = FALSE;
+  
+    SL_TRACE0(DBG_MSG, MSG_312, "_SlDrvCmdSend_noLock: call _SlDrvMsgWrite");
+
+    /* send the message */
+    RetVal = _SlDrvMsgWrite(pCmdCtrl, pCmdExt, pTxRxDescBuff);
+
+    /* restore the original RespWait flag */
+    g_pCB->IsCmdRespWaited = IsCmdRespWaitedOriginalVal;
+
+    /* restore the original command paramaters  */
+       sl_Memcpy(&g_pCB->FunctionParams, &originalFuncParms, sizeof(_SlFunctionParams_t));
+
+    return RetVal;
+}
+
+/*****************************************************************************
+  _SlDrvCmdSend
+  Send SL command without waiting for command response 
+*****************************************************************************/
+#ifndef SL_TINY
 _SlReturnVal_t _SlDrvCmdSend(
     _SlCmdCtrl_t  *pCmdCtrl ,
     void          *pTxRxDescBuff ,
     _SlCmdExt_t   *pCmdExt)
 {
     _SlReturnVal_t RetVal;
-    _u8*           pBufLocation;
-    _u8            IsCmdRespWaitedOriginalVal;
 
-    /* save the current RespWait flag before clearing it */
-    IsCmdRespWaitedOriginalVal = g_pCB->IsCmdRespWaited;
-
-    /* save the current pTxRxDescBuff */
-    pBufLocation = g_pCB->FunctionParams.pTxRxDescBuff;
+    _SlDrvObjLockWaitForever(&GlobalLockObj);
 
     g_pCB->IsCmdRespWaited = FALSE;
   
@@ -1558,15 +2058,11 @@ _SlReturnVal_t _SlDrvCmdSend(
     /* send the message */
     RetVal = _SlDrvMsgWrite(pCmdCtrl, pCmdExt, pTxRxDescBuff);
 
-    /* restore the original RespWait flag */
-    g_pCB->IsCmdRespWaited = IsCmdRespWaitedOriginalVal;
-
-    /* restore the original pTxRxDescBuff  flag  */
-    g_pCB->FunctionParams.pTxRxDescBuff = pBufLocation;
+    _SlDrvObjUnLock(&GlobalLockObj);
 
     return RetVal;
-
 }
+
 #endif
 
 /* ***************************************************************************** */
@@ -1577,13 +2073,14 @@ _u8 _SlDrvWaitForPoolObj(_u8 ActionID, _u8 SocketID)
     _u8 CurrObjIndex = MAX_CONCURRENT_ACTIONS;
 
     /* Get free object  */
-            _SlDrvProtectionObjLockWaitForever();
+    SL_DRV_PROTECTION_OBJ_LOCK_FOREVER();
+    
     if (MAX_CONCURRENT_ACTIONS > g_pCB->FreePoolIdx)
     {
         /* save the current obj index */
         CurrObjIndex = g_pCB->FreePoolIdx;
         /* set the new free index */
-#ifndef SL_TINY_EXT
+#ifndef SL_TINY
         if (MAX_CONCURRENT_ACTIONS > g_pCB->ObjPool[CurrObjIndex].NextIndex)
         {
             g_pCB->FreePoolIdx = g_pCB->ObjPool[CurrObjIndex].NextIndex;
@@ -1597,7 +2094,7 @@ _u8 _SlDrvWaitForPoolObj(_u8 ActionID, _u8 SocketID)
     }
     else
     {
-		_SlDrvProtectionObjUnLock();
+        SL_DRV_PROTECTION_OBJ_UNLOCK();
         return CurrObjIndex;
     }
     g_pCB->ObjPool[CurrObjIndex].ActionID = (_u8)ActionID;
@@ -1605,7 +2102,7 @@ _u8 _SlDrvWaitForPoolObj(_u8 ActionID, _u8 SocketID)
     {
         g_pCB->ObjPool[CurrObjIndex].AdditionalData = SocketID;
     }
-#ifndef SL_TINY_EXT
+#ifndef SL_TINY
     /*In case this action is socket related, SocketID bit will be on
     In case SocketID is set to SL_MAX_SOCKETS, the socket is not relevant to the action. In that case ActionID bit will be on */
 	while ( ( (SL_MAX_SOCKETS > SocketID) && (g_pCB->ActiveActionsBitmap & (1<<SocketID)) ) || 
@@ -1614,13 +2111,13 @@ _u8 _SlDrvWaitForPoolObj(_u8 ActionID, _u8 SocketID)
         /* action in progress - move to pending list */
         g_pCB->ObjPool[CurrObjIndex].NextIndex = g_pCB->PendingPoolIdx;
         g_pCB->PendingPoolIdx = CurrObjIndex;
-		_SlDrvProtectionObjUnLock();
+        SL_DRV_PROTECTION_OBJ_UNLOCK();
         
         /* wait for action to be free */
-        _SlDrvSyncObjWaitForever(&g_pCB->ObjPool[CurrObjIndex].SyncObj);
+	    (void)_SlDrvSyncObjWaitForever(&g_pCB->ObjPool[CurrObjIndex].SyncObj);
         
         /* set params and move to active (remove from pending list at _SlDrvReleasePoolObj) */
-        _SlDrvProtectionObjLockWaitForever();
+        SL_DRV_PROTECTION_OBJ_LOCK_FOREVER();
     }
 #endif
     /* mark as active. Set socket as active if action is on socket, otherwise mark action as active */
@@ -1635,8 +2132,15 @@ _u8 _SlDrvWaitForPoolObj(_u8 ActionID, _u8 SocketID)
     /* move to active list  */
     g_pCB->ObjPool[CurrObjIndex].NextIndex = g_pCB->ActivePoolIdx;
     g_pCB->ActivePoolIdx = CurrObjIndex;	
-    /* unlock */
-	_SlDrvProtectionObjUnLock();
+    
+	/* unlock */
+    SL_DRV_PROTECTION_OBJ_UNLOCK();
+    
+
+	/* Increment the API in progress counter as this routine is called for every 
+	   API, which will be waiting for async event to be released */
+	_SlDrvUpdateApiInProgress(API_IN_PROGRESS_UPDATE_INCREMENT);
+
     return CurrObjIndex;
 }
 
@@ -1645,14 +2149,14 @@ _u8 _SlDrvWaitForPoolObj(_u8 ActionID, _u8 SocketID)
 /* ******************************************************************************/
 void _SlDrvReleasePoolObj(_u8 ObjIdx)
 {
-#ifndef SL_TINY_EXT        
+#ifndef SL_TINY        
     _u8 PendingIndex;
 #endif
 
-     _SlDrvProtectionObjLockWaitForever();
+     SL_DRV_PROTECTION_OBJ_LOCK_FOREVER();
 
       /* In Tiny mode, there is only one object pool so no pending actions are available */
-#ifndef SL_TINY_EXT
+#ifndef SL_TINY
     /* go over the pending list and release other pending action if needed */
 	PendingIndex = g_pCB->PendingPoolIdx;
         
@@ -1660,22 +2164,22 @@ void _SlDrvReleasePoolObj(_u8 ObjIdx)
 	{
 		/* In case this action is socket related, SocketID is in use, otherwise will be set to SL_MAX_SOCKETS */
 		if ( (g_pCB->ObjPool[PendingIndex].ActionID == g_pCB->ObjPool[ObjIdx].ActionID) && 
-			( (SL_MAX_SOCKETS == (g_pCB->ObjPool[PendingIndex].AdditionalData & BSD_SOCKET_ID_MASK)) || 
-			((SL_MAX_SOCKETS > (g_pCB->ObjPool[ObjIdx].AdditionalData & BSD_SOCKET_ID_MASK)) && ( (g_pCB->ObjPool[PendingIndex].AdditionalData & BSD_SOCKET_ID_MASK) == (g_pCB->ObjPool[ObjIdx].AdditionalData & BSD_SOCKET_ID_MASK) ))) )
+			( (SL_MAX_SOCKETS == (g_pCB->ObjPool[PendingIndex].AdditionalData & SL_BSD_SOCKET_ID_MASK)) || 
+			((SL_MAX_SOCKETS > (g_pCB->ObjPool[ObjIdx].AdditionalData & SL_BSD_SOCKET_ID_MASK)) && ( (g_pCB->ObjPool[PendingIndex].AdditionalData & SL_BSD_SOCKET_ID_MASK) == (g_pCB->ObjPool[ObjIdx].AdditionalData & SL_BSD_SOCKET_ID_MASK) ))) )
 		{
 			/* remove from pending list */
-			_SlRemoveFromList(&g_pCB->PendingPoolIdx, PendingIndex);
-			 _SlDrvSyncObjSignal(&g_pCB->ObjPool[PendingIndex].SyncObj);
+			_SlDrvRemoveFromList(&g_pCB->PendingPoolIdx, PendingIndex);
+			 SL_DRV_SYNC_OBJ_SIGNAL(&g_pCB->ObjPool[PendingIndex].SyncObj);
 			 break;
 		}
 		PendingIndex = g_pCB->ObjPool[PendingIndex].NextIndex;
 	}
 #endif
 
-		if (SL_MAX_SOCKETS > (g_pCB->ObjPool[ObjIdx].AdditionalData & BSD_SOCKET_ID_MASK))
+		if (SL_MAX_SOCKETS > (g_pCB->ObjPool[ObjIdx].AdditionalData & SL_BSD_SOCKET_ID_MASK))
 		{
 		/* unset socketID  */
-			g_pCB->ActiveActionsBitmap &= ~(1<<(g_pCB->ObjPool[ObjIdx].AdditionalData & BSD_SOCKET_ID_MASK));
+			g_pCB->ActiveActionsBitmap &= ~(1<<(g_pCB->ObjPool[ObjIdx].AdditionalData & SL_BSD_SOCKET_ID_MASK));
 		}
 		else
 		{
@@ -1689,29 +2193,37 @@ void _SlDrvReleasePoolObj(_u8 ObjIdx)
     g_pCB->ObjPool[ObjIdx].AdditionalData = SL_MAX_SOCKETS;
 
     /* remove from active list */
-    _SlRemoveFromList(&g_pCB->ActivePoolIdx, ObjIdx);
+    _SlDrvRemoveFromList(&g_pCB->ActivePoolIdx, ObjIdx);
+
     /* move to free list */
     g_pCB->ObjPool[ObjIdx].NextIndex = g_pCB->FreePoolIdx;
     g_pCB->FreePoolIdx = ObjIdx;
-	_SlDrvProtectionObjUnLock();
+
+    SL_DRV_PROTECTION_OBJ_UNLOCK();
+
+	
+	/* Here we decrement the API in progrees counter as we just released the pool object,
+	   which is held till the API is finished (async event received) */
+	_SlDrvUpdateApiInProgress(API_IN_PROGRESS_UPDATE_DECREMENT);
+
 }
 
 
 /* ******************************************************************************/
-/* _SlRemoveFromList  */
+/* _SlDrvRemoveFromList  */
 /* ******************************************************************************/
-void _SlRemoveFromList(_u8 *ListIndex, _u8 ItemIndex)
+static void _SlDrvRemoveFromList(_u8 *ListIndex, _u8 ItemIndex)
 {
-#ifndef SL_TINY_EXT  
+#ifndef SL_TINY  
 	_u8 Idx;
-#endif        
+#endif
         
     if (MAX_CONCURRENT_ACTIONS == g_pCB->ObjPool[*ListIndex].NextIndex)
     {
         *ListIndex = MAX_CONCURRENT_ACTIONS;
     }
     /* As MAX_CONCURRENT_ACTIONS is equal to 1 in Tiny mode */
-#ifndef SL_TINY_EXT
+#ifndef SL_TINY
 	/* need to remove the first item in the list and therefore update the global which holds this index */
 	else if (*ListIndex == ItemIndex)
 	{
@@ -1738,15 +2250,15 @@ void _SlRemoveFromList(_u8 *ListIndex, _u8 ItemIndex)
 
 
 /* ******************************************************************************/
-/*  _SlFindAndSetActiveObj                                                     */
+/*  _SlDrvFindAndSetActiveObj                                                     */
 /* ******************************************************************************/
-_SlReturnVal_t _SlFindAndSetActiveObj(_SlOpcode_t  Opcode, _u8 Sd)
+static _SlReturnVal_t _SlDrvFindAndSetActiveObj(_SlOpcode_t  Opcode, _u8 Sd)
 {
     _u8 ActiveIndex;
 
     ActiveIndex = g_pCB->ActivePoolIdx;
     /* go over the active list if exist to find obj waiting for this Async event */
-#ifndef SL_TINY_EXT    
+#ifndef SL_TINY    
 		while (MAX_CONCURRENT_ACTIONS > ActiveIndex)
 #else
         /* Only one Active action is availabe in tiny mode, so we can replace the loop with if condition */
@@ -1761,7 +2273,7 @@ _SlReturnVal_t _SlFindAndSetActiveObj(_SlOpcode_t  Opcode, _u8 Sd)
 
         if ((g_pCB->ObjPool[ActiveIndex].ActionID == RECV_ID) && (Sd == g_pCB->ObjPool[ActiveIndex].AdditionalData) && 
 						( (SL_OPCODE_SOCKET_RECVASYNCRESPONSE == Opcode) || (SL_OPCODE_SOCKET_RECVFROMASYNCRESPONSE == Opcode)
-#ifndef SL_TINY_EXT
+#ifndef SL_TINY
                         || (SL_OPCODE_SOCKET_RECVFROMASYNCRESPONSE_V6 == Opcode) 
 #endif
                           ) 
@@ -1773,7 +2285,7 @@ _SlReturnVal_t _SlFindAndSetActiveObj(_SlOpcode_t  Opcode, _u8 Sd)
         }
         /* In case this action is socket related, SocketID is in use, otherwise will be set to SL_MAX_SOCKETS */
         if ( (_SlActionLookupTable[ g_pCB->ObjPool[ActiveIndex].ActionID - MAX_SOCKET_ENUM_IDX].ActionAsyncOpcode == Opcode) && 
-            ( ((Sd == (g_pCB->ObjPool[ActiveIndex].AdditionalData & BSD_SOCKET_ID_MASK) ) && (SL_MAX_SOCKETS > Sd)) || (SL_MAX_SOCKETS == (g_pCB->ObjPool[ActiveIndex].AdditionalData & BSD_SOCKET_ID_MASK)) ) )
+            ( ((Sd == (g_pCB->ObjPool[ActiveIndex].AdditionalData & SL_BSD_SOCKET_ID_MASK) ) && (SL_MAX_SOCKETS > Sd)) || (SL_MAX_SOCKETS == (g_pCB->ObjPool[ActiveIndex].AdditionalData & SL_BSD_SOCKET_ID_MASK)) ) )
         {
             /* set handler */
             g_pCB->FunctionParams.AsyncExt.AsyncEvtHandler = _SlActionLookupTable[ g_pCB->ObjPool[ActiveIndex].ActionID - MAX_SOCKET_ENUM_IDX].AsyncEventHandler;
@@ -1785,45 +2297,138 @@ _SlReturnVal_t _SlFindAndSetActiveObj(_SlOpcode_t  Opcode, _u8 Sd)
 
     return SL_RET_CODE_SELF_ERROR;
 
- 
-
 }
+
+#if defined(slcb_NetAppHttpServerHdlr) || defined(EXT_LIB_REGISTERED_HTTP_SERVER_EVENTS)
+void _SlDrvDispatchHttpServerEvents(SlNetAppHttpServerEvent_t *slHttpServerEvent, SlNetAppHttpServerResponse_t *slHttpServerResponse)
+{
+	_SlDrvHandleHttpServerEvents (slHttpServerEvent, slHttpServerResponse);
+}
+#endif
+
+#if defined(slcb_NetAppRequestHdlr) || defined(EXT_LIB_REGISTERED_NETAPP_REQUEST_EVENTS)
+void _SlDrvDispatchNetAppRequestEvents(SlNetAppRequest_t *slNetAppRequestEvent, SlNetAppResponse_t *slNetAppResponse)
+{
+	_SlDrvHandleNetAppRequestEvents (slNetAppRequestEvent, slNetAppResponse);
+}
+#endif
 
 
 /* Wrappers for the object functions */
 
-void  _SlDrvSyncObjWaitForever(_SlSyncObj_t *pSyncObj)
-{
-    OSI_RET_OK_CHECK(sl_SyncObjWait(pSyncObj, SL_OS_WAIT_FOREVER));
-}
 
-void  _SlDrvSyncObjSignal(_SlSyncObj_t *pSyncObj)
+_SlReturnVal_t _SlDrvSyncObjSignal(_SlSyncObj_t *pSyncObj)
 {
     OSI_RET_OK_CHECK(sl_SyncObjSignal(pSyncObj));
+	return SL_OS_RET_CODE_OK;
 }
 
-void _SlDrvObjLockWaitForever(_SlLockObj_t *pLockObj)
+_SlReturnVal_t _SlDrvObjLockWaitForever(_SlLockObj_t *pLockObj)
 {
     OSI_RET_OK_CHECK(sl_LockObjLock(pLockObj, SL_OS_WAIT_FOREVER));
+	return SL_OS_RET_CODE_OK;
 }
 
-void _SlDrvProtectionObjLockWaitForever()
+_SlReturnVal_t _SlDrvProtectionObjLockWaitForever(void)
 {
     OSI_RET_OK_CHECK(sl_LockObjLock(&g_pCB->ProtectionLockObj, SL_OS_WAIT_FOREVER));
 
+	return SL_OS_RET_CODE_OK;
 }
 
-void _SlDrvObjUnLock(_SlLockObj_t *pLockObj)
+_SlReturnVal_t _SlDrvObjUnLock(_SlLockObj_t *pLockObj)
 {
     OSI_RET_OK_CHECK(sl_LockObjUnlock(pLockObj));
 
+	return SL_OS_RET_CODE_OK;
 }
 
-void _SlDrvProtectionObjUnLock()
+_SlReturnVal_t _SlDrvProtectionObjUnLock(void)
 {
     OSI_RET_OK_CHECK(sl_LockObjUnlock(&g_pCB->ProtectionLockObj));
+	return SL_OS_RET_CODE_OK;
 }
 
+static _SlReturnVal_t _SlDrvObjGlobalLockWaitForever(_u32 Flags)
+{
+	_SlReturnVal_t ret;
+	_u16 Opcode;
+	_u16 Silo;
+	_u8 UpdateApiInProgress = (Flags & GLOBAL_LOCK_FLAGS_UPDATE_API_IN_PROGRESS);
+	_u16 IsProvStopApi = (Flags & GLOBAL_LOCK_FLAGS_PROVISIONING_STOP_API);
+
+	
+#ifndef SL_TINY  
+    if (SL_IS_RESTART_REQUIRED)
+    {
+         return SL_API_ABORTED;
+    }
+#endif
+
+	gGlobalLockCntRequested++;
+	
+	ret = sl_LockObjLock(&GlobalLockObj, SL_OS_WAIT_FOREVER);
+
+
+	/*  start/stop device is in progress so return right away */
+	if (SL_IS_DEVICE_START_IN_PROGRESS || SL_IS_DEVICE_STOP_IN_PROGRESS || SL_IS_PROVISIONING_IN_PROGRESS)
+	{
+		return ret;
+	}
+
+	/* after the lock aquired check if API is allowed. */
+	if (0 == ret)
+	{
+		
+		Opcode = (Flags >> 16);
+		Silo = Opcode & ((0xF << SL_OPCODE_SILO_OFFSET)); 
+
+		/* After acquiring the lock, check if there is stop in progress */
+		if (Opcode != SL_OPCODE_DEVICE_STOP_COMMAND)
+		{
+			_i16 Status = _SlDrvDriverIsApiAllowed(Silo); 
+
+			if (Status) 
+			{
+				sl_LockObjUnlock(&GlobalLockObj);
+				return Status;
+			}
+		}
+	}
+	
+	/* if lock was successfully taken and increment of the API in progress is required */
+	if ((0 == ret) && (UpdateApiInProgress))
+	{
+		if (!SL_IS_PROVISIONING_ACTIVE || SL_IS_PROVISIONING_API_ALLOWED)
+		{
+			/* Increment the API in progress counter */
+			_SlDrvUpdateApiInProgress(API_IN_PROGRESS_UPDATE_INCREMENT);
+		}
+		/* if we are in provisioing than dont abort the stop provisioning cmd.. */
+		else if (FALSE == IsProvStopApi )
+		{
+			/*  Provisioing is active so release the lock immediately as 
+				we do not want to allow more APIs to run. */
+			SL_DRV_LOCK_GLOBAL_UNLOCK(TRUE);
+			return SL_RET_CODE_PROVISIONING_IN_PROGRESS;
+		}
+	}
+
+	return ret;
+}
+_SlReturnVal_t _SlDrvGlobalObjUnLock(_u8 bDecrementApiInProgress)
+{
+	gGlobalLockCntReleased++;
+
+	OSI_RET_OK_CHECK(sl_LockObjUnlock(&GlobalLockObj));
+
+	if (bDecrementApiInProgress)
+	{
+		_SlDrvUpdateApiInProgress(API_IN_PROGRESS_UPDATE_DECREMENT);
+	}
+
+	return SL_OS_RET_CODE_OK;
+}
 
 void _SlDrvMemZero(void* Addr, _u16 size)
 {
@@ -1833,9 +2438,205 @@ void _SlDrvMemZero(void* Addr, _u16 size)
 
 void _SlDrvResetCmdExt(_SlCmdExt_t* pCmdExt)
 {
-    _SlDrvMemZero(pCmdExt, sizeof (_SlCmdExt_t));
+    _SlDrvMemZero(pCmdExt, (_u16)sizeof (_SlCmdExt_t));
 }
 
+
+#ifdef SL_TINY
+
+_SlReturnVal_t  _SlDrvSyncObjWaitForever(_SlSyncObj_t *pSyncObj)
+{
+    return sl_SyncObjWait(pSyncObj, SL_OS_WAIT_FOREVER);
+}
+
+#else
+_SlReturnVal_t  _SlDrvSyncObjWaitForever(_SlSyncObj_t *pSyncObj)
+{	
+    _SlReturnVal_t RetVal = sl_SyncObjWait(pSyncObj, SL_OS_WAIT_FOREVER);
+	
+	/*  if the wait is finished and we detect that restart is required (we in the middle of error handling),
+	      than we should abort immediately from the current API command execution
+	*/
+	if (SL_IS_RESTART_REQUIRED)
+    {
+    	return SL_API_ABORTED;
+    }
+
+	return RetVal;
+}
+
+#endif
+
+
+#if (!defined (SL_TINY)) && (defined(slcb_GetTimestamp))
+
+void _SlDrvStartMeasureTimeout(_SlTimeoutParams_t *pTimeoutInfo, _u32 TimeoutInMsec)
+{
+	_SlDrvMemZero(pTimeoutInfo, sizeof (_SlTimeoutParams_t));
+
+	pTimeoutInfo->Total10MSecUnits = TimeoutInMsec / 10;
+	pTimeoutInfo->TSPrev = slcb_GetTimestamp();
+}
+
+_u8 _SlDrvIsTimeoutExpired(_SlTimeoutParams_t *pTimeoutInfo)
+{
+	_u32 TSCount;
+
+	pTimeoutInfo->TSCurr = slcb_GetTimestamp();
+
+	if (pTimeoutInfo->TSCurr >= pTimeoutInfo->TSPrev)
+	{
+		pTimeoutInfo->DeltaTicks = pTimeoutInfo->TSCurr - pTimeoutInfo->TSPrev;
+	}
+	else
+	{
+		pTimeoutInfo->DeltaTicks =  (SL_TIMESTAMP_MAX_VALUE - pTimeoutInfo->TSPrev) + pTimeoutInfo->TSCurr;
+	}
+
+	TSCount = pTimeoutInfo->DeltaTicksReminder + pTimeoutInfo->DeltaTicks;
+
+
+	if (TSCount > SL_TIMESTAMP_TICKS_IN_10_MILLISECONDS)
+	{
+		pTimeoutInfo->Total10MSecUnits -= (TSCount / SL_TIMESTAMP_TICKS_IN_10_MILLISECONDS);
+		pTimeoutInfo->DeltaTicksReminder = TSCount % SL_TIMESTAMP_TICKS_IN_10_MILLISECONDS;
+
+		if (pTimeoutInfo->Total10MSecUnits > 0)
+		{
+			pTimeoutInfo->TSPrev =  pTimeoutInfo->TSCurr;
+		}
+		else
+		{
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
+#endif
+
+void _SlDrvHandleFatalError(_u32 errorId, _u32 info1, _u32 info2)
+{ 
+	_u8 i;
+	SlDeviceFatal_t  FatalEvent;
+
+	_SlDrvMemZero(&FatalEvent, sizeof(FatalEvent));
+
+	if (SL_IS_RESTART_REQUIRED)
+	{
+        return;
+	}
+        
+	/* set the restart flag */
+	SL_SET_RESTART_REQUIRED;
+	
+     /* Upon the deletion of the mutex, all thread waiting on this
+	 mutex will return immediately with an error (i.e. MUTEX_DELETED status) */
+	 (void)sl_LockObjDelete(&GlobalLockObj);
+	 
+	 /* Mark the global lock as deleted */
+	 GlobalLockObj = NULL;
+
+	/* signal all waiting sync objects */
+	for (i=0; i< MAX_CONCURRENT_ACTIONS; i++)
+	{
+        SL_DRV_SYNC_OBJ_SIGNAL(&g_pCB->ObjPool[i].SyncObj);
+	}
+
+	/* prepare the event and notify the user app/ext libraries */
+	FatalEvent.Id = errorId;
+
+	switch (errorId)
+	{
+		case SL_DEVICE_EVENT_FATAL_DEVICE_ABORT:
+		{
+			/* set the Abort Type */
+			FatalEvent.Data.DeviceAssert.Code = info1;   
+			
+			/* set the Abort Data */
+			FatalEvent.Data.DeviceAssert.Value = info2;  
+		}
+		break;
+	    
+		case SL_DEVICE_EVENT_FATAL_NO_CMD_ACK:
+		{
+			/* set the command opcode */
+			FatalEvent.Data.NoCmdAck.Code = info1; 
+		}
+		break;
+
+		case SL_DEVICE_EVENT_FATAL_CMD_TIMEOUT:
+		{
+			/* set the expected async event opcode */
+			FatalEvent.Data.CmdTimeout.Code = info1; 
+		}
+		break;
+
+		case SL_DEVICE_EVENT_FATAL_SYNC_LOSS:
+		case SL_DEVICE_EVENT_FATAL_DRIVER_ABORT:
+			/* No Info to transport */
+			break;
+
+	}
+
+#if defined(slcb_DeviceFatalErrorEvtHdlr) || defined (EXT_LIB_REGISTERED_FATAL_ERROR_EVENTS)
+    /* call the registered fatal error handlers */
+    _SlDrvHandleFatalErrorEvents(&FatalEvent);
+#endif
+}
+
+_SlReturnVal_t  _SlDrvSyncObjWaitTimeout(_SlSyncObj_t *pSyncObj, _u32 timeoutVal, _u32 asyncEventOpcode)
+{
+    _SlReturnVal_t ret = sl_SyncObjWait(pSyncObj, timeoutVal);
+
+    /* if timeout occured...*/
+    if (ret)
+    {
+        _SlDrvHandleFatalError(SL_DEVICE_EVENT_FATAL_CMD_TIMEOUT, asyncEventOpcode, timeoutVal);
+        return SL_API_ABORTED;
+    }
+    else if (SL_IS_RESTART_REQUIRED)
+    {
+    	return SL_API_ABORTED;
+    }
+
+    return SL_RET_CODE_OK;
+}
+
+
+static void _SlDrvUpdateApiInProgress(_i8 Value)
+{
+	SL_DRV_PROTECTION_OBJ_LOCK_FOREVER();
+	
+	g_pCB->ApiInProgressCnt  += Value;
+
+	SL_DRV_PROTECTION_OBJ_UNLOCK();
+}
+
+_i8 _SlDrvIsApiInProgress(void)
+{
+	if (g_pCB != NULL)
+	{
+		return (g_pCB->ApiInProgressCnt > 0);
+	}
+	
+	return TRUE;
+}
+
+
+
+#ifdef slcb_GetTimestamp
+
+void _SlDrvSleep(_u16 DurationInMsec)
+{
+    _SlTimeoutParams_t      TimeoutInfo={0};
+
+    _SlDrvStartMeasureTimeout(&TimeoutInfo, DurationInMsec);
+
+    while(!_SlDrvIsTimeoutExpired(&TimeoutInfo));
+}
+#endif
 
 
 

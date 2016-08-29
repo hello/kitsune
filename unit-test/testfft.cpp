@@ -23,6 +23,8 @@ protected:
     
 };
 
+class DISABLED_TestFrequencyFeatures : public TestFrequencyFeatures {};
+
 /*  Ben: So the FFT as compared to octave is scaled by 32
          if I compare integers of the fft to the floating point output of octave
          
@@ -161,7 +163,7 @@ TEST_F(TestFrequencyFeatures,TestDct) {
 }
 
 
-TEST_F(TestFrequencyFeatures,TestFFTR1) {
+TEST_F(DISABLED_TestFrequencyFeatures,TestFFTR1) {
     short vec[1024];
     short * vecr;
     short * veci;
@@ -189,78 +191,73 @@ TEST_F(TestFrequencyFeatures,TestFFTR1) {
     
 }
 
-static Segment_t _myseg;
+static AudioFeatures_t _feats;
 
-static int16_t _mfcc[NUM_AUDIO_FEATURES];
+static void AudioFeatCallback(const AudioFeatures_t * pfeats) {
+   // std::cout << "GOT AUDIO FEATURE CALLBACK" << std::endl;
+    memcpy(&_feats,pfeats,sizeof(_feats));
+}
 
-static void AudioFeatCallback(int64_t samplecount, const AudioFeatures_t * feats) {
-    //memcpy(&_myseg,pSegment,sizeof(Segment_t));
-    //memcpy(_mfcc,feats,sizeof(_mfcc));
+static void AudioFeatCallbackOncePerMinute (const AudioOncePerMinuteData_t * pdata) {
     
 }
+
 
 TEST_F(TestFrequencyFeatures,TestMel) {
     int i,ichunk;
 	int16_t x[1024];
+    uint32_t icount = 0;
     
-    memset(_mfcc,0,sizeof(_mfcc));
-    memset(&_myseg,0,sizeof(_myseg));
-    
+    memset(&_feats,0,sizeof(_feats));
+    memset(&x,0,sizeof(x));
+
 	srand(0);
     
-	printf("EXPECT: t1=%d,t2=%d,energy=something not zero\n",43,86);
+
+	AudioFeatures_Init(AudioFeatCallback,AudioFeatCallbackOncePerMinute);
     
-    
-	AudioFeatures_Init(AudioFeatCallback);
-    
-	//still ---> white random noise ---> still
-	for (ichunk = 0; ichunk < 43*8; ichunk++) {
-		if (ichunk > 43 && ichunk <= 86) {
-			for (i = 0; i < 1024; i++) {
-				x[i] = (rand() % 32767) - (1<<14);
-			}
-		}
-		else {
-			memset(x,0,sizeof(x));
-		}
+    //warmup period
+    for (ichunk = 0; ichunk < 1000; ichunk++) {
+        for (i = 0; i < 1024; i++) {
+            x[i] = (rand() % 32767) - (1<<14);
+        }
         
-		AudioFeatures_SetAudioData(x,ichunk);
+        AudioFeatures_SetAudioData(x,icount++);
+    }
+
+    int64_t featsum[NUM_AUDIO_FEATURES];
+    memset(featsum,0,sizeof(featsum));
+    //noise
+    int64_t lastSampleCount = _feats.samplecount;
+	for (ichunk = 0; ichunk < 10000; ichunk++) {
+        for (i = 0; i < 1024; i++) {
+            x[i] = (rand() % 32767) - (1<<14);
+        }
+		
+		AudioFeatures_SetAudioData(x,icount++);
+        
+        
+        //check range
+        if (lastSampleCount != _feats.samplecount) {
+            for (int i = 0; i < NUM_AUDIO_FEATURES; i++) {
+                ASSERT_TRUE(_feats.feats4bit[i] >= -7);
+                ASSERT_TRUE(_feats.feats4bit[i] <= 7);
+                featsum[i] += _feats.feats4bit[i];
+            }
+            ASSERT_TRUE(_feats.logenergy > 0);
+            
+        }
+        
+        lastSampleCount = _feats.samplecount;
         
 	}
     
-    ASSERT_TRUE(_myseg.t1 < 86);
-    ASSERT_TRUE(_myseg.t2 >= 86);
-    ASSERT_TRUE(_mfcc[0] > 0);
-}
-
-
-TEST_F(TestFrequencyFeatures,TestMel2) {
-    int i,ichunk;
-    int16_t x[1024];
-    
-    memset(_mfcc,0,sizeof(_mfcc));
-    memset(&_myseg,0,sizeof(_myseg));
-    
-    srand(0);
-    
-    
-    AudioFeatures_Init(AudioFeatCallback);
-#define amplitude (2)
-    //still ---> white random noise ---> still
-    for (ichunk = 0; ichunk < 43*100; ichunk++) {
-        for (i = 0; i < 1024; i++) {
-            x[i] = (rand() % amplitude) - (amplitude >> 1);
-        }
-        
-        AudioFeatures_SetAudioData(x,ichunk);
-        
+    //test flatness
+    for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
+        ASSERT_TRUE(std::abs(featsum[i])/100 < 10);
     }
-    
-    ASSERT_TRUE(_myseg.t1 < 86);
-    ASSERT_TRUE(_myseg.t2 >= 86);
-    ASSERT_TRUE(_mfcc[0] > 0);
+  
 }
-
 
 
 

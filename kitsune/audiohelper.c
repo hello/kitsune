@@ -25,29 +25,42 @@
 
 #include "FreeRTOS.h"
 #include "kit_assert.h"
+#include "queue.h"
+#include "semphr.h"
 
 /* externs */
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
-unsigned char * audio_mem;
 
-#define AUDIO_PLAYBACK_RATE_HZ (48000)
+static unsigned char * audio_mem;
+static unsigned char * audio_mem_p;
 
 void InitAudioHelper() {
-	audio_mem = (unsigned char*)pvPortMalloc( AUD_BUFFER_SIZE );
+	audio_mem = (unsigned char*)pvPortMalloc( TX_BUFFER_SIZE );
 }
 
-uint8_t InitAudioCapture(uint32_t rate) {
+void InitAudioHelper_p() {
+
+	audio_mem_p = (unsigned char*)pvPortMalloc( RX_BUFFER_SIZE );
+}
+
+void InitAudioTxRx(uint32_t rate)
+{
+	// Initialize the Audio(I2S) Module
+	McASPInit(rate);
+
+	MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
+
+	codec_unmute_spkr();
+
+}
+
+uint8_t InitAudioCapture(void) {
 
 	if(pTxBuffer == NULL) {
 		pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE, audio_mem);
 	}
-	memset( audio_mem, 0, AUD_BUFFER_SIZE);
-
-	get_codec_mic_NAU();
-
-	// Initialize the Audio(I2S) Module
-	McASPInit(rate);
+	memset( audio_mem, 0, TX_BUFFER_SIZE);
 
 	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
 
@@ -55,22 +68,29 @@ uint8_t InitAudioCapture(uint32_t rate) {
 	SetupPingPongDMATransferTx();
 
 	// Setup the Audio In/Out
-    MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA );
-	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure( rate);
+    //MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA | I2S_INT_XDMA );
+	MAP_I2SRxFIFOEnable(I2S_BASE,8,1);
 
-	// Start Audio Tx/Rx
-	Audio_Start();
+	//MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
 
-	return 1;
+    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX, I2S_INACT_LOW_LEVEL);
+
+	// Setup the Audio In/Out
+	MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA );
+
+	return 0;
 }
 
 void DeinitAudioCapture(void) {
-	Audio_Stop();
 
-	McASPDeInit();
+	// Audio_Stop();
+
+	// Setup the Audio In/Out
+	MAP_I2SIntDisable(I2S_BASE, I2S_INT_RDMA );
 
 	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
+
+	MAP_I2SRxFIFODisable(I2S_BASE);
 
 	if (pTxBuffer) {
 		DestroyCircularBuffer(pTxBuffer);
@@ -78,21 +98,13 @@ void DeinitAudioCapture(void) {
 	}
 }
 
-uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
+uint8_t InitAudioPlayback() {
 
 	//create circular buffer
 	if (!pRxBuffer) {
-		pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE, audio_mem);
+		pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE, audio_mem_p);
 	}
-	memset( audio_mem, 0, AUD_BUFFER_SIZE);
-
-	//////
-	// SET UP AUDIO PLAYBACK
-	get_codec_NAU(vol);
-
-	// Initialize the Audio(I2S) Module
-	McASPInit(rate);
-
+	memset( audio_mem_p, 0, RX_BUFFER_SIZE);
 
 	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 
@@ -100,27 +112,37 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 	SetupPingPongDMATransferRx();
 
 	// Setup the Audio In/Out
+    //MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA | I2S_INT_XDMA );
+	MAP_I2STxFIFOEnable(I2S_BASE,8,1);
 
-    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA  );
-	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure( rate);
+    //MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX, I2S_INACT_LOW_LEVEL);
+    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX, I2S_INACT_LOW_LEVEL);
 
-	return 1;
+	// Setup the Audio In/Out
+    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA);
+
+	return 0;
 
 }
 
 void DeinitAudioPlayback(void) {
-	close_codec_NAU();
 
-	McASPDeInit();
+#if 0
+	// Mute speaker
+	codec_mute_spkr();
+#endif
+	set_volume(0, portMAX_DELAY);
 
 	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
+
+	MAP_I2STxFIFODisable(I2S_BASE);
+	MAP_I2SIntDisable(I2S_BASE,I2S_INT_XDMA);
+
 	if (pRxBuffer) {
 		DestroyCircularBuffer(pRxBuffer);
 		pRxBuffer = NULL;
 	}
 }
-
 
 ///// FILE STUFF/////
 
@@ -178,52 +200,3 @@ void CloseAndDeleteFile(Filedata_t * pfiledata) {
 	memset(&pfiledata->file_obj, 0, sizeof(file_obj));
 
 }
-
-int deleteFilesInDir(const char* dir)
-{
-	DIR dirObject = {0};
-	FILINFO fileInfo = {0};
-    FRESULT res;
-    char path[64] = {0};
-
-    res = hello_fs_opendir(&dirObject, dir);
-
-    if(res != FR_OK)
-    {
-        return 0;
-    }
-
-
-    for(;;)
-    {
-        res = hello_fs_readdir(&dirObject, &fileInfo);
-        if(res != FR_OK)
-        {
-            return 0;
-        }
-
-        // If the file name is blank, then this is the end of the listing.
-        if(!fileInfo.fname[0])
-        {
-            break;
-        }
-
-        if(fileInfo.fattrib & AM_DIR)  // directory
-        {
-            continue;
-        } else {
-        	memset(path, 0, sizeof(path));
-        	usnprintf(path, sizeof(fileInfo.fname) + 5, "/usr/%s", fileInfo.fname);
-            res = hello_fs_unlink(path);
-            if(res == FR_OK)
-            {
-            	LOGI("User file deleted %s\n", path);
-            }else{
-            	LOGE("Delete user file %s failed, err %d\n", path, res);
-            }
-        }
-    }
-
-    return(0);
-}
-
