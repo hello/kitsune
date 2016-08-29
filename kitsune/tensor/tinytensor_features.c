@@ -266,6 +266,7 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
 
     int32_t temp32;
     int16_t temp16;
+    int16_t last;
     uint16_t max;
     /* add samples to circular buffer
        
@@ -302,16 +303,17 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
     }
     //tiny_tensor_features_get_latest_samples(fr,FFT_UNPADDED_SIZE);
 
+    last = 0;
     max = 0;
     //"preemphasis", and apply window as you go
     for (i = 1; i < FFT_UNPADDED_SIZE; i++) {
 
-        temp32 = fr[i] - MUL16(preemphasis_coeff,fr[i-1]);
+        temp32 = fr[i] - MUL16(preemphasis_coeff,last);
         temp16 = temp32 >> 1; //never overflow
-        
+
+        last = fr[i];
         //APPLY WINDOW
         fr[i]  = MUL16(temp16,k_hanning[i]);
-
 
         temp16 = fr[i];
         if (temp16 < 0) {
