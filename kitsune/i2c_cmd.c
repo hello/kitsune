@@ -878,6 +878,7 @@ typedef enum{
 
 static void codec_sw_reset(void);
 
+#if 0
 /*
  * This function updates the gain on the LOL output to the speaker driver
  * On the codec, this gain has 117 levels between 0db to -78.3db
@@ -915,6 +916,54 @@ int32_t set_volume(int v, unsigned int dly) {
 
 }
 
+#else
+/*
+ * This function updates the DAC digital volume control for left and right DAC
+ * The volume setting goes from -63.5 dB to 24dB in steps of 0.5 (176 levels)
+ * The input v to the function varies from 0-64.
+ */
+int32_t set_volume(int v, unsigned int dly) {
+
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	UARTprintf("Setting Volume: %d\n",v);
+	if(v < 0) v = 0;
+	if(v >64) v = 64;
+
+	v <<= 10;
+	v /= 372;
+	v -= 127;
+
+	if(v > 48) v = 48;
+	if(v < -127) v = -127;
+
+	// UARTprintf("Digital Volume: %d\n",v);
+
+	if( xSemaphoreTakeRecursive(i2c_smphr, dly)) {
+
+		codec_set_book(0);
+
+		//	w 30 00 00 # Select Page 0
+		codec_set_page(0);
+
+		cmd[0] = 65;
+		cmd[1] = v;
+		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+		cmd[0] = 66;
+		cmd[1] = v;
+		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return 0;
+	} else {
+		return -1;
+	}
+
+}
+
+#endif
 
 int cmd_codec(int argc, char *argv[]) {
 	unsigned char cmd[2];

@@ -53,7 +53,7 @@ void InitAudioTxRx(uint32_t rate)
 
 	MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
 
-	codec_unmute_spkr();
+	// codec_unmute_spkr();
 
 }
 
