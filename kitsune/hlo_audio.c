@@ -71,7 +71,7 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 		if(!is_playback_active()){
 			set_isr_playback(true);
 		}
-		if(!xSemaphoreTake(playback_isr_sem,100)){
+		if(!xSemaphoreTake(playback_isr_sem,1000)){
 			LOGI("ISR Failed\r\n");
 #if 1
 			Audio_Stop();
@@ -113,7 +113,7 @@ static int _open_record(){
 }
 static int _read_record_mono(void * ctx, void * buf, size_t size){
 	if( !IsBufferSizeFilled(pTxBuffer, LISTEN_WATERMARK) ){
-		if(!xSemaphoreTake(record_isr_sem,100)){
+		if(!xSemaphoreTake(record_isr_sem,1000)){
 			LOGI("ISR Failed\r\n");
 #if 1
 			Audio_Stop();
@@ -245,8 +245,8 @@ static void _do_lights(void * ctx, const void * buf, size_t size) {
 			}
 
 			uint32_t d =  xTaskGetTickCount() - stream->begin;
-			if( d < 3000 ) {
-				light = (light*d/3000);
+			if( d < 150 ) {
+				light = (light*d/150);
 			}
 
 			set_modulation_intensity( light );
