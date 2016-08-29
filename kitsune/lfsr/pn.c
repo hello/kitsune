@@ -57,6 +57,57 @@ inline uint8_t pn_get_next_bit() {
     return lsb;
 }
 
+
+__attribute__((section(".ramcode")))
+static inline int32_t accumulate(const uint32_t n, const int16_t * in1, const int16_t * in2) {
+    int32_t accumulator = 0;
+    int16_t nloop = n;
+    nloop = n;
+    {
+        int n = (nloop + 15) / 16;
+
+        switch (nloop & 0x0F) {
+        case 0: do { accumulator += *in1++ * *in2++;
+        case 15:     accumulator += *in1++ * *in2++;
+        case 14:     accumulator += *in1++ * *in2++;
+        case 13:     accumulator += *in1++ * *in2++;
+        case 12:     accumulator += *in1++ * *in2++;
+        case 11:     accumulator += *in1++ * *in2++;
+        case 10:     accumulator += *in1++ * *in2++;
+        case 9:      accumulator += *in1++ * *in2++;
+        case 8:      accumulator += *in1++ * *in2++;
+        case 7:      accumulator += *in1++ * *in2++;
+        case 6:      accumulator += *in1++ * *in2++;
+        case 5:      accumulator += *in1++ * *in2++;
+        case 4:      accumulator += *in1++ * *in2++;
+        case 3:      accumulator += *in1++ * *in2++;
+        case 2:      accumulator += *in1++ * *in2++;
+        case 1:      accumulator += *in1++ * *in2++;
+
+        } while (--n > 0);
+        }
+    }
+    return accumulator;
+
+}
+
+void get_pn_sequence(int16_t * p, const uint32_t len) {
+	uint32_t i;
+
+	for (i = 0; i < len; i++) {
+		if (pn_get_next_bit()) {
+			p[i] = 1;
+		}
+		else {
+			p[i] = -1;
+		}
+	}
+}
+
+int32_t pn_correlate_1x_soft(const int16_t * x,const int16_t * pn_sequence, const uint32_t len) {
+	return accumulate(len,x,pn_sequence);
+}
+
 //stateful
 void pn_correlate_4x(uint32_t x, int16_t sums[4][8],uint8_t * the_byte) {
     int16_t i;

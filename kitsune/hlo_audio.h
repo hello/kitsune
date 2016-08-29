@@ -21,6 +21,7 @@ typedef enum {
 void hlo_audio_init(EAudioReadType_t read_type);
 
 void hlo_audio_set_read_type(EAudioReadType_t read_type); //change read-type mid-stream
+void hlo_audio_set_channel(uint32_t channel);
 
 
 hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint32_t direction);

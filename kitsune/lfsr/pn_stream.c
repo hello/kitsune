@@ -33,32 +33,28 @@ static uint32_t _write_bytes_count = 0;
 #define AEC_CHANNEL (0)
 #define PN_LEN_SAMPLES PN_LEN_12
 #define PN_INIT pn_init_with_mask_12
-#define PN_AMPLITUDE (3000)
+#define PN_AMPLITUDE (1024)
 
 #define ABS(x)  ( (x) < 0 ? -(x) : (x) )
 
 #define NUM_READ_PERIODS (20)
-#define NUM_WRITE_PERIODS (8)
 #define WRITE_BYTES_MAX (PN_LEN_SAMPLES * NUM_READ_PERIODS * sizeof(int16_t))
 
 //delay just to just before the start of the second sequence
 #define CIRCULAR_BUFFER_FILL_TIME_MS (( TX_BUFFER_SIZE / 4 / sizeof(int16_t) * 1000  / AUDIO_CAPTURE_PLAYBACK_RATE))
 #define PN_PERIOD_TIME_MS (PN_LEN_SAMPLES * 1000 / AUDIO_CAPTURE_PLAYBACK_RATE)
 #define NUM_PN_PERIODS_TO_WAIT   (CIRCULAR_BUFFER_FILL_TIME_MS / PN_PERIOD_TIME_MS + 1)
-#define WRITE_TASK_STARTUP_DELAY  (NUM_PN_PERIODS_TO_WAIT * PN_PERIOD_TIME_MS  -  10)
+#define WRITE_TASK_STARTUP_DELAY  (NUM_PN_PERIODS_TO_WAIT * PN_PERIOD_TIME_MS  +  20)
 
 #define TIME_TO_COMPLETE_TASKS (10000)
 
 //1.1x the PN sequence length, from bits to bytes
-#define WRITE_BUF_LEN_IN_BYTES_PER_CHANNEL (NUM_WRITE_PERIODS * PN_LEN_SAMPLES / 8)
-
-//in bytes
-#define CORR_LEN              (PN_LEN_SAMPLES * (NUM_WRITE_PERIODS - 1) / 8)
+#define WRITE_LEN_SAMPLES (2 * PN_LEN_SAMPLES)
 
 //this takes a long time if you don't find a peak
-#define CORR_SEARCH_WINDOW    (PN_LEN_SAMPLES / 8)
-#define CORR_SEARCH_START_IDX (350)
-#define DETECTION_THRESHOLD   (500)
+#define CORR_SEARCH_WINDOW    (PN_LEN_SAMPLES)
+#define CORR_SEARCH_START_IDX (0)
+#define DETECTION_THRESHOLD   (3e5)
 #define NUM_DETECT            (2)
 
 typedef struct {
@@ -67,14 +63,17 @@ typedef struct {
 	void * ctx;
 	hlo_stream_signal signal;
 	uint8_t debug;
+	uint8_t test_impulse;
 } hlo_stream_transfer_t;
 
 typedef struct {
-	uint32_t buf[WRITE_BUF_LEN_IN_BYTES_PER_CHANNEL]; //each uint32_t has space for 4 channels
+	int16_t samples[WRITE_LEN_SAMPLES]; //each uint32_t has space for 4 channels
 	uint32_t idx;
 } write_buf_context_t;
 
-#define REQUIRED_WRITE_STACK_SIZE       (sizeof(write_buf_context_t) + CORR_SEARCH_WINDOW * 4 *sizeof(int16_t) + 3000)
+
+
+#define REQUIRED_WRITE_STACK_SIZE       (sizeof(write_buf_context_t) + CORR_SEARCH_WINDOW * sizeof(int32_t) + PN_LEN_SAMPLES * sizeof(int16_t) + 3000)
 
 
 static int close (void * context) {
@@ -107,7 +106,6 @@ static int read(void * ctx, void * buf, size_t size) {
 		bit =  pn_get_next_bit();
 		if (bit) {
 			p16[i] = PN_AMPLITUDE;
-
 		}
 		else {
 			p16[i] = -PN_AMPLITUDE;
@@ -131,11 +129,9 @@ static int write(void * ctx, const void * buf, size_t size) {
 
 	write_buf_context_t * pctx = (write_buf_context_t *) ctx;
 
-	const uint32_t space_left = sizeof(pctx->buf) - sizeof(uint32_t) * pctx->idx;
+	const uint32_t space_left = sizeof(pctx->samples) - sizeof(int16_t) * pctx->idx;
 
-	if (size % 4 != 0) {
-		return HLO_STREAM_ERROR;
-	}
+
 
 	//if what you want to write is greater than what's there, then only write to what's there.
 	if (size > space_left) {
@@ -144,8 +140,8 @@ static int write(void * ctx, const void * buf, size_t size) {
 
 
 	//copy over
-	memcpy(&pctx->buf[pctx->idx],buf,size);
-	pctx->idx += size/sizeof(uint32_t);
+	memcpy(&pctx->samples[pctx->idx],buf,size);
+	pctx->idx += size/sizeof(int16_t);
 
 	//if size written is equal to the space that was left, then that was the last copy.
 	if (size >= space_left) {
@@ -200,32 +196,27 @@ hlo_stream_t * pn_write_stream_open(void){
 
 
 void pn_write_task( void * params ) {
-
+	int32_t j,i;
 	int32_t corrnumber;
-	int32_t i;
-	int32_t j;
-	int32_t max;
+
 	uint32_t ndetect = 0;
 	uint8_t found_peak = 0;
-	uint8_t the_byte;
-	int16_t sums[4][8];
-	int16_t sums_history[4][256];
+
+	int32_t istart;
 	int32_t iend;
-	int32_t idx;
-	int16_t max_indices[4];
-	int32_t a1,a2;
-	int32_t logdiff;
+
 	write_buf_context_t ctx;
 	TickType_t tick_count_start;
 	TickType_t tick_count_end;
-	uint8_t fail = 0;
-
+	int16_t pn_sequence[PN_LEN_SAMPLES];
+	int32_t corr_result[CORR_SEARCH_WINDOW];
+	uint32_t corridx;
 	hlo_stream_transfer_t * p = (hlo_stream_transfer_t *)params;
 
 
 	ctx.idx = 0;
 
-	memset(sums_history,0,sizeof(sums_history));
+
 
 	p->output->ctx = &ctx;
 	tick_count_start = xTaskGetTickCount();
@@ -234,9 +225,31 @@ void pn_write_task( void * params ) {
 
 	DISP("pn_write_task started\r\n");
 
+	//hlo_audio_set_channel(3);
+
 	if (p->debug) {
 		hlo_stream_t * filestream = fs_stream_open("DBGBYTE.DAT",HLO_STREAM_WRITE);
 		hlo_filter_data_transfer(p->input,filestream,NULL,NULL);
+	}
+	else if (p->test_impulse) {
+		uint32_t i;
+		write_buf_context_t * pctx = (write_buf_context_t *)p->output->ctx;
+
+		PN_INIT();
+		for (i = 0; i < PN_LEN_SAMPLES/2; i++) {
+			pn_get_next_bit();
+		}
+
+		for (i = 0; i < WRITE_LEN_SAMPLES; i++) {
+			if (pn_get_next_bit()) {
+				pctx->samples[i] = 1;
+			}
+			else {
+				pctx->samples[i] = -1;
+			}
+		}
+
+		_write_bytes_count += WRITE_LEN_SAMPLES * sizeof(int16_t);
 	}
 	else {
 		hlo_filter_data_transfer(p->input,p->output,NULL,p->signal);
@@ -248,53 +261,45 @@ void pn_write_task( void * params ) {
 	DISP("got %d bytes in %d ticks, starting correlation...\r\n",_write_bytes_count,tick_count_end - tick_count_start);
 	vTaskDelay(20);
 
+	PN_INIT();
+	get_pn_sequence(pn_sequence,PN_LEN_SAMPLES);
 
-	for (corrnumber = CORR_SEARCH_START_IDX; corrnumber < CORR_SEARCH_WINDOW + CORR_SEARCH_START_IDX; corrnumber++) {
-		PN_INIT();
-		the_byte = 0x00;
-
-		memset(&sums[0][0],0,sizeof(sums));
+	corridx = 0;
+	for (corrnumber = CORR_SEARCH_START_IDX; corrnumber < CORR_SEARCH_WINDOW + CORR_SEARCH_START_IDX; corrnumber++,corridx++) {
 
 		//DO THE CORRELATION
-		for (i = 0; i < CORR_LEN; i++) {
-			pn_correlate_4x(ctx.buf[i + corrnumber],sums,&the_byte);
-		}
+		corr_result[corridx] = pn_correlate_1x_soft(&ctx.samples[corrnumber],pn_sequence,PN_LEN_SAMPLES);
 
-		//CHECK THE SUMS TO SEE IF THERE'S ANY PEAKS IN THERE
-		max = 0;
-		for (j = 0; j < 4; j++) {
-			for (i = 7; i >= 0; i--) {
-
-				if (sums[j][i] < -max) {
-					max = -sums[j][i];
-				}
-
-				if (sums[j][i] > max) {
-					max = sums[j][i];
-				}
-
-			}
+		if (p->test_impulse && ABS(corr_result[corridx]) > 500) {
+			DISP("%d\r\n",corr_result[corridx]);
 		}
 
 
-		if (max >= DETECTION_THRESHOLD) {
+		if (corr_result[corridx] >= DETECTION_THRESHOLD && !found_peak) {
 
 			ndetect++;
 
 			if (ndetect >= NUM_DETECT) {
 				DISP("FOUND PEAK AT c=%d\r\n",corrnumber);
+				istart = corridx - 16;
 				found_peak = 1;
-				break;
 			}
 		}
 		else {
 			ndetect = 0;
 		}
 
-		if ( ((corrnumber - CORR_SEARCH_START_IDX) % 20) == 0) {
-			DISP("correlation bin = %04d\r\n",corrnumber);
+		if (found_peak && corridx >= istart + 256) {
+			DISP("exiting correlation at c=%d\r\n",corridx);
+			break;
 		}
+
+
 		MAP_WatchdogIntClear(WDT_BASE);
+	}
+
+	if (istart < 0) {
+		istart = 0;
 	}
 
 
@@ -304,63 +309,24 @@ void pn_write_task( void * params ) {
 		return;
 	}
 
-#define PRE_PEAK_CHUNKS (4)
-	if (corrnumber < PRE_PEAK_CHUNKS) {
-		corrnumber = PRE_PEAK_CHUNKS;
+	iend = istart + 256;
+
+	if (iend >= CORR_SEARCH_WINDOW) {
+		iend = CORR_SEARCH_WINDOW;
 	}
 
-	corrnumber -= PRE_PEAK_CHUNKS;
-	iend = corrnumber + 256/8;
+	DISP("istart=%d, iend=%d\r\n");
 
-	if (iend >= WRITE_BUF_LEN_IN_BYTES_PER_CHANNEL) {
-		iend = WRITE_BUF_LEN_IN_BYTES_PER_CHANNEL - 1;
+	for (i = istart; i < iend; i++) {
+		DISP("%d\r\n",corr_result[i]);
+		vTaskDelay(5);
+
 	}
-
-	idx = 0;
-	for (; corrnumber < iend; corrnumber++,idx += 8) {
-		PN_INIT();
-		the_byte = 0x00;
-
-		memset(&sums[0][0],0,sizeof(sums));
-
-		for (i = 0; i < CORR_LEN; i++) {
-			pn_correlate_4x(ctx.buf[i + corrnumber],sums,&the_byte);
-		}
-
-		//copy out to sums
-		for (j = 0; j < 4; j++) {
-			for (i = 0; i < 8; i++) {
-				sums_history[j][idx + 7 - i] = sums[j][i];
-			}
-		}
-	}
+	DISP("\r\n");
 
 
-	//PRINT
 
-	for (i = 0; i < 128; i++) {
-		for (j = 0; j < 4; j++) {
-			if (j != 0) DISP(",");
-			DISP("%d",sums_history[j][i]);
-		}
-		DISP("\n");
-		vTaskDelay(50);
-	}
-
-
-	//go find the first peaks
-	for (j = 0; j < 4; j++) {
-		idx = 0;
-		for (i = 0; i < (PRE_PEAK_CHUNKS * 8 + 24); i++) {
-
-			if (sums_history[j][i] > sums_history[j][idx]) {
-				idx = i;
-			}
-		}
-
-		max_indices[j] = idx;
-	}
-
+/*
 	for (j = 0; j < 4; j++) {
 		if (j == AEC_CHANNEL) {
 			continue;
@@ -403,7 +369,7 @@ void pn_write_task( void * params ) {
 	}
 
 	//make sure the peaks are within three samples (3cm or so) of each other
-
+	*/
 	DISP("pn_write_task completed\r\n");
 
 	vTaskDelete(NULL);
@@ -429,6 +395,7 @@ int cmd_audio_self_test(int argc, char* argv[]) {
 	hlo_stream_transfer_t incoming_path; //from mics
 	uint8_t debug = 0;
 	uint8_t disable_playback = 0;
+	uint8_t test_impulse = 0;
 	pn_stream_init();
 
 	if (argc > 1)  {
@@ -441,12 +408,17 @@ int cmd_audio_self_test(int argc, char* argv[]) {
 			disable_playback = 1;
 			DISP("setting no playaback\r\n");
 		}
+
+		if (strcmp(argv[1],"i") == 0) {
+			disable_playback = 1;
+			test_impulse = 1;
+			DISP("testing impulse\r\n");
+		}
 	}
 
 
 
 	//get decision bits not raw audio
-	hlo_audio_set_read_type(quad_decision_bits_from_quad);
 
 	memset(&outgoing_path,0,sizeof(outgoing_path));
 	memset(&incoming_path,0,sizeof(incoming_path));
@@ -460,6 +432,7 @@ int cmd_audio_self_test(int argc, char* argv[]) {
 
 	incoming_path.output  = pn_write_stream_open();
 	incoming_path.debug = debug;
+	incoming_path.test_impulse = test_impulse;
 
 	set_volume(64, portMAX_DELAY);
 
@@ -481,8 +454,6 @@ int cmd_audio_self_test(int argc, char* argv[]) {
 
 	vTaskDelay(TIME_TO_COMPLETE_TASKS);
 
-	//set back to normal
-	hlo_audio_set_read_type(mono_from_quad_by_channel);
 
 	return 0;
 }

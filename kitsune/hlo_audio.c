@@ -255,6 +255,11 @@ static int _close(void * ctx){
 
 ////------------------------------
 //  Public API
+void hlo_audio_set_channel(uint32_t channel) {
+	LOCK();
+	ch = channel;
+	UNLOCK();
+}
 
 void hlo_audio_set_read_type(EAudioReadType_t read_type) {
 
