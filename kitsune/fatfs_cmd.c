@@ -941,7 +941,6 @@ void reset_to_factory_fw() {
 	sBootInfo.ulImgStatus = IMG_STATUS_NOTEST;
 	sBootInfo.ucActiveImg = IMG_ACT_FACTORY;
 	_WriteBootInfo(&sBootInfo);
-	mcu_reset();
 }
 
 #include "wifi_cmd.h"

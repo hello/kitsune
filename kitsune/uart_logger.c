@@ -190,10 +190,7 @@ _find_newest_log(FILINFO * info, void * ctx){
 }
 static char*
 _full_log_name(char * full_name, char * local){
-	strcat(full_name, "/");
-	strcat(full_name, SENSE_LOG_FOLDER);
-	strcat(full_name, "/");
-	strcat(full_name, local);
+	usnprintf(full_name, 32, "/" SENSE_LOG_FOLDER "/%s", local);
 	return full_name;
 }
 static FRESULT
@@ -591,7 +588,7 @@ static bool send_log() {
 	}
 #endif
 	//no timeout on this one...
-#if 0
+#if 1
     return NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
     		sense_log_fields,&self.log, 0, NULL, NULL, NULL, false);
 #else

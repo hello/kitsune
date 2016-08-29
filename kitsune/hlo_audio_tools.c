@@ -252,8 +252,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	bool light_open = false;
 
 	keyword_net_initialize();
-	nn_keyword_ctx_t nn_ctx;
-	nn_ctx.keyword_detected = -1;
+	nn_keyword_ctx_t nn_ctx = {0};
 	keyword_net_register_callback(&nn_ctx,okay_sense,80,_voice_begin_keyword,_voice_finish_keyword);
 
 	//wrap output in hmac stream
@@ -261,6 +260,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	get_aes(key);
 	hlo_stream_t * hmac_payload_str = hlo_hmac_stream(output, key, sizeof(key) );
 	assert(hmac_payload_str);
+
+	uint32_t begin = xTaskGetTickCount();
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
 		if( nn_ctx.keyword_detected > 0 ) {
@@ -277,7 +278,12 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 		}
 		BREAK_ON_SIG(signal);
-
+		if(nn_ctx.keyword_detected == 0 &&
+				xTaskGetTickCount() - begin > 10*60*1000 ) {
+			hlo_stream_close(hmac_payload_str);
+			keyword_net_deinitialize();
+			return HLO_STREAM_EOF;
+		}
 	}
 
 	// grab the running hmac and drop it in the stream
@@ -286,7 +292,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	hlo_stream_close(hmac_payload_str);
 
 	{//now play the swirling thing when we get response
-			play_led_wheel(get_alpha_from_light(),254,0,254,2,18,0);
+			play_led_wheel(get_alpha_from_light(),140,29,237,2,9,0);
 			DISP("Wheel\r\n");
 	}
 #if 0
@@ -321,29 +327,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		DISP("\r\n===========\r\n");
 		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_PLAYBACK);
 			DISP("Playback Audio\r\n");
-			output = hlo_stream_sr_cnv( output, UPSAMPLE );
-			//hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
+			aud = hlo_light_stream( aud );
 			set_volume(64, portMAX_DELAY);
-
-			int ret;
-			while(1){
-#if 0
-				ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4);
-				if( ret < 0 ) {
-					break;
-				}
-				keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
-				if( nn_ctx.keyword_detected > 1 ) {
-					break;
-				}
-#endif
-				ret = hlo_stream_transfer_between(output,aud,samples,sizeof(samples),4);
-
-				if(ret < 0){
-					break;
-				}
-				BREAK_ON_SIG(signal);
-			}
+			hlo_filter_mp3_decoder(output,aud,NULL,signal);
 			DISP("\r\n===========\r\n");
 		hlo_stream_close(aud);
 	}
@@ -520,28 +506,36 @@ signed int scale(mad_fixed_t sample)
   return sample >> (MAD_F_FRACBITS + 1 - 16);
 }
 
+static void _upsample( int16_t * s, int n) {
+    int i;
+    for(i=n-1;i!=-1;--i) {
+        s[i*2]   = s[i];// i == 0 ? s[i] : (s[i-1]+s[i])/2;
+        s[i*2+1] = s[i];//(s[i]+s[i+1])/2;;
+    }
+}
 static
 enum mad_flow _mp3_output(void *data,
-		     struct mad_header const *header,
-		     struct mad_pcm *pcm){
-	//DISP("o %d\r\n", pcm->length);
-	mp3_ctx_t * ctx = (mp3_ctx_t*)data;
-	if(ctx->sig && ctx->sig()){
-		return MAD_FLOW_STOP;
-	}
-	int16_t * i16_samples = (int16_t*)pcm->samples[1];
-	int i;
-	for(i = 0; i < pcm->length; i++){
-		i16_samples[i] = scale(pcm->samples[0][i]);
-	}
-	int ret = hlo_stream_transfer_all(INTO_STREAM, ctx->out, (uint8_t*)i16_samples, pcm->length * sizeof(int16_t), 4);
-	if( ret < 0){
-		return MAD_FLOW_BREAK;
-	}
-	//vTaskDelay(100);
-	return MAD_FLOW_CONTINUE;
-}
+             struct mad_header const *header,
+             struct mad_pcm *pcm){
+//    DISP("o %d\r\n", pcm->length);
+    mp3_ctx_t * ctx = (mp3_ctx_t*)data;
+    if(ctx->sig && ctx->sig()){
+        return MAD_FLOW_STOP;
+    }
+    int16_t * i16_samples = (int16_t*)pcm->samples[1];
+    int i;
+    for(i = 0; i < pcm->length; i++){
+        i16_samples[i] = scale(pcm->samples[0][i]);
+    }
+    _upsample(i16_samples, pcm->length);
 
+    int ret = hlo_stream_transfer_all(INTO_STREAM, ctx->out, (uint8_t*)i16_samples, 2 * pcm->length * sizeof(int16_t), 4);
+    if( ret < 0){
+        return MAD_FLOW_BREAK;
+    }
+    //vTaskDelay(100);
+    return MAD_FLOW_CONTINUE;
+}
 /*
  * This is the error callback function. It is called whenever a decoding
  * error occurs. The error is indicated by stream->error; the list of
@@ -691,7 +685,7 @@ void AudioControlTask(void * unused) {
 		in = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_RECORD);
 
 		hlo_stream_t * out;
-		out = hlo_http_post("dev-speech.hello.is/upload/audio?r=16000", NULL);
+		out = hlo_http_post("https://dev-speech.hello.is/v1/upload/audio?r=16000&response=mp3", NULL);
 
 		if( !started ) {
 			ble_proto_led_init();
