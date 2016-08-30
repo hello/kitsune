@@ -8,6 +8,10 @@
 #include "hw_types.h"
 
 #include "audiohelper.h"
+#include "hw_memmap.h"
+#include "rom.h"
+#include "rom_map.h"
+#include "audio_types.h"
 
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
@@ -30,6 +34,25 @@ static volatile uint32_t last_play;
 #define UNLOCK() xSemaphoreGiveRecursive(lock)
 extern bool is_playback_active(void);
 extern void set_isr_playback(bool active);
+
+volatile int sys_volume = 64;
+
+////------------------------------
+//codec routines
+int32_t codec_test_commands(void);
+int32_t codec_init(void);
+static void _reset_codec(void){
+	// Reset codec
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
+	vTaskDelay(20);
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
+	vTaskDelay(30);
+
+	//codec_test_commands();
+
+	// Program codec
+	codec_init();
+}
 ////------------------------------
 // playback stream driver
 
@@ -41,24 +64,23 @@ static int _open_playback(){
 	return 0;
 
 }
-
-/*
-static int _reinit_playback(unsigned int sr, unsigned int initial_vol){
-	DeinitAudioPlayback();
-	_open_playback(sr, initial_vol);
-	return 0;
-}
-*/
+bool set_volume(int v, unsigned int dly);
 
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
 		if(!is_playback_active()){
 			set_isr_playback(true);
 		}
-		if(!xSemaphoreTake(playback_isr_sem,5000)){
+		if(!xSemaphoreTake(playback_isr_sem,1000)){
 			LOGI("ISR Failed\r\n");
-#if 0
-			return _reinit_playback(playback_sr, initial_vol);
+#if 1
+			Audio_Stop();
+			_reset_codec();
+			InitAudioTxRx(AUDIO_SAMPLE_RATE);
+			InitAudioPlayback();
+			set_volume(sys_volume, portMAX_DELAY);
+			Audio_Start();
+			return 0;
 #else
 			return HLO_STREAM_ERROR;
 #endif
@@ -89,30 +111,17 @@ static int _open_record(){
 	DISP("Open record\r\n");
 	return 0;
 }
-/*
-static int _reinit_record(unsigned int sr, unsigned int vol){
-	DeinitAudioCapture();
-	_open_record(sr, initial_gain?initial_gain:16);
-	return 0;
-}*/
 static int _read_record_mono(void * ctx, void * buf, size_t size){
-
-	/*
-	int ret;
-
-	if(!audio_record_started){
-		audio_record_started = 1;
-		ret = _reinit_record(record_sr, initial_gain);
-		Audio_Start();
-		if(ret) return ret;
-	}
-	*/
-
 	if( !IsBufferSizeFilled(pTxBuffer, LISTEN_WATERMARK) ){
-		if(!xSemaphoreTake(record_isr_sem,5000)){
+		if(!xSemaphoreTake(record_isr_sem,1000)){
 			LOGI("ISR Failed\r\n");
-#if 0
-			return _reinit_record(record_sr, initial_gain);
+#if 1
+			Audio_Stop();
+			_reset_codec();
+			InitAudioTxRx(AUDIO_SAMPLE_RATE);
+			InitAudioCapture();
+			Audio_Start();
+			return 0;
 #else
 //			mcu_reset();
 			return HLO_STREAM_ERROR;
@@ -125,25 +134,11 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 	}
 	return 0;
 }
-bool set_volume(int v, unsigned int dly);
 // TODO might need two functions for close of capture and playback?
 static int _close(void * ctx){
-	DISP("Closing stream\n");
-	//set_volume(0, portMAX_DELAY);
-
-#if 0
-	Audio_Stop();
-
-	DeinitAudioPlayback();
-	DeinitAudioCapture();
-
-
-	audio_record_started = 0;
-	audio_playback_started = 0;
-#endif
-
 	return HLO_STREAM_NO_IMPL;
 }
+
 
 ////------------------------------
 //  Public API
@@ -153,13 +148,8 @@ void hlo_audio_init(void){
 	hlo_stream_vftbl_t tbl = { 0 };
 
 	tbl.close = _close;
-
 	tbl.write = NULL;
-#if 1
-	tbl.read = _read_record_mono;			//for 1p0 when return channel is mono
-#else
-	tbl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
-#endif
+	tbl.read = _read_record_mono;
 	master_rec = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD);
 
 	tbl.read = NULL;
@@ -170,6 +160,14 @@ void hlo_audio_init(void){
 	assert(record_isr_sem);
 	playback_isr_sem = xSemaphoreCreateBinary();
 	assert(playback_isr_sem);
+
+	_reset_codec();
+
+	// McASP and DMA init
+	InitAudioTxRx(AUDIO_SAMPLE_RATE);
+
+	InitAudioHelper_p();
+	InitAudioHelper();
 
 }
 
@@ -212,6 +210,8 @@ typedef struct{
 	int32_t last_eng;
 	int32_t eng;
 	int32_t ctr;
+	uint32_t off;
+	uint32_t begin;
 }light_stream_t;
 
 static void _do_lights(void * ctx, const void * buf, size_t size) {
@@ -228,20 +228,28 @@ static void _do_lights(void * ctx, const void * buf, size_t size) {
 			stream->eng = fxd_sqrt(stream->eng/NSAMPLES);
 
 			stream->reduced = 3 * stream->reduced >> 2;
-			stream->reduced += abs(stream->eng - stream->last_eng)<<1;
+			stream->reduced += abs(stream->eng - stream->last_eng);
 
-			stream->lp += ( stream->reduced - stream->lp ) >> 3;
+			stream->lp += ( stream->reduced - stream->lp ) >> 2;
 			//DISP("%d\n", stream->lp) ;
 
 			stream->last_eng = stream->eng;
 
-			if(stream->lp > 253){
-				stream->lp = 253;
+			uint32_t light = stream->lp + stream->off;
+
+			if(light > 253){
+				light = 253;
 			}
-			if( stream->lp < 20 ){
-				stream->lp = 20;
+			if( light < 20 ){
+				light = 20;
 			}
-			set_modulation_intensity( stream->lp );
+
+			uint32_t d =  xTaskGetTickCount() - stream->begin;
+			if( d < 150 ) {
+				light = (light*d/150);
+			}
+
+			set_modulation_intensity( light );
 			stream->ctr = 0;
 			stream->eng = 0;
 		}
@@ -262,13 +270,11 @@ static int _read_light(void * ctx, void * buf, size_t size){
 static int _close_light(void * ctx){
 	light_stream_t * stream = (light_stream_t*)ctx;
 	DISP("close light\n") ;
-
-	stop_led_animation( 0, 33 );
 	hlo_stream_close(stream->base);
 	vPortFree(stream);
 	return 0;
 }
-hlo_stream_t * hlo_light_stream( hlo_stream_t * base){
+hlo_stream_t * hlo_light_stream( hlo_stream_t * base, bool start, uint32_t offset){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
 		.write = _write_light,
 		.read = _read_light,
@@ -283,9 +289,16 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base){
 	}
 	memset(stream, 0, sizeof(*stream) );
 	stream->base = base;
+	stream->off = offset;
 
+
+	if( start )
+	{
 	DISP("open light\n") ;
+	set_modulation_intensity( 0 );
 	play_modulation(140,29,237,30,0);
+	stream->begin = xTaskGetTickCount();
+	}
 
 	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
 }

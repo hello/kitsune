@@ -90,29 +90,31 @@ static void lstm_time_step_forwards(int32_t * cell_state,
     uint32_t icell;
     int32_t accumulator32;
     int32_t temp32;
-    int temp;
+    int8_t temp8;
     Weight_t h;
     int8_t tempscale;
+    int32_t bias32;
 
     const Weight_t * weight_row_starts[NUM_GATES];
-    Weight_t bias_row_starts[NUM_GATES];
-    uint32_t total_len = num_cells + num_inputs;
+    const Weight_t * bias_row_starts[NUM_GATES];
+    const uint32_t total_len = num_cells + num_inputs;
     int32_t pre_activations[NUM_GATES];
 
     int16_t activation_forget_gate;
     int16_t activation_input_gate;
     int16_t activation_output_gate;
     Weight_t activation_cell;
-
+    
     for (igate = 0; igate < NUM_GATES; igate++) {
         //set up row starts for all weights
         weight_row_starts[igate] = weights[igate];
-        bias_row_starts[igate] = *biases[igate] << QFIXEDPOINT; //to Q14 + QB FROM Q7 + QB
+        bias_row_starts[igate] = biases[igate];
     }
+    
     
     for (icell = 0; icell < num_cells; icell++) {
 //        printf("cell=%d\n",icell);
-
+        
         if (icell == 3) {
             int foo = 3;
             foo++;
@@ -122,22 +124,24 @@ static void lstm_time_step_forwards(int32_t * cell_state,
 
             accumulator32 = 0;
             const Weight_t * w = weight_row_starts[igate];
-            Weight_t b = bias_row_starts[igate];
-            int8_t w_scale = weights_scale[igate];
-            int8_t b_scale = biases_scale[igate];
-
+            const Weight_t * b = bias_row_starts[igate];
+            const int8_t w_scale = weights_scale[igate];
+            const int8_t b_scale = biases_scale[igate];
+            
             accumulator32 = accumulate(total_len,w,input_vec);
             
-            temp = b_scale - input_scale - w_scale;
+            bias32 = *b << QFIXEDPOINT; //to Q14 + QB FROM Q7 + QB
             
-            if (temp > 0) {
-                b >>= temp;
+            temp8 = b_scale - input_scale - w_scale;
+            
+            if (temp8 > 0) {
+                bias32 >>= temp8;
             }
-            else if (temp < 0){
-                b <<= -temp;
+            else if (temp8 < 0){
+                bias32 <<= -temp8;
             }
             
-            accumulator32 += b;
+            accumulator32 += bias32;
             
             if (w_scale > 0) {
                 accumulator32 >>= w_scale;
@@ -153,8 +157,10 @@ static void lstm_time_step_forwards(int32_t * cell_state,
             
             //update indices
             weight_row_starts[igate] += total_len;
-            ++bias_row_starts[igate];
+            bias_row_starts[igate] += 1;
+
         }
+        
 
         //now that we have our activations, process the gates
         activation_forget_gate = hard_sigmoid(pre_activations[forgetgate],input_scale);
@@ -195,8 +201,15 @@ static void lstm_time_step_forwards(int32_t * cell_state,
         if (temp32 < -MAX_WEIGHT) {
             temp32 = -MAX_WEIGHT;
         }
+        
+        
         output[icell] = (Weight_t)temp32;
+        
+    
     }
+
+
+   
 }
 
 

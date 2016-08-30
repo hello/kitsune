@@ -241,7 +241,6 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	DISP("Playback Task Finished %d\r\n", ret);
 }
 void AudioPlaybackTask(void * data) {
-
 	_playback_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	assert(_playback_queue);
 

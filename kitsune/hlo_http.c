@@ -12,6 +12,7 @@
 #include "bigint_impl.h"
 #include "hlo_net_tools.h"
 #include "hlo_proto_tools.h"
+#include "sys_time.h"
 #include <ustdlib.h>
 //====================================================================
 //Protected API Declaration
@@ -54,6 +55,7 @@ static int _start_connection(unsigned long ip, security_type sec){
 	if( ip ){
 		 sockaddr sAddr;
 		 if(sec == SOCKET_SEC_SSL){
+			 wait_for_time(WAIT_FOREVER);
 			 sAddr = _get_addr(ip, 443);
 			 sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
 			 if(sock <= 0){
