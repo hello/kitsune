@@ -212,6 +212,7 @@ typedef struct{
 	int32_t ctr;
 	uint32_t off;
 	uint32_t begin;
+	bool close_lights;
 }light_stream_t;
 
 static void _do_lights(void * ctx, const void * buf, size_t size) {
@@ -269,6 +270,9 @@ static int _read_light(void * ctx, void * buf, size_t size){
 }
 static int _close_light(void * ctx){
 	light_stream_t * stream = (light_stream_t*)ctx;
+	if( stream->close_lights ) {
+		stop_led_animation( 0, 33 );
+	}
 	DISP("close light\n") ;
 	hlo_stream_close(stream->base);
 	vPortFree(stream);
@@ -291,13 +295,15 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base, bool start, uint32_t offse
 	stream->base = base;
 	stream->off = offset;
 
+	stream->close_lights = true;
 
 	if( start )
 	{
-	DISP("open light\n") ;
-	set_modulation_intensity( 0 );
-	play_modulation(140,29,237,30,0);
-	stream->begin = xTaskGetTickCount();
+		DISP("open light\n") ;
+		set_modulation_intensity( 0 );
+		play_modulation(140,29,237,30,0);
+		stream->close_lights = false;
+		stream->begin = xTaskGetTickCount();
 	}
 
 	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);

@@ -9,6 +9,7 @@
 #include "hlo_audio.h"
 #include <stdbool.h>
 #include <string.h>
+#include "ustdlib.h"
 #include "hlo_proto_tools.h"
 #include "crypto.h"
 #include "wifi_cmd.h"
@@ -267,10 +268,10 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
 		if( !ready ) {
 			ready = true;
-			stop_led_animation( 0, 33 );
 		}
 		if( nn_ctx.keyword_detected > 0 ) {
 			if( !light_open ) {
+				AudioTask_StopPlayback();
 				input = hlo_light_stream( input,true, 300 );
 				input = hlo_stream_en( input );
 				light_open = true;
@@ -295,6 +296,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	get_hmac( hmac, hmac_payload_str );
 	ret = hlo_stream_transfer_all(INTO_STREAM, output, hmac, sizeof(hmac), 4);
 	hlo_stream_close(hmac_payload_str);
+	hlo_stream_close(input);
 
 	{//now play the swirling thing when we get response
 		//	play_led_wheel(get_alpha_from_light(),140,29,237,2,9,0);
@@ -330,13 +332,23 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 #else
 	if(ret >= 0 || ret == HLO_STREAM_EOF ){
 		DISP("\r\n===========\r\n");
-		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_PLAYBACK);
 			DISP("Playback Audio\r\n");
-			aud = hlo_light_stream( aud, false, LED_MAX/4 );
-			set_volume(sys_volume, portMAX_DELAY);
-			hlo_filter_mp3_decoder(output,aud,NULL,signal);
+
+			output = hlo_light_stream( output, false, LED_MAX/4 );
+
+			AudioPlaybackDesc_t desc;
+			desc.context = NULL;
+			desc.durationInSeconds = INT32_MAX;
+			desc.to_fade_out_ms = desc.fade_in_ms = desc.fade_out_ms = 0;
+			desc.onFinished = NULL;
+			desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
+			desc.stream = output;
+			desc.volume = sys_volume;
+			desc.p = hlo_filter_mp3_decoder;
+			ustrncpy(desc.source_name, "voice", sizeof(desc.source_name));
+			AudioTask_StartPlayback(&desc);
+
 			DISP("\r\n===========\r\n");
-		hlo_stream_close(aud);
 	}
 #endif
 	keyword_net_deinitialize();
@@ -454,11 +466,12 @@ typedef struct{
 	hlo_stream_t * in;
 	hlo_stream_t * out;
 	hlo_stream_signal sig;
+	void * sig_ctx;
 	uint8_t frame_buf[800];
 }mp3_ctx_t;
 static enum mad_flow _mp3_input(void *data, struct mad_stream *stream){
 	mp3_ctx_t * ctx = (mp3_ctx_t*)data;
-	if(ctx->sig && ctx->sig(NULL)){
+	if(ctx->sig && ctx->sig(ctx->sig_ctx)){
 		return MAD_FLOW_STOP;
 	}
 	//setup default values
@@ -522,7 +535,7 @@ enum mad_flow _mp3_output(void *data,
              struct mad_pcm *pcm){
 //    DISP("o %d\r\n", pcm->length);
     mp3_ctx_t * ctx = (mp3_ctx_t*)data;
-    if(ctx->sig && ctx->sig(NULL)){
+    if(ctx->sig && ctx->sig(ctx->sig_ctx)){
         return MAD_FLOW_STOP;
     }
     int16_t * i16_samples = (int16_t*)pcm->samples[1];
@@ -567,6 +580,7 @@ int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * c
 	mp3.in = input;
 	mp3.out = output;
 	mp3.sig = signal;
+	mp3.sig_ctx = ctx;
 
 	/* configure input, output, and error functions */
 
@@ -585,7 +599,7 @@ int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * c
 }
 ////-----------------------------------------
 //commands
-static uint8_t _can_has_sig_stop(void){
+static uint8_t _can_has_sig_stop(void * unused){
 	return audio_sig_stop;
 }
 int Cmd_audio_record_start(int argc, char *argv[]){
@@ -700,15 +714,15 @@ void AudioControlTask(void * unused) {
 		}
 		LOGI("Task Stream transfer exited with code %d\r\n", ret);
 
-		hlo_stream_close(in);
-		hlo_stream_close(out);
+		//hlo_stream_close(in);
+		//hlo_stream_close(out);
 
 		vTaskDelay(100);
 	}
 }
 
 static uint8_t mic_count = 8;
-static uint8_t _mic_test_stop(void){
+static uint8_t _mic_test_stop(void * unused){
 
 	DISP("Mic test count %d\n",mic_count);
 	return (--mic_count == 0);
