@@ -53,9 +53,9 @@ int hlo_stream_transfer_between(
 /**
  * filters are like pipes except it also processes data before dumping it out to output.
  */
-typedef uint8_t (*hlo_stream_signal)(void);
+typedef uint8_t (*hlo_stream_signal)(void * ctx);
 typedef int(*hlo_filter)(hlo_stream_t * input, hlo_stream_t * opt_output, void * ctx, hlo_stream_signal signal);
-#define BREAK_ON_SIG(s) if(s && s()){break;}
+#define BREAK_ON_SIG(s) if(s && s(ctx)){break;}
 
 #include "streaming.pb.h"
 typedef struct {

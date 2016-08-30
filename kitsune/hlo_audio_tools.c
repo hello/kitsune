@@ -458,7 +458,7 @@ typedef struct{
 }mp3_ctx_t;
 static enum mad_flow _mp3_input(void *data, struct mad_stream *stream){
 	mp3_ctx_t * ctx = (mp3_ctx_t*)data;
-	if(ctx->sig && ctx->sig()){
+	if(ctx->sig && ctx->sig(NULL)){
 		return MAD_FLOW_STOP;
 	}
 	//setup default values
@@ -522,7 +522,7 @@ enum mad_flow _mp3_output(void *data,
              struct mad_pcm *pcm){
 //    DISP("o %d\r\n", pcm->length);
     mp3_ctx_t * ctx = (mp3_ctx_t*)data;
-    if(ctx->sig && ctx->sig()){
+    if(ctx->sig && ctx->sig(NULL)){
         return MAD_FLOW_STOP;
     }
     int16_t * i16_samples = (int16_t*)pcm->samples[1];
