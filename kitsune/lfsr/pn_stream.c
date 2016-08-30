@@ -59,7 +59,7 @@
 #define DETECTION_THRESHOLD   (3e5)
 #define NUM_DETECT            (2)
 
-#define WRITE_BUF_SKIP_BYTES (TX_BUFFER_SIZE)
+#define WRITE_BUF_SKIP_BYTES (1 * TX_BUFFER_SIZE)
 
 /*
  *
@@ -301,18 +301,24 @@ void pn_write_task( void * params ) {
 	PN_INIT();
 	get_pn_sequence(pn_sequence,PN_LEN_SAMPLES);
 
+	/*
+	for (i = 0; i < sizeof(ctx.samples) / sizeof(int16_t); i++) {
+		DISP("%d\r\n",ctx.samples[i]);
+		vTaskDelay(2);
+	}
+	*/
+
 	corridx = 0;
 	for (corrnumber = CORR_SEARCH_START_IDX; corrnumber < CORR_SEARCH_WINDOW + CORR_SEARCH_START_IDX; corrnumber++,corridx++) {
 		int64_t temp64;
 		//DO THE CORRELATION
 		temp64 = pn_correlate_1x_soft(&ctx.samples[corrnumber],pn_sequence,PN_LEN_SAMPLES);
-		temp64 >>= 8;
+
 		if (temp64 > INT32_MAX) {
 			corr_result[corridx] = INT32_MAX;
 		}
 		else if (temp64 < -INT32_MAX) {
 			corr_result[corridx] = -INT32_MAX;
-
 		}
 		else {
 			corr_result[corridx] = temp64;
