@@ -16,35 +16,36 @@
 #include "hellomath.h"
 #include "network.h"
 
-static hlo_stream_t * _p_read_stream = NULL;
-static hlo_stream_t * _p_write_stream = NULL;
 
-static hlo_stream_vftbl_t _read_tbl;
-static hlo_stream_vftbl_t _write_tbl;
 
-static uint32_t _read_bytes_count = 0;
-static uint32_t _write_bytes_count = 0;
+/*
+ *
+ * DEFINES
+ *
+ */
 
 /*  TEST CRITERIA  */
 #define NUM_SAMPLES_SEPARTED_FAIL_THRESHOLD (6)
 #define LOG2_THRESHOLD_Q10_FOR_FAILURE (1024)
 
-
+/* PN choices  */
 #define AEC_CHANNEL (0)
-#define PN_LEN_SAMPLES PN_LEN_12
-#define PN_INIT pn_init_with_mask_12
-#define PN_AMPLITUDE (1024)
+#define PN_LEN_SAMPLES PN_LEN_10
+#define PN_INIT pn_init_with_mask_10
+#define PN_AMPLITUDE (2048)
 
 #define ABS(x)  ( (x) < 0 ? -(x) : (x) )
 
-#define NUM_READ_PERIODS (20)
-#define WRITE_BYTES_MAX (PN_LEN_SAMPLES * NUM_READ_PERIODS * sizeof(int16_t))
 
 //delay just to just before the start of the second sequence
 #define CIRCULAR_BUFFER_FILL_TIME_MS (( TX_BUFFER_SIZE / 4 / sizeof(int16_t) * 1000  / AUDIO_CAPTURE_PLAYBACK_RATE))
 #define PN_PERIOD_TIME_MS (PN_LEN_SAMPLES * 1000 / AUDIO_CAPTURE_PLAYBACK_RATE)
 #define NUM_PN_PERIODS_TO_WAIT   (CIRCULAR_BUFFER_FILL_TIME_MS / PN_PERIOD_TIME_MS + 1)
-#define WRITE_TASK_STARTUP_DELAY  (NUM_PN_PERIODS_TO_WAIT * PN_PERIOD_TIME_MS  +  20)
+#define WRITE_TASK_STARTUP_DELAY  (NUM_PN_PERIODS_TO_WAIT * PN_PERIOD_TIME_MS  +  30)
+
+#define NUM_READ_PERIODS (NUM_PN_PERIODS_TO_WAIT + 3)
+#define READ_BYTES_MAX (PN_LEN_SAMPLES * NUM_READ_PERIODS * sizeof(int16_t))
+
 
 #define TIME_TO_COMPLETE_TASKS (10000)
 
@@ -57,6 +58,11 @@ static uint32_t _write_bytes_count = 0;
 #define DETECTION_THRESHOLD   (3e5)
 #define NUM_DETECT            (2)
 
+/*
+ *
+ *  LOCAL TYPE DEFINITIONS
+ *
+ */
 typedef struct {
 	hlo_stream_t * input;
 	hlo_stream_t * output;
@@ -64,14 +70,36 @@ typedef struct {
 	hlo_stream_signal signal;
 	uint8_t debug;
 	uint8_t test_impulse;
+	uint8_t print_correlation;
 } hlo_stream_transfer_t;
 
 typedef struct {
-	int16_t samples[WRITE_LEN_SAMPLES]; //each uint32_t has space for 4 channels
+	int16_t samples[WRITE_LEN_SAMPLES];
 	uint32_t idx;
 } write_buf_context_t;
 
+typedef struct {
+	uint32_t peak_indices[4];
+	int32_t peak_values[4];
+} TestResult_t;
 
+/*
+ *
+ * STATIC VARIABLES
+ */
+static hlo_stream_t * _p_read_stream = NULL;
+static hlo_stream_t * _p_write_stream = NULL;
+
+static hlo_stream_vftbl_t _read_tbl;
+static hlo_stream_vftbl_t _write_tbl;
+
+static uint32_t _read_bytes_count = 0;
+static uint32_t _write_bytes_count = 0;
+
+
+
+static TestResult_t _result;
+static uint32_t _channel;
 
 #define REQUIRED_WRITE_STACK_SIZE       (sizeof(write_buf_context_t) + CORR_SEARCH_WINDOW * sizeof(int32_t) + PN_LEN_SAMPLES * sizeof(int16_t) + 3000)
 
@@ -115,7 +143,7 @@ static int read(void * ctx, void * buf, size_t size) {
 
 	_read_bytes_count += size;
 
-	if (_read_bytes_count > WRITE_BYTES_MAX) {
+	if (_read_bytes_count > READ_BYTES_MAX) {
 		_read_bytes_count = 0;
 		//DISP("done with read\r\n");
 		return HLO_STREAM_EOF;
@@ -212,7 +240,9 @@ void pn_write_task( void * params ) {
 	int32_t corr_result[CORR_SEARCH_WINDOW];
 	uint32_t corridx;
 	hlo_stream_transfer_t * p = (hlo_stream_transfer_t *)params;
-
+	int32_t last_value;
+	int32_t current_value;
+	int32_t decrease_count;
 
 	ctx.idx = 0;
 
@@ -266,9 +296,20 @@ void pn_write_task( void * params ) {
 
 	corridx = 0;
 	for (corrnumber = CORR_SEARCH_START_IDX; corrnumber < CORR_SEARCH_WINDOW + CORR_SEARCH_START_IDX; corrnumber++,corridx++) {
-
+		int64_t temp64;
 		//DO THE CORRELATION
-		corr_result[corridx] = pn_correlate_1x_soft(&ctx.samples[corrnumber],pn_sequence,PN_LEN_SAMPLES);
+		temp64 = pn_correlate_1x_soft(&ctx.samples[corrnumber],pn_sequence,PN_LEN_SAMPLES);
+
+		if (temp64 > INT32_MAX) {
+			corr_result[corridx] = INT32_MAX;
+		}
+		else if (temp64 < -INT32_MAX) {
+			corr_result[corridx] = -INT32_MAX;
+
+		}
+		else {
+			corr_result[corridx] = temp64;
+		}
 
 		if (p->test_impulse && ABS(corr_result[corridx]) > 500) {
 			DISP("%d\r\n",corr_result[corridx]);
@@ -302,7 +343,7 @@ void pn_write_task( void * params ) {
 		istart = 0;
 	}
 
-
+	//if no peaks were found, then quit
 	if (!found_peak) {
 		DISP("NO PEAKS FOUND\r\n");
 		vTaskDelete(NULL);
@@ -315,61 +356,71 @@ void pn_write_task( void * params ) {
 		iend = CORR_SEARCH_WINDOW;
 	}
 
-	DISP("istart=%d, iend=%d\r\n");
+	//debug print correlation if requested
+	DISP("istart=%d, iend=%d\r\n",istart,iend);
+	if (p->print_correlation) {
+		for (i = istart; i < iend; i++) {
+			DISP("%d\r\n",corr_result[i]);
+			vTaskDelay(5);
+		}
+		DISP("\r\n");
+	}
 
+
+	//find peak magnitude and index
+	last_value = 0;
+	decrease_count = 0;
 	for (i = istart; i < iend; i++) {
-		DISP("%d\r\n",corr_result[i]);
-		vTaskDelay(5);
+		current_value = ABS(corr_result[i]);
+		if (current_value > DETECTION_THRESHOLD) {
+			//find start of bounds, basically once we exceed the threshold
+			if (current_value == 0) {
+				istart = i;
+			}
 
-	}
-	DISP("\r\n");
+			//two consecutive decreases?
+			if (current_value < last_value) {
 
+				decrease_count++;
+				if (decrease_count >= 2) {
+					iend = i;
+					break;
+				}
+			}
+			else {
+				decrease_count = 0;
+			}
 
-
-/*
-	for (j = 0; j < 4; j++) {
-		if (j == AEC_CHANNEL) {
-			continue;
 		}
 
-		for (i = j + 1; i < 4; i++) {
-			if (i == AEC_CHANNEL) {
-				continue;
-			}
+		last_value = ABS(corr_result[i]);
+	}
 
-#define NOISE_FLOOR (300)
-			a1 = ABS(sums_history[j][max_indices[j]]);
-			a1 -= NOISE_FLOOR;
-			a1 = a1 < NOISE_FLOOR ? NOISE_FLOOR : a1;
-			a1 = FixedPointLog2Q10(a1);
+	last_value = 0;
 
-			a2 = ABS(sums_history[i][max_indices[i]]);
-			a2 -= NOISE_FLOOR;
-			a2 = a2 < NOISE_FLOOR ? NOISE_FLOOR : a2;
-			a2 = FixedPointLog2Q10(a2);
+	//search window is small enough? if not, something weird happened
+	if (iend - istart < 16) {
+		for (i = istart; i < iend; i++) {
+			current_value = ABS(corr_result[i]);
 
-			logdiff = ABS(a2-a1);
-			DISP("{chA=%d,chB=%d,log2A=%d,log2B=%d,idxA=%d,idxB=%d}\r\n",j,i,a1,a2,max_indices[j],max_indices[i]);
-			if (  logdiff > LOG2_THRESHOLD_Q10_FOR_FAILURE  ) {
-				DISP("SELF-TEST FAILED: LOG2 AMPLITUDE MISMATCH=%d between channels %d and %d\r\n",ABS(a1-a2),j,i);
-				fail = 1;
-			}
-
-			idx = ABS(max_indices[j] - max_indices[i]);
-
-			if (idx > NUM_SAMPLES_SEPARTED_FAIL_THRESHOLD) {
-				DISP("SELF-TEST FAILED: INDICES TOO FAR APART at %d counts between chanels %d and %d\r\n",idx,j,i);
-				fail = 1;
+			//find max
+			if (current_value > last_value) {
+				current_value = last_value;
+				istart = i;
 			}
 		}
+
+
+		DISP("{FIRST_PEAK_ABS_MAGNITUDE : %d, FIRST_PEAK_INDEX : %d}\r\n",current_value,istart);
+
+
+	}
+	else {
+		DISP("error, search window was too large\r\n");
 	}
 
-	if (!fail) {
-		DISP("TEST SUCCESS\r\n");
-	}
 
-	//make sure the peaks are within three samples (3cm or so) of each other
-	*/
+
 	DISP("pn_write_task completed\r\n");
 
 	vTaskDelete(NULL);
@@ -396,6 +447,7 @@ int cmd_audio_self_test(int argc, char* argv[]) {
 	uint8_t debug = 0;
 	uint8_t disable_playback = 0;
 	uint8_t test_impulse = 0;
+	uint8_t print_correlation = 0;
 	pn_stream_init();
 
 	if (argc > 1)  {
@@ -413,6 +465,19 @@ int cmd_audio_self_test(int argc, char* argv[]) {
 			disable_playback = 1;
 			test_impulse = 1;
 			DISP("testing impulse\r\n");
+		}
+
+		if (strcmp(argv[1],"p") == 0) {
+			print_correlation = 1;
+			DISP("printing correlation\r\n");
+		}
+
+		// so if I do "pn d p" I will print my correlation from an external source
+		if (argc > 2) {
+			if (strcmp(argv[2],"p") == 0) {
+				print_correlation = 1;
+				DISP("printing correlation\r\n");
+			}
 		}
 	}
 
@@ -433,6 +498,7 @@ int cmd_audio_self_test(int argc, char* argv[]) {
 	incoming_path.output  = pn_write_stream_open();
 	incoming_path.debug = debug;
 	incoming_path.test_impulse = test_impulse;
+	incoming_path.print_correlation = print_correlation;
 
 	set_volume(64, portMAX_DELAY);
 

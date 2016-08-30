@@ -33,7 +33,9 @@ void pn_init_with_state(uint16_t init_state, uint16_t mask, uint32_t len) {
     _data.len = len;
 }
 
-
+void pn_init_with_mask_10(void) {
+    pn_init_with_state(0xABCD,MASK_10,PN_LEN_10);
+}
 void pn_init_with_mask_9(void) {
     pn_init_with_state(0xABCD,MASK_9,PN_LEN_9);
 }
@@ -59,8 +61,8 @@ inline uint8_t pn_get_next_bit() {
 
 
 __attribute__((section(".ramcode")))
-static inline int32_t accumulate(const uint32_t n, const int16_t * in1, const int16_t * in2) {
-    int32_t accumulator = 0;
+static inline int64_t accumulate(const uint32_t n, const int16_t * in1, const int16_t * in2) {
+    int64_t accumulator = 0;
     int16_t nloop = n;
     nloop = n;
     {
