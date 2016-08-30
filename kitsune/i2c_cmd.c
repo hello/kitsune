@@ -895,8 +895,6 @@ int32_t set_volume(int v, unsigned int dly) {
 	v <<= 10;
 	v /= 560;
 
-	UARTprintf("Volume: %d\n",v);
-
 	if( xSemaphoreTakeRecursive(i2c_smphr, dly)) {
 
 		codec_set_book(0);

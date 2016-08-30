@@ -500,8 +500,8 @@ int set_test_alarm(int argc, char *argv[]) {
 	alarm.start_time = now + 5;
 	alarm.ring_duration_in_second = 200;
 	alarm.ring_offset_from_now_in_second = 2;
-	strncpy(alarm.ringtone_path, "/ringtone/tone.raw",
-			strlen("/ringtone/tone.raw"));
+	strncpy(alarm.ringtone_path, "/ringtone/ORG002.RAW",
+			strlen("/ringtone/ORG002.raw"));
 
 	alarm.has_end_time = 1;
 	alarm.has_start_time = 1;
@@ -2266,8 +2266,9 @@ void vUARTTask(void *pvParameters) {
 	hlo_audio_init();
 
 	// Create audio tasks for playback and record
-	xTaskCreate(AudioPlaybackTask,"playbackTask",3*512/4,NULL,4,NULL);
-	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
+	xTaskCreate(AudioPlaybackTask,"playbackTask",10*1024/4,NULL,4,NULL);
+	//xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
+	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 2, NULL);
 
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 
@@ -2276,7 +2277,6 @@ void vUARTTask(void *pvParameters) {
 	*           AUDIO INIT END
 	********************************************************************************
 	*/
-	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 2, NULL);
 	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 
 #ifndef DEMO

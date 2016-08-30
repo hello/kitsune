@@ -220,29 +220,37 @@ static uint8_t fadeout_sig(void * ctx) {
 //playback sample app
 static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop){
 	int ret;
+	bool  vol_ramp = desc->fade_in_ms || desc->fade_out_ms || desc->to_fade_out_ms;
+	ramp_ctx_t vol;
+	hlo_future_t * vol_task;
 
-	ramp_ctx_t vol = (ramp_ctx_t){
-		.current = 0,
-		.target = desc->volume,
-		.ramp_up_ms = desc->fade_in_ms / (desc->volume + 1),
-		.ramp_down_ms = desc->fade_out_ms / (desc->volume + 1),
-		.duration =  desc->durationInSeconds * 1000,
-	};
+	if(vol_ramp) {
+		vol = (ramp_ctx_t){
+			.current = 0,
+			.target = desc->volume,
+			.ramp_up_ms = desc->fade_in_ms / (desc->volume + 1),
+			.ramp_down_ms = desc->fade_out_ms / (desc->volume + 1),
+			.duration =  desc->durationInSeconds * 1000,
+		};
+		set_volume(0, portMAX_DELAY);
+		vol_task = (hlo_future_t*)hlo_future_create_task_bg(_change_volume_task,(void*)&vol,1024);
+	} else {
+		set_volume(desc->volume, portMAX_DELAY);
+	}
 
 	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,HLO_AUDIO_PLAYBACK);
-	set_volume(0, portMAX_DELAY);
 	hlo_stream_t * fs = desc->stream;
-
-	hlo_future_t * vol_task = (hlo_future_t*)hlo_future_create_task_bg(_change_volume_task,(void*)&vol,1024);
 
 	//playback
 	hlo_filter transfer_function = desc->p ? desc->p : hlo_filter_data_transfer;
 
-	ret = transfer_function(fs, spkr, NULL, sig_stop);
+	ret = transfer_function(fs, spkr, desc->context, sig_stop);
 
-	//join async worker
-	vol.target = 0;
-	ret = transfer_function(fs, spkr, vol_task, fadeout_sig);
+	if( vol_ramp ) {
+		//join async worker
+		vol.target = 0;
+		ret = transfer_function(fs, spkr, vol_task, fadeout_sig);
+	}
 
 	hlo_stream_close(fs);
 	hlo_stream_close(spkr);
@@ -295,7 +303,7 @@ void AudioPlaybackTask(void * data) {
 
 }
 #include "hlo_audio_tools.h"
-static uint8_t CheckForInterruptionDuringCapture(void){
+static uint8_t CheckForInterruptionDuringCapture(void * unused){
 	AudioMessage_t m;
 	uint8_t ret = 0x00;
 	if (xQueueReceive(_capture_queue,(void *)&m,0)) {
