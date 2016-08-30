@@ -76,7 +76,7 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 #if 1
 			Audio_Stop();
 			_reset_codec();
-			InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
+			InitAudioTxRx(AUDIO_SAMPLE_RATE);
 			InitAudioPlayback();
 			set_volume(sys_volume, portMAX_DELAY);
 			Audio_Start();
@@ -118,7 +118,7 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 #if 1
 			Audio_Stop();
 			_reset_codec();
-			InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
+			InitAudioTxRx(AUDIO_SAMPLE_RATE);
 			InitAudioCapture();
 			Audio_Start();
 			return 0;
@@ -164,7 +164,7 @@ void hlo_audio_init(void){
 	_reset_codec();
 
 	// McASP and DMA init
-	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
+	InitAudioTxRx(AUDIO_SAMPLE_RATE);
 
 	InitAudioHelper_p();
 	InitAudioHelper();

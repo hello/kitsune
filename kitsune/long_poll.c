@@ -56,7 +56,7 @@ static void _on_play_audio( PlayAudio * cmd ) {
 	}
 
 	desc.onFinished = NULL;
-	desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
+	desc.rate = AUDIO_SAMPLE_RATE;
 	desc.context = NULL;
 	desc.p = NULL;
 
