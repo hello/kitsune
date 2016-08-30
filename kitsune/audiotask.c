@@ -279,15 +279,11 @@ void AudioPlaybackTask(void * data) {
 				{
 					AudioPlaybackDesc_t * info = &m.message.playbackdesc;
 					/** prep  **/
-					LOGI("Starting playback\r\n");
-					_print_heap_info();
 					_queue_audio_playback_state(PLAYING, info);
 					/** blocking loop to play the sound **/
 					_playback_loop(info, CheckForInterruptionDuringPlayback);
 					/** clean up **/
 					_queue_audio_playback_state(SILENT, info);
-					_print_heap_info();
-					LOGI("Completed playback\r\n");
 
 					if (m.message.playbackdesc.onFinished) {
 						m.message.playbackdesc.onFinished(m.message.playbackdesc.context);

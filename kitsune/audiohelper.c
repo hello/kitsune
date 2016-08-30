@@ -98,6 +98,14 @@ void DeinitAudioCapture(void) {
 	}
 }
 
+void flush_audio_playback_buffer() {
+	if (pRxBuffer) {
+		DestroyCircularBuffer(pRxBuffer);
+		pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE, audio_mem_p);
+	}
+	memset( audio_mem_p, 0, RX_BUFFER_SIZE);
+}
+
 uint8_t InitAudioPlayback() {
 
 	//create circular buffer

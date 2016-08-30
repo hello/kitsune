@@ -18,6 +18,7 @@ void InitAudioTxRx(uint32_t rate);
 uint8_t InitAudioCapture(void);
 void DeinitAudioCapture(void);
 
+void flush_audio_playback_buffer();
 uint8_t InitAudioPlayback();
 void DeinitAudioPlayback(void);
 

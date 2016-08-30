@@ -176,6 +176,7 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint32_t direction){
 	LOCK();
 	if(direction == HLO_AUDIO_PLAYBACK) {
 		playback_sr = sr;
+		flush_audio_playback_buffer();
 		set_isr_playback(false);
 		ret = master_plbk;
 	} else if(direction == HLO_AUDIO_RECORD){
