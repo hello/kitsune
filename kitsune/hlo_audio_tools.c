@@ -350,6 +350,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 			DISP("\r\n===========\r\n");
 	}
+	else{
+		hlo_stream_close(output);
+	}
 #endif
 	keyword_net_deinitialize();
 	return ret;
