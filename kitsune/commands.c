@@ -101,12 +101,7 @@
 #include "filedownloadmanager.h"
 
 #include "tensor/keyword_net.h"
-
-#define ONLY_AUDIO 0
-
-#if (AUDIO_FULL_DUPLEX==1)
 #include "audiohelper.h"
-#endif
 
 #define ONLY_MID 0
 
@@ -323,7 +318,7 @@ int Cmd_fs_read(int argc, char *argv[]) {
 }
 
 int Cmd_audio_turn_on(int argc, char * argv[]) {
-	AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
+	AudioTask_StartCapture(AUDIO_SAMPLE_RATE);
 
 	AudioProcessingTask_SetControl(featureUploadsOn,0);
 #ifdef KIT_INCLUDE_FILE_UPLOAD
@@ -618,7 +613,7 @@ void thread_alarm(void * unused) {
 				desc.durationInSeconds = alarm.ring_duration_in_second;
 				desc.volume = 10;
 				desc.onFinished = thread_alarm_on_finished;
-				desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
+				desc.rate = AUDIO_SAMPLE_RATE;
 				desc.context = &alarm_led_id;
 
 				alarm.has_start_time = FALSE;
@@ -2094,7 +2089,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"nn",cmd_test_neural_net,""},
 		{ 0, 0, 0 } };
 
-
 // ==============================================================================
 // This is the UARTTask.  It handles command lines received from the RX IRQ.
 // ==============================================================================
@@ -2231,7 +2225,6 @@ void vUARTTask(void *pvParameters) {
 
 	init_download_task( 3072 / 4 );
 
-
 	networktask_init(3 * 1024 / 4);
 
 	load_serial();
@@ -2246,7 +2239,6 @@ void vUARTTask(void *pvParameters) {
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1680 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
-
 
 #ifndef BUILD_SERVERS
 	uart_logger_init();
@@ -2266,7 +2258,6 @@ void vUARTTask(void *pvParameters) {
 
 	// Create audio tasks for playback and record
 	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
-	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
 
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 

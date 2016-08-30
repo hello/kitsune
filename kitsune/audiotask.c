@@ -206,6 +206,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 }
 ////-------------------------------------------
 //playback sample app
+#include "hlo_http.h"
 static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop){
 	int ret;
 
@@ -218,7 +219,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	};
 
 	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,HLO_AUDIO_PLAYBACK);
-	set_volume(0, portMAX_DELAY);
+	// set_volume(desc->volume, portMAX_DELAY);
 	hlo_stream_t * fs = desc->stream;
 
 	hlo_future_t * vol_task = (hlo_future_t*)hlo_future_create_task_bg(_change_volume_task,(void*)&vol,1024);
@@ -240,8 +241,6 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	DISP("Playback Task Finished %d\r\n", ret);
 }
 void AudioPlaybackTask(void * data) {
-
-
 	_playback_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	assert(_playback_queue);
 
@@ -361,6 +360,7 @@ void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
 
 	memcpy(&m.message.playbackdesc,desc,sizeof(AudioPlaybackDesc_t));
 	//send to front of queue so this message is always processed first
+	// TODO DKH Do we still need to sendtofront if queue for record and playback are separate
 	if (_playback_queue) {
 		xQueueSendToFront(_playback_queue,(void *)&m,0);
 		_queue_audio_playback_state(PLAYING, desc);
@@ -396,17 +396,26 @@ void AudioTask_QueueCaptureProcess(const AudioCaptureDesc_t * desc){
 		xQueueSend(_capture_queue,(void *)&m,0);
 	}
 }
+
+
 int Cmd_AudioPlayback(int argc, char * argv[]){
 	if(argc  > 1){
 		AudioPlaybackDesc_t desc;
 		desc.context = NULL;
-		desc.durationInSeconds = 10;
+		desc.durationInSeconds = 20;
 		desc.fade_in_ms = 1000;
 		desc.fade_out_ms = 1000;
 		desc.onFinished = NULL;
-		desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
-		desc.stream = fs_stream_open_media(argv[1], 0);
-		desc.volume = 44;
+		desc.rate = AUDIO_SAMPLE_RATE;
+		LOGI("Playing from %s\n", argv[1]);
+#if 0
+		desc.p = NULL;
+		desc.stream = fs_stream_open_media(argv[1], -1);
+#else
+		desc.p = hlo_filter_mp3_decoder;
+		desc.stream = hlo_http_get(argv[1]);
+#endif
+		desc.volume = 60;
 		ustrncpy(desc.source_name, argv[1], sizeof(desc.source_name));
 		AudioTask_StartPlayback(&desc);
 		return 0;
@@ -420,7 +429,7 @@ int Cmd_AudioCapture(int argc, char * argv[]){
 			AudioTask_StopCapture();
 		}else{
 			LOGI("Starting Capture\r\n");
-			AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
+			AudioTask_StartCapture(AUDIO_SAMPLE_RATE);
 		}
 		return 0;
 	}

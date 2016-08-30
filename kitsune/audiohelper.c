@@ -28,6 +28,8 @@
 #include "queue.h"
 #include "semphr.h"
 
+#define DMA_REQUEST_LEVEL 8
+
 /* externs */
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
@@ -68,10 +70,7 @@ uint8_t InitAudioCapture(void) {
 	SetupPingPongDMATransferTx();
 
 	// Setup the Audio In/Out
-    //MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA | I2S_INT_XDMA );
-	MAP_I2SRxFIFOEnable(I2S_BASE,8,1);
-
-	//MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
+	MAP_I2SRxFIFOEnable(I2S_BASE,DMA_REQUEST_LEVEL,1);
 
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX, I2S_INACT_LOW_LEVEL);
 
@@ -112,8 +111,7 @@ uint8_t InitAudioPlayback() {
 	SetupPingPongDMATransferRx();
 
 	// Setup the Audio In/Out
-    //MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA | I2S_INT_XDMA );
-	MAP_I2STxFIFOEnable(I2S_BASE,8,1);
+	MAP_I2STxFIFOEnable(I2S_BASE,DMA_REQUEST_LEVEL,1);
 
     //MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX, I2S_INACT_LOW_LEVEL);
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX, I2S_INACT_LOW_LEVEL);
