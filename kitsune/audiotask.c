@@ -206,7 +206,6 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 }
 ////-------------------------------------------
 //playback sample app
-#include "hlo_http.h"
 static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop){
 	int ret;
 
@@ -219,7 +218,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	};
 
 	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,HLO_AUDIO_PLAYBACK);
-	// set_volume(desc->volume, portMAX_DELAY);
+	set_volume(0, portMAX_DELAY);
 	hlo_stream_t * fs = desc->stream;
 
 	hlo_future_t * vol_task = (hlo_future_t*)hlo_future_create_task_bg(_change_volume_task,(void*)&vol,1024);
@@ -360,7 +359,6 @@ void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
 
 	memcpy(&m.message.playbackdesc,desc,sizeof(AudioPlaybackDesc_t));
 	//send to front of queue so this message is always processed first
-	// TODO DKH Do we still need to sendtofront if queue for record and playback are separate
 	if (_playback_queue) {
 		xQueueSendToFront(_playback_queue,(void *)&m,0);
 		_queue_audio_playback_state(PLAYING, desc);

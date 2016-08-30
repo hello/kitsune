@@ -9,7 +9,7 @@
 
 #include "codec_debug_config.h"
 
-#define MAX_SOURCE_NAME_CHAR 	(68)
+#define MAX_SOURCE_NAME_CHAR 	(64)
 
 typedef enum {
 	eAudioPlaybackStart,
