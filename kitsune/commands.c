@@ -1717,7 +1717,7 @@ void launch_tasks() {
 
 	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
@@ -2266,7 +2266,7 @@ void vUARTTask(void *pvParameters) {
 	hlo_audio_init();
 
 	// Create audio tasks for playback and record
-	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
+	xTaskCreate(AudioPlaybackTask,"playbackTask",3*512/4,NULL,4,NULL);
 	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
 
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
