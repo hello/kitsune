@@ -294,21 +294,24 @@ static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_cr
 	uint16_t crc = 0xFFFFu;
 	SlFsFileInfo_t info;
 	sl_FsGetInfo((unsigned char*)name, tok, &info);
-	if(hndl = sl_FsOpen((unsigned char*)name, SL_FS_READ, &tok) < 0){
+	if( (hndl = sl_FsOpen((unsigned char*)name, SL_FS_READ, NULL)) < 0){
 		LOGI("error opening for read %s. %d\r\n", name, hndl);
 		return hndl;
 	}else{
 		LOGI("Opened fw for top ota: %s.\r\n", name);
     }
 	uint32_t bytes_to_read = info.Len;
-	uint32_t bytes;
+	int32_t bytes;
 	while(bytes_to_read){
 		bytes = sl_FsRead(hndl,
 				info.Len - bytes_to_read,
 				buffer,
 				min(sizeof(buffer), bytes_to_read));
-		if ( bytes ){
+		if ( bytes > 0){
 			crc = hci_crc16_compute_cont(buffer, bytes, &crc);
+		}else{
+			LOGE("FSError %d\r\n", bytes);
+			return -1;
 		}
 		bytes_to_read -= bytes;
 	}

@@ -2245,7 +2245,7 @@ void vUARTTask(void *pvParameters) {
 	init_dust();
 
 	ble_proto_init();
-	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 3, NULL);
+	xTaskCreate(top_board_task, "top_board_task", 1680 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
 
 
