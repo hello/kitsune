@@ -268,7 +268,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
 		if( !ready ) {
 			ready = true;
-			stop_led_animation( 0, 33 );
 		}
 		if( nn_ctx.keyword_detected > 0 ) {
 			if( !light_open ) {
@@ -297,6 +296,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	get_hmac( hmac, hmac_payload_str );
 	ret = hlo_stream_transfer_all(INTO_STREAM, output, hmac, sizeof(hmac), 4);
 	hlo_stream_close(hmac_payload_str);
+	hlo_stream_close(input);
 
 	{//now play the swirling thing when we get response
 		//	play_led_wheel(get_alpha_from_light(),140,29,237,2,9,0);
@@ -714,7 +714,7 @@ void AudioControlTask(void * unused) {
 		}
 		LOGI("Task Stream transfer exited with code %d\r\n", ret);
 
-		hlo_stream_close(in);
+		//hlo_stream_close(in);
 		//hlo_stream_close(out);
 
 		vTaskDelay(100);
