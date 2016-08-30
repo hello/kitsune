@@ -50,6 +50,7 @@
 #include "audiotask.h"
 #include "top_board.h"
 #include "fft.h"
+#include "lfsr/pn_stream.h"
 
 /* I2S module*/
 #include "i2s.h"
@@ -2093,6 +2094,8 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 		{"fs", cmd_file_sync_upload, ""},
 		{"nn",cmd_test_neural_net,""},
+		{"pn",cmd_audio_self_test,""},
+
 		{ 0, 0, 0 } };
 
 

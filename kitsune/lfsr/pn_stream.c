@@ -15,7 +15,7 @@
 #include "hw_memmap.h"
 #include "hellomath.h"
 #include "network.h"
-
+#include "pcm_handler.h"
 
 
 /*
@@ -38,12 +38,13 @@
 
 
 //delay just to just before the start of the second sequence
+#define PLAY_BUFFER_FILL_TIME_MS (RX_BUFFER_SIZE * 1000 / sizeof(int16_t) / AUDIO_CAPTURE_PLAYBACK_RATE)
 #define CIRCULAR_BUFFER_FILL_TIME_MS (( TX_BUFFER_SIZE / 4 / sizeof(int16_t) * 1000  / AUDIO_CAPTURE_PLAYBACK_RATE))
 #define PN_PERIOD_TIME_MS (PN_LEN_SAMPLES * 1000 / AUDIO_CAPTURE_PLAYBACK_RATE)
-#define NUM_PN_PERIODS_TO_WAIT   (CIRCULAR_BUFFER_FILL_TIME_MS / PN_PERIOD_TIME_MS + 1)
-#define WRITE_TASK_STARTUP_DELAY  (NUM_PN_PERIODS_TO_WAIT * PN_PERIOD_TIME_MS  +  30)
+#define NUM_PN_PERIODS_TO_WAIT   (CIRCULAR_BUFFER_FILL_TIME_MS / PN_PERIOD_TIME_MS + PLAY_BUFFER_FILL_TIME_MS / PN_PERIOD_TIME_MS +  1)
+#define WRITE_TASK_STARTUP_DELAY  (NUM_PN_PERIODS_TO_WAIT * PN_PERIOD_TIME_MS  +  PLAY_BUFFER_FILL_TIME_MS + 0)
 
-#define NUM_READ_PERIODS (NUM_PN_PERIODS_TO_WAIT + 3)
+#define NUM_READ_PERIODS (NUM_PN_PERIODS_TO_WAIT + 20)
 #define READ_BYTES_MAX (PN_LEN_SAMPLES * NUM_READ_PERIODS * sizeof(int16_t))
 
 
@@ -57,6 +58,8 @@
 #define CORR_SEARCH_START_IDX (0)
 #define DETECTION_THRESHOLD   (3e5)
 #define NUM_DETECT            (2)
+
+#define WRITE_BUF_SKIP_BYTES (TX_BUFFER_SIZE)
 
 /*
  *
@@ -129,6 +132,8 @@ static int read(void * ctx, void * buf, size_t size) {
 	uint8_t bit;
 	int16_t * p16 = (int16_t *)buf;
 
+	_read_bytes_count += size;
+
 	//upsamples at 2x
 	for (i = 0; i < size / sizeof(int16_t); i++) {
 		bit =  pn_get_next_bit();
@@ -141,7 +146,6 @@ static int read(void * ctx, void * buf, size_t size) {
 	}
 
 
-	_read_bytes_count += size;
 
 	if (_read_bytes_count > READ_BYTES_MAX) {
 		_read_bytes_count = 0;
@@ -159,7 +163,11 @@ static int write(void * ctx, const void * buf, size_t size) {
 
 	const uint32_t space_left = sizeof(pctx->samples) - sizeof(int16_t) * pctx->idx;
 
+	_write_bytes_count += size;
 
+	if (_write_bytes_count < WRITE_BUF_SKIP_BYTES) {
+		return size;
+	}
 
 	//if what you want to write is greater than what's there, then only write to what's there.
 	if (size > space_left) {
@@ -177,7 +185,6 @@ static int write(void * ctx, const void * buf, size_t size) {
 		return HLO_STREAM_EOF;
 	}
 
-	_write_bytes_count += size;
 
 	return size;
 
@@ -282,7 +289,7 @@ void pn_write_task( void * params ) {
 		_write_bytes_count += WRITE_LEN_SAMPLES * sizeof(int16_t);
 	}
 	else {
-		hlo_filter_data_transfer(p->input,p->output,NULL,p->signal);
+		hlo_filter_data_transfer(p->input,p->output,NULL,NULL);
 	}
 
 
@@ -299,7 +306,7 @@ void pn_write_task( void * params ) {
 		int64_t temp64;
 		//DO THE CORRELATION
 		temp64 = pn_correlate_1x_soft(&ctx.samples[corrnumber],pn_sequence,PN_LEN_SAMPLES);
-
+		temp64 >>= 8;
 		if (temp64 > INT32_MAX) {
 			corr_result[corridx] = INT32_MAX;
 		}
@@ -432,7 +439,7 @@ void pn_read_task( void * params ) {
 
 	DISP("pn_read_task started\r\n");
 
-	hlo_filter_data_transfer(p->input,p->output,p->ctx,p->signal);
+	hlo_filter_data_transfer(p->input,p->output,p->ctx,NULL);
 
 	DISP("pn_read_task completed\r\n");
 
@@ -448,7 +455,10 @@ int cmd_audio_self_test(int argc, char* argv[]) {
 	uint8_t disable_playback = 0;
 	uint8_t test_impulse = 0;
 	uint8_t print_correlation = 0;
+
 	pn_stream_init();
+
+	pcm_set_ping_pong_incoming_stream_mode(PCM_PING_PONG_MODE_SINGLE_CHANNEL_FULL_RATE);
 
 	if (argc > 1)  {
 		if (strcmp(argv[1],"d") == 0) {
@@ -519,6 +529,8 @@ int cmd_audio_self_test(int argc, char* argv[]) {
 	}
 
 	vTaskDelay(TIME_TO_COMPLETE_TASKS);
+
+	pcm_set_ping_pong_incoming_stream_mode(PCM_PING_PONG_MODE_SINGLE_CHANNEL_HALF_RATE);
 
 
 	return 0;

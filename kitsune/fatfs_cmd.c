@@ -488,11 +488,6 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 				case '~':
 					rstr = open_serial_flash(p+1, HLO_STREAM_READ, 65536);
 					break;
-				case 'p':
-				case 'P':
-					rstr = pn_read_stream_open();
-					break;
-
 				default:
 					LOGE("stream missing\n");
 					break;
