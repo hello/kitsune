@@ -37,14 +37,14 @@ char * get_messeji_server(void){
 xQueueHandle _rx_queue = 0;
 
 static void _on_play_audio( PlayAudio * cmd ) {
-	AudioPlaybackDesc_t desc;
+	AudioPlaybackDesc_t desc={0};
 
 	if( cmd->has_duration_seconds ) {
 		desc.durationInSeconds = cmd->duration_seconds;
 	} else {
 		desc.durationInSeconds = 0;
 	}
-	desc.stream = fs_stream_open(cmd->file_path,HLO_STREAM_READ);
+	desc.stream = fs_stream_open_media(cmd->file_path,INT32_MAX);
 	ustrncpy(desc.source_name, cmd->file_path, sizeof(desc.source_name));
 	desc.volume = cmd->volume_percent * 60 / 100; //convert from percent to codec range
 	desc.fade_in_ms = cmd->fade_in_duration_seconds * 1000;
@@ -58,7 +58,10 @@ static void _on_play_audio( PlayAudio * cmd ) {
 	desc.onFinished = NULL;
 	desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
 	desc.context = NULL;
+	desc.p = NULL;
+
 	AudioTask_StartPlayback(&desc);
+
 }
 static void _on_stop_audio( StopAudio * cmd ) {
 	//TODO use cmd->fade_out_duration_seconds; ?

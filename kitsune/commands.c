@@ -562,11 +562,6 @@ void thread_alarm(void * unused) {
 				}
 			}
 			if ( time - alarm.start_time < 600 ) {
-				AudioPlaybackDesc_t desc;
-				memset(&desc,0,sizeof(desc));
-
-				desc.to_fade_out_ms = desc.fade_in_ms = 30000;
-				desc.fade_out_ms = 3000;
 				int has_valid_sound_file = 0;
 				char file_name[64] = {0};
 				if(alarm.has_ringtone_path)
@@ -612,17 +607,23 @@ void thread_alarm(void * unused) {
 				{
 					LOGE("ALARM RING FAIL: NO RINGTONE FILE FOUND %s\n", file_name);
 				}
+				AudioPlaybackDesc_t desc;
+				memset(&desc,0,sizeof(desc));
 
-				desc.stream = fs_stream_open(file_name,HLO_STREAM_READ);
+				desc.to_fade_out_ms = desc.fade_in_ms = 30000;
+				desc.fade_out_ms = 3000;
+				desc.stream = fs_stream_open_media(file_name,INT32_MAX);
 				ustrncpy(desc.source_name, file_name, sizeof(desc.source_name));
 				desc.durationInSeconds = alarm.ring_duration_in_second;
-				desc.volume = 10;
+				desc.volume = 64;
 				desc.onFinished = thread_alarm_on_finished;
 				desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
 				desc.context = &alarm_led_id;
+				desc.p = hlo_filter_data_transfer;
 
 				alarm.has_start_time = FALSE;
 				alarm.start_time = 0;
+
 				AudioTask_StartPlayback(&desc);
 
 				LOGI("ALARM RINGING RING RING RING\n");
@@ -1716,7 +1717,7 @@ void launch_tasks() {
 
 	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
@@ -2265,7 +2266,7 @@ void vUARTTask(void *pvParameters) {
 	hlo_audio_init();
 
 	// Create audio tasks for playback and record
-	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
+	xTaskCreate(AudioPlaybackTask,"playbackTask",3*512/4,NULL,4,NULL);
 	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
 
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);

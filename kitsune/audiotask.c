@@ -133,7 +133,7 @@ static bool _queue_audio_playback_state(playstate_t is_playing, const AudioPlayb
 }
 
 
-static uint8_t CheckForInterruptionDuringPlayback(void) {
+static uint8_t CheckForInterruptionDuringPlayback(void * unused) {
 	AudioMessage_t m;
 	uint8_t ret = 0x00;
 
@@ -204,6 +204,18 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 
 
 }
+
+static uint8_t fadeout_sig(void * ctx) {
+	hlo_future_t * vol_task = (hlo_future_t*)ctx;
+
+	if ( hlo_future_read(vol_task, NULL, 0, 0) != -11 ) {
+		return FLAG_STOP;
+	}
+	return 0;
+}
+
+
+
 ////-------------------------------------------
 //playback sample app
 static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop){
@@ -226,11 +238,11 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	//playback
 	hlo_filter transfer_function = desc->p ? desc->p : hlo_filter_data_transfer;
 
-	ret = transfer_function(fs, spkr, desc->context, sig_stop);
+	ret = transfer_function(fs, spkr, NULL, sig_stop);
 
 	//join async worker
 	vol.target = 0;
-	hlo_future_read_once(vol_task, NULL, 0);
+	ret = transfer_function(fs, spkr, vol_task, fadeout_sig);
 
 	hlo_stream_close(fs);
 	hlo_stream_close(spkr);
@@ -240,8 +252,6 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	DISP("Playback Task Finished %d\r\n", ret);
 }
 void AudioPlaybackTask(void * data) {
-
-
 	_playback_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	assert(_playback_queue);
 
@@ -406,7 +416,8 @@ int Cmd_AudioPlayback(int argc, char * argv[]){
 		desc.onFinished = NULL;
 		desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
 		desc.stream = fs_stream_open_media(argv[1], 0);
-		desc.volume = 44;
+		desc.volume = 64;
+		desc.p = hlo_filter_data_transfer;
 		ustrncpy(desc.source_name, argv[1], sizeof(desc.source_name));
 		AudioTask_StartPlayback(&desc);
 		return 0;
