@@ -1435,6 +1435,37 @@ static int codec_after_init_test(void){
 	return 0;
 }
 
+int Cmd_codec_read_reg(int argc, char * argv[]){
+
+	if(argc < 4){
+		LOGI("Usage: cread [book] [page] [reg]\r\n");
+		return -1;
+	}
+	char send_stop = 1;
+	unsigned char cmd[2];
+	uint8_t book = atoi(argv[1]);
+	uint8_t page = atoi(argv[2]);
+
+	codec_set_book(book);
+
+	//	w 30 00 00 # Select Page 0
+	codec_set_page(page);
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+
+	// Read register in [0][0][36]
+	cmd[0] = atoi(argv[3]);
+	cmd[1] = 0;
+
+	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+	I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+	UARTprintf("Reg read [%u][%u][%u]: %X \n",book, page, cmd[0], cmd[1]);
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+	return 0;
+}
+
 /******************************************************************************
  * MIC TEST CODE START
  ******************************************************************************/
