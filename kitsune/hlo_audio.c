@@ -22,8 +22,6 @@ static xSemaphoreHandle lock;
 static hlo_stream_t * master_plbk;
 static hlo_stream_t * master_rec;
 
-static unsigned long record_sr;
-static unsigned long playback_sr;
 static uint8_t audio_started = 0;
 xSemaphoreHandle record_isr_sem;
 xSemaphoreHandle playback_isr_sem;;
@@ -92,6 +90,7 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 			last_warn = xTaskGetTickCount();
 		}
 		set_isr_playback(false);
+		return HLO_STREAM_ERROR;
 	}
 	last_play = xTaskGetTickCount();
 	int written = min(PING_PONG_CHUNK_SIZE, size);
@@ -175,12 +174,10 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint32_t direction){
 	hlo_stream_t * ret;
 	LOCK();
 	if(direction == HLO_AUDIO_PLAYBACK) {
-		playback_sr = sr;
 		flush_audio_playback_buffer();
 		set_isr_playback(false);
 		ret = master_plbk;
 	} else if(direction == HLO_AUDIO_RECORD){
-		record_sr = sr;
 		ret = master_rec;
 	}else{
 		LOGW("Unsupported Audio Mode, returning default stream\r\n");
@@ -261,7 +258,7 @@ static void _do_lights(void * ctx, const void * buf, size_t size) {
 static int _write_light(void * ctx, const void * buf, size_t size) {
 	light_stream_t * stream = (light_stream_t*)ctx;
 	_do_lights(ctx, buf,size);
-	int rv = hlo_stream_write(stream->base, buf, size);
+	return hlo_stream_write(stream->base, buf, size);
 }
 static int _read_light(void * ctx, void * buf, size_t size){
 	light_stream_t * stream = (light_stream_t*)ctx;
@@ -474,6 +471,71 @@ hlo_stream_t * hlo_stream_en( hlo_stream_t * base ){
 	stream->lp = 200;
 	stream->base = base;
 	DISP("open en\n") ;
+
+	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
+}
+
+
+
+//-------------bw stream------------------//
+
+typedef struct{
+	hlo_stream_t * base;
+	uint32_t start;
+	uint32_t startup;
+	uint32_t bw;
+}bw_stream_t;
+
+static int _get_bw( bw_stream_t * s, size_t t ) {
+	TickType_t tdelta = xTaskGetTickCount() - s->start;
+	return (1000* t / tdelta );
+}
+static int _check_bw(bw_stream_t * s, size_t t, int rv) {
+	TickType_t tdelta = xTaskGetTickCount() - s->start;
+	if( tdelta > s->startup && _get_bw(s, t) < s->bw ) {
+		LOGE("BW too low %d\n", _get_bw(s, t) );
+		return HLO_STREAM_ERROR;
+	}
+	return rv;
+}
+
+static int _write_bw(void * ctx, const void * buf, size_t size){
+	bw_stream_t * stream = (bw_stream_t*)ctx;
+	int rv = hlo_stream_write(stream->base, buf, size);
+	return _check_bw(stream, stream->base->info.bytes_written, rv);
+}
+static int _read_bw(void * ctx, void * buf, size_t size){
+	bw_stream_t * stream = (bw_stream_t*)ctx;
+	int rv = hlo_stream_read(stream->base, buf, size);
+	return _check_bw(stream, stream->base->info.bytes_read, rv);
+}
+static int _close_bw(void * ctx){
+	bw_stream_t * stream = (bw_stream_t*)ctx;
+	LOGI("sthr < %d kbps", _get_bw(stream, stream->base->info.bytes_read));
+	LOGI(" > %d kbps\n", _get_bw(stream, stream->base->info.bytes_written));
+
+	hlo_stream_close(stream->base);
+	vPortFree(stream);
+	return 0;
+}
+hlo_stream_t * hlo_stream_bw_limited( hlo_stream_t * base, uint32_t bw, uint32_t startup ){
+	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
+		.write = _write_bw,
+		.read = _read_bw,
+		.close = _close_bw,
+	};
+	if( !base ) return NULL;
+
+	bw_stream_t * stream = pvPortMalloc(sizeof(*stream));
+	if( !stream ){
+		hlo_stream_close(base);
+		return NULL;
+	}
+	memset(stream, 0, sizeof(*stream) );
+	stream->start = xTaskGetTickCount();
+	stream->bw = bw;
+	stream->startup = startup;
+	DISP("open bw\n") ;
 
 	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
 }

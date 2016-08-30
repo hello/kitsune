@@ -272,12 +272,14 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		if( nn_ctx.keyword_detected > 0 ) {
 			if( !light_open ) {
 				AudioTask_StopPlayback();
+				input = hlo_stream_bw_limited( input, 65536, 5000);
 				input = hlo_light_stream( input,true, 300 );
 				input = hlo_stream_en( input );
 				light_open = true;
 			}
 			ret = hlo_stream_transfer_all(INTO_STREAM, hmac_payload_str,  (uint8_t*)samples, ret, 4);
 			if ( ret <  0 ) {
+				play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1,18, 1);
 				break;
 			}
 		} else {
@@ -334,6 +336,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		DISP("\r\n===========\r\n");
 			DISP("Playback Audio\r\n");
 
+			output = hlo_stream_bw_limited( output, 65536, 5000);
 			output = hlo_light_stream( output, false, LED_MAX/4 );
 
 			AudioPlaybackDesc_t desc;

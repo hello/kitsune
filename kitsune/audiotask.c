@@ -38,6 +38,9 @@
 
 #include "audiohelper.h"
 
+#include "led_cmd.h"
+#include "led_animations.h"
+
 #if 0
 #define PRINT_TIMING
 #endif
@@ -224,6 +227,9 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	ramp_ctx_t vol;
 	hlo_future_t * vol_task;
 
+	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,HLO_AUDIO_PLAYBACK);
+	hlo_stream_t * fs = desc->stream;
+
 	if(vol_ramp) {
 		vol = (ramp_ctx_t){
 			.current = 0,
@@ -238,13 +244,14 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 		set_volume(desc->volume, portMAX_DELAY);
 	}
 
-	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,HLO_AUDIO_PLAYBACK);
-	hlo_stream_t * fs = desc->stream;
-
 	//playback
 	hlo_filter transfer_function = desc->p ? desc->p : hlo_filter_data_transfer;
 
 	ret = transfer_function(fs, spkr, desc->context, sig_stop);
+
+	if( ret == HLO_STREAM_ERROR ) {
+		play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1,18, 1);
+	}
 
 	if( vol_ramp ) {
 		//join async worker

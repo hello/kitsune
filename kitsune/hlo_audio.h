@@ -23,5 +23,8 @@ typedef enum {
 } sr_snv_dir;
 hlo_stream_t * hlo_stream_sr_cnv( hlo_stream_t * base, sr_snv_dir dir );
 
+
+hlo_stream_t * hlo_stream_bw_limited( hlo_stream_t * base, uint32_t bw, uint32_t startup );
+
 hlo_stream_t * hlo_stream_tunes();
 #endif

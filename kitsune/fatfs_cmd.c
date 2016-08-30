@@ -432,21 +432,27 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 	if(input){//input
 		while(p = strsep (&s,"$")) {
 			switch(p[0]){
-				case 'a':
-				case 'A':
-				{
-					int opt_rate = 0;
-					if(p[1] != '\0'){
-						opt_rate = ustrtoul(p+1,NULL, 10);
-					}
-					DISP("Input Opt rate is %d\r\n", opt_rate);
-					if(opt_rate){
-						rstr = hlo_audio_open_mono(opt_rate,HLO_AUDIO_RECORD);
-					}else{
-						rstr = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_RECORD);
-					}
-					break;
+			case 'a':
+			case 'A':
+			{
+				int opt_rate = 0;
+				if(p[1] != '\0'){
+					opt_rate = ustrtoul(p+1,NULL, 10);
 				}
+				DISP("Input Opt rate is %d\r\n", opt_rate);
+				if(opt_rate){
+					rstr = hlo_audio_open_mono(opt_rate,HLO_AUDIO_RECORD);
+				}else{
+					rstr = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_RECORD);
+				}
+				break;
+			}
+			case 'b':
+			case 'B':
+			{
+				rstr = hlo_stream_bw_limited(rstr, 65536, 5000);
+				break;
+			}
 #if 0
 				case 'n':
 				case 'N':
@@ -511,6 +517,12 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					set_volume(sys_volume, portMAX_DELAY);
 				}
 				break;
+				case 'b':
+				case 'B':
+				{
+					rstr = hlo_stream_bw_limited(rstr, 65536, 5000);
+					break;
+				}
 				case 'i':
 				case 'I':
 					rstr = hlo_http_post(p+1, NULL);
