@@ -142,7 +142,7 @@ void checki2c() {
 	GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_OUT);
 
 	TickType_t start = xTaskGetTickCount();
-	while ( GPIOPinRead(GPIOA1_BASE, 0x20) == 0 && ++pulses < 1000 ) {
+	while ( GPIOPinRead(GPIOA1_BASE, 0x20) == 0 && ++pulses < 32 ) {
 		GPIOPinWrite(GPIOA1_BASE, 0x4, 0); //pulse the clock line...
 		vTaskDelay(1);
 		GPIOPinWrite(GPIOA1_BASE, 0x4, 1);
