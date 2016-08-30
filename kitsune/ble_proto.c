@@ -657,7 +657,7 @@ static void play_startup_sound() {
 		memset(&desc, 0, sizeof(desc));
 		desc.stream = fs_stream_open(STARTUP_SOUND_NAME, HLO_STREAM_READ);
 		ustrncpy(desc.source_name, STARTUP_SOUND_NAME, sizeof(desc.source_name));
-		desc.volume = 57;
+		desc.volume = 64;
 		desc.durationInSeconds = -1;
 		desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
 		desc.fade_in_ms = 0;

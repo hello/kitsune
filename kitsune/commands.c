@@ -1914,8 +1914,8 @@ extern volatile int ch;
 extern volatile int sys_volume;
 
 int cmd_vol(int argc, char *argv[]) {
- sys_volume = atoi(argv[1]);
- return set_volume(sys_volume, portMAX_DELAY);;
+ set_system_volume( atoi(argv[1])) ;
+ return 0;
 }
 
 
@@ -2262,7 +2262,6 @@ void vUARTTask(void *pvParameters) {
 	start_top_boot_watcher();
 
 //#define DEMO
-
 	hlo_audio_init();
 
 	// Create audio tasks for playback and record

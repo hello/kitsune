@@ -162,6 +162,8 @@ void hlo_audio_init(void){
 
 	_reset_codec();
 
+	get_system_volume();
+
 	// McASP and DMA init
 	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
 

@@ -883,6 +883,19 @@ static void codec_sw_reset(void);
  * On the codec, this gain has 117 levels between 0db to -78.3db
  * The input v to the function varies from 0-64.
  */
+
+#define VOL_LOC "/hello/vol"
+int get_system_volume() {
+	 return fs_get(VOL_LOC, &sys_volume, sizeof(sys_volume), NULL);
+}
+int32_t set_system_volume(int new_volume) {
+	if( new_volume != sys_volume ) {
+		 sys_volume = new_volume;
+		 fs_save(VOL_LOC, sys_volume, sizeof(sys_volume));
+	}
+	return set_volume(new_volume, portMAX_DELAY);
+}
+
 int32_t set_volume(int v, unsigned int dly) {
 
 	char send_stop = 1;
