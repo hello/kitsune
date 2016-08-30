@@ -406,7 +406,8 @@ int Cmd_AudioPlayback(int argc, char * argv[]){
 		desc.onFinished = NULL;
 		desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
 		desc.stream = fs_stream_open_media(argv[1], 0);
-		desc.volume = 44;
+		desc.volume = 64;
+		desc.p = hlo_filter_data_transfer;
 		ustrncpy(desc.source_name, argv[1], sizeof(desc.source_name));
 		AudioTask_StartPlayback(&desc);
 		return 0;
