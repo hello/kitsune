@@ -1701,7 +1701,7 @@ void launch_tasks() {
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  2*1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  2*1024 / 4, NULL, 5, NULL);
 
 
 #ifdef KIT_INCLUDE_FILE_UPLOAD
