@@ -51,7 +51,7 @@ void codec_set_page(uint32_t page);
 void codec_set_book(uint32_t book);
 int32_t set_volume(int v, unsigned int dly);
 
-int get_system_volume());
+int get_system_volume();
 int32_t set_system_volume(int new_volume);
 
 int Cmd_mic_test(int argc, char * argv[]);

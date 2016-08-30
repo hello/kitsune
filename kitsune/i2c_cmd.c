@@ -883,6 +883,7 @@ static void codec_sw_reset(void);
  * On the codec, this gain has 117 levels between 0db to -78.3db
  * The input v to the function varies from 0-64.
  */
+volatile int sys_volume = 64;
 
 #define VOL_LOC "/hello/vol"
 int get_system_volume() {

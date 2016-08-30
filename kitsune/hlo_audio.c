@@ -12,6 +12,7 @@
 #include "rom.h"
 #include "rom_map.h"
 #include "audio_types.h"
+#include "i2c_cmd.h"
 
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
@@ -32,8 +33,6 @@ static volatile uint32_t last_play;
 #define UNLOCK() xSemaphoreGiveRecursive(lock)
 extern bool is_playback_active(void);
 extern void set_isr_playback(bool active);
-
-volatile int sys_volume = 64;
 
 ////------------------------------
 //codec routines
@@ -62,7 +61,8 @@ static int _open_playback(){
 	return 0;
 
 }
-bool set_volume(int v, unsigned int dly);
+int32_t set_volume(int v, unsigned int dly);
+extern volatile int sys_volume;
 
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
