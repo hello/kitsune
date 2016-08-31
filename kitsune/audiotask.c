@@ -249,10 +249,6 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 
 	ret = transfer_function(fs, spkr, desc->context, sig_stop);
 
-	if( ret == HLO_STREAM_ERROR ) {
-		play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1,18, 1);
-	}
-
 	if( vol_ramp ) {
 		//join async worker
 		vol.target = 0;
