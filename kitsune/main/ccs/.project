@@ -756,16 +756,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.h</locationURI>
 		</link>
 		<link>
-			<name>hlo/audiocontrolhelper.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audiocontrolhelper.c</locationURI>
-		</link>
-		<link>
-			<name>hlo/audiocontrolhelper.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audiocontrolhelper.h</locationURI>
-		</link>
-		<link>
 			<name>hlo/audiofeatures.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.c</locationURI>

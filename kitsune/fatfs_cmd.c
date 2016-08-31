@@ -423,6 +423,7 @@ extern volatile int sys_volume;
 #include "hlo_http.h"
 #include "audio_types.h"
 #include "hlo_audio_tools.h"
+int32_t set_volume(int v, unsigned int dly);
 hlo_stream_t * mic_test_stream_open(void);
 #define BUF_SIZE 64
 hlo_stream_t * open_stream_from_path(char * str, uint8_t input){

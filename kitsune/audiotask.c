@@ -57,7 +57,6 @@
 
 /* static variables  */
 static xQueueHandle _playback_queue = NULL;
-static xQueueHandle _capture_queue = NULL;
 static xQueueHandle _state_queue = NULL;
 
 #ifdef KIT_INCLUDE_FILE_UPLOAD
@@ -73,9 +72,6 @@ static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload
 #include "networktask.h"
 #include "wifi_cmd.h"
 extern bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
-static void _print_heap_info(void){
-	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
-}
 static SenseState sense_state;
 AudioState get_audio_state() {
 	return sense_state.audio_state;
@@ -300,61 +296,6 @@ void AudioPlaybackTask(void * data) {
 	//hlo_future_destroy(state_update_task);
 
 }
-#include "hlo_audio_tools.h"
-static uint8_t CheckForInterruptionDuringCapture(void * unused){
-	AudioMessage_t m;
-	uint8_t ret = 0x00;
-	if (xQueueReceive(_capture_queue,(void *)&m,0)) {
-		ret = FLAG_STOP;
-		xQueueSendToFront(_capture_queue, (void*)&m, 0);
-	}
-	return ret;
-}
-static int _do_capture(const AudioCaptureDesc_t * info){
-	int ret = HLO_STREAM_ERROR;
-	if(info->p){
-		hlo_stream_t * mic = hlo_audio_open_mono(info->rate, HLO_AUDIO_RECORD);
-		ret = info->p(mic, info->opt_out, info->ctx, CheckForInterruptionDuringCapture);
-		LOGI("Capture Returned: %d\r\n", ret);
-		hlo_stream_close(mic);
-		if(info->flag & AUDIO_TRANSFER_FLAG_AUTO_CLOSE_OUTPUT){
-			hlo_stream_close(info->opt_out);
-		}
-	}
-	return ret;
-}
-#define BG_CAPTURE_TIMEOUT 2000
-void AudioCaptureTask(void * data) {
-	_capture_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
-	assert(_capture_queue);
-
-	AudioCaptureDesc_t bg_info = {0};
-	uint8_t bg_capture_enable = 0;
-	for (; ;) {
-		AudioMessage_t  m;
-		//default
-		if (xQueueReceive( _capture_queue,(void *) &m, BG_CAPTURE_TIMEOUT )) {
-			switch(m.command){
-			case eAudioCaptureStart:
-				_do_capture(&m.message.capturedesc);
-				break;
-			case eAudioBGCaptureStart:
-				bg_capture_enable = 1;
-				bg_info = m.message.capturedesc;
-				break;
-			case eAudioCaptureStop:
-				bg_capture_enable = 0;
-				break;
-			default:
-				break;
-			}
-		}else{
-			if(bg_capture_enable){
-				_do_capture(&bg_info);
-			}
-		}
-	}
-}
 
 void AudioTask_StopPlayback(void) {
 	AudioMessage_t m;
@@ -384,34 +325,6 @@ void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
 
 }
 
-void AudioTask_StopCapture(void){
-	AudioMessage_t m;
-	m.command = eAudioCaptureStop;
-	if(_capture_queue){
-		xQueueSend(_capture_queue,(void *)&m,0);
-	}
-}
-
-void AudioTask_StartCapture(uint32_t rate){
-	AudioMessage_t m;
-	m.command = eAudioBGCaptureStart;
-	m.message.capturedesc.ctx = NULL;
-	m.message.capturedesc.opt_out = NULL;
-	m.message.capturedesc.p = hlo_filter_feature_extractor;
-	m.message.capturedesc.rate = rate;
-	if(_capture_queue){
-		xQueueSend(_capture_queue,(void *)&m,0);
-	}
-}
-
-void AudioTask_QueueCaptureProcess(const AudioCaptureDesc_t * desc){
-	AudioMessage_t m;
-	m.command = eAudioCaptureStart;
-	memcpy(&m.message.capturedesc, desc, sizeof(*desc));
-	if(_capture_queue){
-		xQueueSend(_capture_queue,(void *)&m,0);
-	}
-}
 int Cmd_AudioPlayback(int argc, char * argv[]){
 	if(argc  > 1){
 		AudioPlaybackDesc_t desc;
@@ -429,20 +342,5 @@ int Cmd_AudioPlayback(int argc, char * argv[]){
 		return 0;
 	}
 	return -1;
-}
-int Cmd_AudioCapture(int argc, char * argv[]){
-	if( argc > 1 ){
-		if (argv[1][0] == '0'){
-			LOGI("Stopping Capture\r\n");
-			AudioTask_StopCapture();
-		}else{
-			LOGI("Starting Capture\r\n");
-			AudioTask_StartCapture(AUDIO_SAMPLE_RATE);
-		}
-		return 0;
-	}
-	LOGI("r [1|0]\r\n");
-	return -1;
-
 }
 

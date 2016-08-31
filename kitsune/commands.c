@@ -321,11 +321,6 @@ int Cmd_fs_read(int argc, char *argv[]) {
 	return 0;
 }
 
-int Cmd_audio_turn_on(int argc, char * argv[]) {
-	AudioTask_StartCapture(AUDIO_SAMPLE_RATE);
-	return 0;
-}
-
 int Cmd_stop_buff(int argc, char *argv[]) {
 	AudioTask_StopPlayback();
 
@@ -2009,13 +2004,10 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "pb", Cmd_pbstr, ""},
 		{ "hmac", Cmd_testhmac, ""},
 
-
-		{ "r", Cmd_AudioCapture,""}, //record sounds into SD card
-		{ "s",Cmd_audio_record_stop,""},
+		{ "s",Cmd_audio_stop,""},
 		{ "x", Cmd_stream_transfer, ""},
 		{ "p", Cmd_AudioPlayback, ""},
 		{ "getoct",Cmd_get_octogram,""},
-		{ "aon",Cmd_audio_turn_on,""},
 		{ "mictest", Cmd_mic_test,""},
 #if 0
 		{ "mode", Cmd_mode, "" }, //set the ap/station mode

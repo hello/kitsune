@@ -67,6 +67,7 @@ static void _on_stop_audio( StopAudio * cmd ) {
 	//TODO use cmd->fade_out_duration_seconds; ?
 	AudioTask_StopPlayback();
 }
+int32_t set_volume(int v, unsigned int dly);
 
 static void _on_volume( Volume * cmd ) {
 	set_system_volume(cmd->volume * 64 / 100); //convert from percent to codec range)

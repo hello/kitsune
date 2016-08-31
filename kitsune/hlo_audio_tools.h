@@ -5,7 +5,6 @@
 /**
  * contains a list of commands and filters for audio
  */
-int hlo_filter_feature_extractor(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
 int hlo_filter_adpcm_decoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
 int hlo_filter_adpcm_encoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
 int hlo_filter_data_transfer(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
@@ -28,7 +27,7 @@ hlo_stream_t * hlo_stream_end_of_speech_detector(hlo_stream_t * base, uint8_t ma
 
 //uart commands
 int Cmd_audio_record_start(int argc, char *argv[]);
-int Cmd_audio_record_stop(int argc, char *argv[]);
+int Cmd_audio_stop(int argc, char *argv[]);
 int Cmd_stream_transfer(int argc, char * argv[]);
 #endif
 

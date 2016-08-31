@@ -73,7 +73,7 @@ void mad_decoder_init(struct mad_decoder *decoder, void *data,
 		      enum mad_flow (*message_func)(void *,
 						    void *, unsigned int *))
 {
-  decoder->mode         = -1;
+  decoder->mode         = MAD_FLOW_CONTINUE;
 
   decoder->options      = 0;
 

@@ -93,7 +93,7 @@ Purpose     : SEGGER SysView configuration.
 *
 *       SysView buffer configuration
 */
-#define SEGGER_SYSVIEW_RTT_BUFFER_SIZE      1024                                // Number of bytes that SysView uses for the buffer.
+#define SEGGER_SYSVIEW_RTT_BUFFER_SIZE      4096                                // Number of bytes that SysView uses for the buffer.
 #define SEGGER_SYSVIEW_RTT_CHANNEL          1                                   // The RTT channel that SysView will use. 0: Auto selection
 
 /*********************************************************************
