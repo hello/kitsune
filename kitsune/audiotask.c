@@ -5,7 +5,6 @@
 #include "audiotask.h"
 
 #include "network.h"
-#include "audioprocessingtask.h"
 #include "hellofilesystem.h"
 #include "fileuploadertask.h"
 

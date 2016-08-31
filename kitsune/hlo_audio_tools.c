@@ -16,17 +16,11 @@
 ////-------------------------------------------
 //The feature/extractor processor we used in sense 1.0
 //
-#include "audioprocessingtask.h"
 #include "audiofeatures.h"
 static xSemaphoreHandle _statsMutex = NULL;
 static AudioOncePerMinuteData_t _stats;
 
 int audio_sig_stop = 0;
-
-static void DataCallback(const AudioFeatures_t * pfeats) {
-//	LOGI("Found Feature\r\n");
-	AudioProcessingTask_AddFeaturesToQueue(pfeats);
-}
 
 static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 
@@ -58,7 +52,7 @@ int hlo_filter_feature_extractor(hlo_stream_t * input, hlo_stream_t * output, vo
 	if(!_statsMutex){
 		_statsMutex = xSemaphoreCreateMutex();
 		assert(_statsMutex);
-		AudioFeatures_Init(DataCallback,StatsCallback);
+		AudioFeatures_Init(StatsCallback);
 	}
 	while(1){
 		ret = hlo_stream_transfer_all(FROM_STREAM,input,buf,sizeof(buf),4);

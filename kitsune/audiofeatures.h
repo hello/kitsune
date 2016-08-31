@@ -15,7 +15,7 @@ extern "C" {
 
 
 /*  exported for your enjoyment -- use these! */
-void AudioFeatures_Init(AudioFeatureCallback_t fpCallback,AudioOncePerMinuteDataCallback_t fpOncePerMinuteCallback);
+void AudioFeatures_Init(AudioOncePerMinuteDataCallback_t fpOncePerMinuteCallback);
     
 /*  Expects AUDIO_FFT_SIZE samples in samplebuf  */
 void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount);

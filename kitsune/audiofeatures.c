@@ -167,11 +167,9 @@ static MelFeatures_t _data;
 /*--------------------------------
  *   Functions
  *--------------------------------*/
-void AudioFeatures_Init(AudioFeatureCallback_t fpCallback,AudioOncePerMinuteDataCallback_t fpOncePerMinuteCallback) {
+void AudioFeatures_Init(AudioOncePerMinuteDataCallback_t fpOncePerMinuteCallback) {
     
     memset(&_data,0,sizeof(_data));
-    
-    _data.fpCallback = fpCallback;
     
     _data.fpOncePerMinuteDataCallback = fpOncePerMinuteCallback;
 

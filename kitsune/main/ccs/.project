@@ -786,16 +786,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audiohelper.h</locationURI>
 		</link>
 		<link>
-			<name>hlo/audioprocessingtask.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.c</locationURI>
-		</link>
-		<link>
-			<name>hlo/audioprocessingtask.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.h</locationURI>
-		</link>
-		<link>
 			<name>hlo/audiosimilarity.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audiosimilarity.h</locationURI>
