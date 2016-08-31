@@ -39,9 +39,9 @@
 
 
 //delay just to just before the start of the second sequence
-#define PLAY_BUFFER_FILL_TIME_MS (RX_BUFFER_SIZE * 1000 / sizeof(int16_t) / AUDIO_CAPTURE_PLAYBACK_RATE)
-#define CIRCULAR_BUFFER_FILL_TIME_MS (( TX_BUFFER_SIZE / 4 / sizeof(int16_t) * 1000  / AUDIO_CAPTURE_PLAYBACK_RATE))
-#define PN_PERIOD_TIME_MS (PN_LEN_SAMPLES * 1000 / AUDIO_CAPTURE_PLAYBACK_RATE)
+#define PLAY_BUFFER_FILL_TIME_MS (RX_BUFFER_SIZE * 1000 / sizeof(int16_t) / AUDIO_SAMPLE_RATE)
+#define CIRCULAR_BUFFER_FILL_TIME_MS (( TX_BUFFER_SIZE / 4 / sizeof(int16_t) * 1000  / AUDIO_SAMPLE_RATE))
+#define PN_PERIOD_TIME_MS (PN_LEN_SAMPLES * 1000 / AUDIO_SAMPLE_RATE)
 #define NUM_PN_PERIODS_TO_WAIT   (CIRCULAR_BUFFER_FILL_TIME_MS / PN_PERIOD_TIME_MS + PLAY_BUFFER_FILL_TIME_MS / PN_PERIOD_TIME_MS +  1)
 #define WRITE_TASK_STARTUP_DELAY  (NUM_PN_PERIODS_TO_WAIT * PN_PERIOD_TIME_MS  +  PLAY_BUFFER_FILL_TIME_MS + 0)
 
@@ -482,10 +482,10 @@ int cmd_audio_self_test(int argc, char* argv[]) {
 
 
 	outgoing_path.input = pn_read_stream_open();
-	outgoing_path.output =  hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_PLAYBACK);
+	outgoing_path.output =  hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_PLAYBACK);
 	outgoing_path.debug = debug;
 
-	incoming_path.input  = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_RECORD);
+	incoming_path.input  = hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_RECORD);
 
 	incoming_path.output  = pn_write_stream_open();
 	incoming_path.debug = debug;
