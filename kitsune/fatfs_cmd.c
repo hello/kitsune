@@ -449,7 +449,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 				break;
 				case 'b':
 				case 'B':
-					rstr = hlo_stream_bw_limited(rstr, 65536, 5000);
+					rstr = hlo_stream_bw_limited(rstr, 32, 5000);
 					break;
 #if 0
 				case 'n':
@@ -498,7 +498,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 		}
 	}else{//output
 		while(p = strsep (&s,"$")) {
-			switch(str[1]){
+			switch(p[0]){
 				case 'a':
 				case 'A':
 				{
@@ -517,10 +517,8 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 				break;
 				case 'b':
 				case 'B':
-				{
-					rstr = hlo_stream_bw_limited(rstr, 65536, 5000);
+					rstr = hlo_stream_bw_limited(rstr, 32, 5000);
 					break;
-				}
 				case 'i':
 				case 'I':
 					rstr = hlo_http_post(p+1, NULL);

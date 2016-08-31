@@ -243,6 +243,7 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 
 extern volatile int sys_volume;
 int32_t set_volume(int v, unsigned int dly);
+#define AUDIO_NET_RATE (AUDIO_SAMPLE_RATE/2)
 
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
@@ -272,7 +273,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		if( nn_ctx.keyword_detected > 0 ) {
 			if( !light_open ) {
 				AudioTask_StopPlayback();
-				input = hlo_stream_bw_limited( input, 65536, 5000);
+				input = hlo_stream_bw_limited( input, AUDIO_NET_RATE*2 - 4, 5000);
 				input = hlo_light_stream( input,true, 300 );
 				input = hlo_stream_en( input );
 				light_open = true;
@@ -336,7 +337,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		DISP("\r\n===========\r\n");
 			DISP("Playback Audio\r\n");
 
-			output = hlo_stream_bw_limited( output, 65536, 5000);
+			output = hlo_stream_bw_limited( output, AUDIO_NET_RATE*2 - 4, 5000);
 			output = hlo_light_stream( output, false, LED_MAX/4 );
 
 			AudioPlaybackDesc_t desc;

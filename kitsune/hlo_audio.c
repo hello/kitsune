@@ -486,11 +486,13 @@ typedef struct{
 	uint32_t start;
 	uint32_t startup;
 	uint32_t bw;
+	int bwr;
+	int brd;
 }bw_stream_t;
 
 static int _get_bw( bw_stream_t * s, size_t t ) {
 	TickType_t tdelta = xTaskGetTickCount() - s->start;
-	return (1000* t / tdelta );
+	return ( 1000 * t / tdelta ) / 1024;
 }
 static int _check_bw(bw_stream_t * s, size_t t, int rv) {
 	TickType_t tdelta = xTaskGetTickCount() - s->start;
@@ -504,17 +506,19 @@ static int _check_bw(bw_stream_t * s, size_t t, int rv) {
 static int _write_bw(void * ctx, const void * buf, size_t size){
 	bw_stream_t * stream = (bw_stream_t*)ctx;
 	int rv = hlo_stream_write(stream->base, buf, size);
-	return _check_bw(stream, stream->base->info.bytes_written, rv);
+	if( rv > 0 ) { stream->bwr += rv; }
+	return _check_bw(stream, stream->bwr, rv);
 }
 static int _read_bw(void * ctx, void * buf, size_t size){
 	bw_stream_t * stream = (bw_stream_t*)ctx;
 	int rv = hlo_stream_read(stream->base, buf, size);
-	return _check_bw(stream, stream->base->info.bytes_read, rv);
+	if( rv > 0 ) { stream->brd += rv; }
+	return _check_bw(stream, stream->brd, rv);
 }
 static int _close_bw(void * ctx){
 	bw_stream_t * stream = (bw_stream_t*)ctx;
-	LOGI("sthr < %d kbps", _get_bw(stream, stream->base->info.bytes_read));
-	LOGI(" > %d kbps\n", _get_bw(stream, stream->base->info.bytes_written));
+	LOGI("sthr < %d kbps", _get_bw(stream, stream->brd));
+	LOGI(" > %d kbps\n", _get_bw(stream, stream->bwr));
 
 	hlo_stream_close(stream->base);
 	vPortFree(stream);
@@ -536,6 +540,7 @@ hlo_stream_t * hlo_stream_bw_limited( hlo_stream_t * base, uint32_t bw, uint32_t
 	memset(stream, 0, sizeof(*stream) );
 	stream->start = xTaskGetTickCount();
 	stream->bw = bw;
+	stream->base = base;
 	stream->startup = startup;
 	DISP("open bw\n") ;
 
