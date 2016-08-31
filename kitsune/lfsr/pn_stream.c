@@ -289,6 +289,7 @@ uint8_t correlate(const int16_t * samples, const int16_t * pn_sequence,uint32_t 
 
 	//if no peaks were found, then quit
 	if (!found_peak) {
+		DISP("{CHANNEL=%d,TEST_STATUS : FAIL, REASON= NO_PEAK_FOUND}\r\n");
 		return 0;
 	}
 
