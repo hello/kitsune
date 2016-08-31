@@ -16,17 +16,11 @@
 ////-------------------------------------------
 //The feature/extractor processor we used in sense 1.0
 //
-#include "audioprocessingtask.h"
 #include "audiofeatures.h"
 static xSemaphoreHandle _statsMutex = NULL;
 static AudioOncePerMinuteData_t _stats;
 
 int audio_sig_stop = 0;
-
-static void DataCallback(const AudioFeatures_t * pfeats) {
-//	LOGI("Found Feature\r\n");
-	AudioProcessingTask_AddFeaturesToQueue(pfeats);
-}
 
 static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 
@@ -48,31 +42,6 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 	}
 	_stats.isValid = 1;
 	xSemaphoreGive(_statsMutex);
-}
-#define RECORD_SAMPLE_SIZE (256*2*2)
-int hlo_filter_feature_extractor(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
-	uint8_t buf[RECORD_SAMPLE_SIZE] = {0};
-	static int64_t _callCounter;	/** time context for feature extractor **/
-	uint32_t settle_count = 0;		/** let audio settle after playback **/
-	int ret = 0;
-	if(!_statsMutex){
-		_statsMutex = xSemaphoreCreateMutex();
-		assert(_statsMutex);
-		AudioFeatures_Init(DataCallback,StatsCallback);
-	}
-	while(1){
-		ret = hlo_stream_transfer_all(FROM_STREAM,input,buf,sizeof(buf),4);
-		if(ret < 0){
-			break;
-		}else if(settle_count++ > 3){
-			AudioFeatures_SetAudioData((const int16_t*)buf,_callCounter++);
-		}
-		hlo_stream_transfer_all(INTO_STREAM,output,buf,ret,4); /** be a good samaritan and transfer the stream back out */
-		BREAK_ON_SIG(signal);
-	}
-	LOGI("Feature Extractor Completed:");
-	LOGI("%d disturbances, %d/%d dB(p/bg), %u samples\r\n", _stats.num_disturbances, _stats.peak_energy, _stats.peak_background_energy, _stats.num_samples);
-	return ret;
 }
 void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
 	if(!_statsMutex){
@@ -253,6 +222,12 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 	bool ready = false;
 	bool light_open = false;
+
+	if(!_statsMutex){
+		_statsMutex = xSemaphoreCreateMutex();
+		assert(_statsMutex);
+		init_background_energy(StatsCallback);
+	}
 
 	keyword_net_initialize();
 	nn_keyword_ctx_t nn_ctx = {0};
@@ -631,24 +606,14 @@ int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * c
 static uint8_t _can_has_sig_stop(void * unused){
 	return audio_sig_stop;
 }
-int Cmd_audio_record_start(int argc, char *argv[]){
-	//audio_sig_stop = 0;
-	//hlo_audio_recorder_task("rec.raw");
-	AudioTask_StartCapture(AUDIO_SAMPLE_RATE);
-	return 0;
-}
-int Cmd_audio_record_stop(int argc, char *argv[]){
+int Cmd_audio_stop(int argc, char *argv[]){
 	DISP("Stopping Audio\r\n");
-	AudioTask_StopPlayback();
-	AudioTask_StopCapture();
 	audio_sig_stop = 1;
 	return 0;
 
 }
 static hlo_filter _filter_from_string(const char * str){
 	switch(str[0]){
-	case 'f':
-		return hlo_filter_feature_extractor;
 	case 'e':
 		return hlo_filter_adpcm_encoder;
 	case 'd':

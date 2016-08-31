@@ -15,10 +15,10 @@ extern "C" {
 
 
 /*  exported for your enjoyment -- use these! */
-void AudioFeatures_Init(AudioFeatureCallback_t fpCallback,AudioOncePerMinuteDataCallback_t fpOncePerMinuteCallback);
+void init_background_energy(AudioOncePerMinuteDataCallback_t fpOncePerMinuteCallback);
     
 /*  Expects AUDIO_FFT_SIZE samples in samplebuf  */
-void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount);
+void set_background_energy(const int16_t fr[], const int16_t fi[]);
 
 #ifdef __cplusplus
 }

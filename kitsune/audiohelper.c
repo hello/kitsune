@@ -1,7 +1,6 @@
 #include "audiohelper.h"
 
 #include "network.h"
-#include "audioprocessingtask.h"
 #include "mcasp_if.h"
 #include "hw_types.h"
 #include "udma.h"

@@ -12,9 +12,6 @@
 typedef enum {
 	eAudioPlaybackStart,
 	eAudioPlaybackStop,
-	eAudioCaptureStart,		//enables a one shot capture process
-	eAudioCaptureStop,		//stops the current capture process
-	eAudioBGCaptureStart, 	//enable a bg capture process that always gets restarted
 } EAudioCommand_t;
 
 typedef struct {
@@ -37,38 +34,22 @@ typedef struct {
 	EAudioCommand_t command;
 
 	union {
-		AudioCaptureDesc_t capturedesc;
 		AudioPlaybackDesc_t playbackdesc;
 	} message;
 
 } AudioMessage_t;
 
 void AudioPlaybackTask(void * data);
-void AudioCaptureTask(void * data);
 
 #include "codec_debug_config.h"
 
 void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc);
 
 void AudioTask_StopPlayback(void);
-/**
- * stops all capture processes
- */
-void AudioTask_StopCapture(void);
-/**
- * enables the default background capture process
- */
-void AudioTask_StartCapture(uint32_t rate);
-/**
- * queues a one shot capture process.
- */
-void AudioTask_QueueCaptureProcess(const AudioCaptureDesc_t * desc);
-
 void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata);
 /**
  * testing commands
  */
 int Cmd_AudioPlayback(int argc, char * argv[]);
-int Cmd_AudioCapture(int argc, char * argv[]);
 
 #endif //_AUDIOCAPTURETASK_H_

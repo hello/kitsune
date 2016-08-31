@@ -356,6 +356,10 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
     //GET MEL FEATURES (one time slice in the mel spectrogram)
     tinytensor_features_get_mel_bank(melbank,fr,fi,temp16);
 
+    if( (_this.speech_frame_counter & 0x3)==0 ) {
+    	set_background_energy(fr, fi);
+    }
+
     //GET MAX
     temp16 = MIN_INT_16;
     for (i = 0; i < NUM_MEL_BINS; i++) {

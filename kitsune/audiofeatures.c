@@ -70,7 +70,7 @@
 #define TRUE (1)
 #define FALSE (0)
 
-#define MICROPHONE_NOISE_FLOOR_DB (20.0f)
+#define MICROPHONE_NOISE_FLOOR_DB (0.0f)
 
 
 /* Have fun tuning these magic numbers!
@@ -115,13 +115,8 @@ typedef enum {
 } ECoherencyModes_t;
 
 typedef struct {
-    //needed for equalization of spectrum
-    int16_t lpfbuf[PSD_SIZE]; //64 bytes
-    
     int16_t energybuf[ENERGY_BUF_SIZE];//32 bytes
     int32_t energyaccumulator;
-    
-    int16_t lastmfcc[NUM_AUDIO_FEATURES];
     
     int16_t lastEnergy;
     
@@ -141,8 +136,6 @@ typedef struct {
     uint16_t psd_min_energy;
     uint8_t statsLastIsStable;
     int16_t maxenergy;
-    AudioFeatures_t feats;
-    
 
     AudioFeatureCallback_t fpCallback;
     AudioOncePerMinuteDataCallback_t fpOncePerMinuteDataCallback;
@@ -167,11 +160,9 @@ static MelFeatures_t _data;
 /*--------------------------------
  *   Functions
  *--------------------------------*/
-void AudioFeatures_Init(AudioFeatureCallback_t fpCallback,AudioOncePerMinuteDataCallback_t fpOncePerMinuteCallback) {
+void init_background_energy(AudioOncePerMinuteDataCallback_t fpOncePerMinuteCallback) {
     
     memset(&_data,0,sizeof(_data));
-    
-    _data.fpCallback = fpCallback;
     
     _data.fpOncePerMinuteDataCallback = fpOncePerMinuteCallback;
 
@@ -217,7 +208,7 @@ static int16_t MovingAverage16(uint32_t counter, const int16_t x,int16_t * buf, 
 }
 
 //finds stats of a disturbance, and performs callback when distubance is over
-static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t logTotalEnergy,int64_t samplecount) {
+static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t logTotalEnergy) {
 	AudioOncePerMinuteData_t data;
 
 	data.num_disturbances = 0;
@@ -446,52 +437,29 @@ static void UpdateChangeSignals(EChangeModes_t * pCurrentMode, const int16_t new
     
 }
 
-
-
-void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
+void set_background_energy(const int16_t fr[], const int16_t fi[]) {
     //enjoy this nice large stack.
     //this can all go away if we get fftr to work, and do the
-    int16_t fr[AUDIO_FFT_SIZE]; //512K
-    int16_t fi[AUDIO_FFT_SIZE]; //512K
     int16_t psd[PSD_SIZE];
-    int32_t dc;
     
     uint16_t i,j;
     uint8_t log2scaleOfRawSignal;
-    int16_t mfcc[NUM_AUDIO_FEATURES];
     int16_t logTotalEnergy;
     int16_t logTotalEnergyAvg;
 
     EChangeModes_t currentMode;
     uint8_t isStable;
-
-    //static uint8_t c = 0;
-    
-    /* Copy in raw samples, zero out complex part of fft input*/
-    memcpy(fr,samples,AUDIO_FFT_SIZE*sizeof(int16_t));
-    memset(fi,0,sizeof(fi));
-    
-    /* apply windowing function */
-    fix_window(fr,AUDIO_FFT_SIZE);
     
     /* Normalize time series signal  */
     //ScaleInt16Vector(fr,&log2scaleOfRawSignal,AUDIO_FFT_SIZE,RAW_SAMPLES_SCALE);
     log2scaleOfRawSignal = 0;
     
-    
-    /* Get FFT */
-    fft(fr,fi, AUDIO_FFT_SIZE_2N);
-    
     /* Get PSD of variously spaced non-overlapping frequency windows*/
     logpsdmel(&logTotalEnergy,psd,fr,fi,log2scaleOfRawSignal,_data.psd_min_energy); //psd is now 64, and on a logarithmic scale after 1khz
     
-    DEBUG_LOG_S16("energy", NULL, &logTotalEnergy, 1, samplecount, samplecount);
-
     /* Determine stability of signal energy order to figure out when to estimate background spectrum */
     logTotalEnergyAvg = MovingAverage16(_data.callcounter, logTotalEnergy, _data.energybuf, &_data.energyaccumulator,ENERGY_BUF_MASK,ENERGY_BUF_SIZE_2N);
     
-    //DEBUG_LOG_S16("energyavg", NULL, &logTotalEnergyAvg, 1, samplecount, samplecount);
-
     /*
      *  Determine stability of average energy -- we will use this to determine when it's safe to assume
      *   that all the audio we are hearing is just background noise
@@ -505,96 +473,8 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
     //}
 
 
-    UpdateEnergyStats(isStable,logTotalEnergyAvg,logTotalEnergy,samplecount);
-
-    /* Equalize the PSD */
+    UpdateEnergyStats(isStable,logTotalEnergyAvg,logTotalEnergy);
     
-    //only do adaptive equalization if we are starting up, or our energy level is stable
-    if (isStable ||  _data.callcounter < STARTUP_EQUALIZATION_COUNTS) {
-        //crappy adaptive equalization. lowpass the psd, and subtract that from the psd
-       // printf("equalizing\n");
-        for (i = 0; i < PSD_SIZE; i++) {
-            _data.lpfbuf[i] = MUL(_data.lpfbuf[i], TOFIX(0.99f,15), 15) + MUL(psd[i], TOFIX(0.01f,15), 15);
-        }
-    }
-    
-
-    
-    //get MFCC coefficients
-    memset(fi,0,sizeof(fi));
-
-    
-    for (i = 0; i < PSD_SIZE; i++) {
-        fr[i] = psd[i] - _data.lpfbuf[i];
-    }
-    
-    //remove mean of PSD before taking DCT
-    dc = 0;
-    for (i = 0; i < PSD_SIZE; i++) {
-        dc += fr[i];
-    }
-    
-    dc >>= PSD_SIZE_2N;
-    
-    for (i = 0; i < PSD_SIZE; i++) {
-        fr[i] -= (int16_t)dc;
-    }
-    
-    DEBUG_LOG_S16("psd", NULL, fr, PSD_SIZE, samplecount, samplecount);
-    
-    //fft of 2^8 --> 256
-    dct(fr,fi,PSD_SIZE_2N);
-    
-    //here they are
-    for (j = 0; j < NUM_AUDIO_FEATURES; j++) {
-        mfcc[j] = fr[j+1];
-    }
-    
-    if (_data.callcounter > STARTUP_EQUALIZATION_COUNTS && (_data.callcounter & 0x00000001)) {
-       //run every other count (we want to average and decimate by 2)
-        int32_t temp32;
-        int8_t featvec[NUM_AUDIO_FEATURES];
-        int16_t featavg[NUM_AUDIO_FEATURES];
-        for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
-            temp32 = mfcc[i] + _data.lastmfcc[i];
-            temp32 >>= 1;
-            featavg[i] = (int16_t)temp32;
-        }
-        Scale16VecTo8(featvec, featavg, NUM_AUDIO_FEATURES);
-        VecNormalize8(featvec, NUM_AUDIO_FEATURES);
-        
-        //scale down to 4 bit numbers
-        for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
-            temp32 = featvec[i] / 16;
-            _data.feats.feats4bit[i] = (int8_t)temp32;
-        }
-
-        
-        
-        temp32 = _data.lastEnergy + logTotalEnergy;
-        temp32 >>= 1;
-        _data.feats.logenergy = (int16_t)temp32;
-        
-        //log this only when energy is significant
-        if (dc > MIN_CLASSIFICATION_ENERGY) {
-            DEBUG_LOG_S8("mfcc",NULL,featvec,NUM_AUDIO_FEATURES,samplecount,samplecount);
-        }
-#if 0
-        for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
-        	LOGA("%d,",featvec[i] );
-        }LOGA("\n");
-#endif
-        _data.feats.samplecount = samplecount;
-        //do data callback always
-        if (_data.fpCallback) {
-            _data.fpCallback(&_data.feats);
-        }
-    }
-    
-
-    DEBUG_LOG_S16("shapes",NULL,mfcc,NUM_AUDIO_FEATURES,samplecount,samplecount);
-
-    memcpy(_data.lastmfcc,mfcc,NUM_AUDIO_FEATURES*sizeof(int16_t));
     _data.lastEnergy = logTotalEnergy;
     
     /* Update counter.  It's okay if this one rolls over*/

@@ -746,16 +746,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.h</locationURI>
 		</link>
 		<link>
-			<name>hlo/audiocontrolhelper.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audiocontrolhelper.c</locationURI>
-		</link>
-		<link>
-			<name>hlo/audiocontrolhelper.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audiocontrolhelper.h</locationURI>
-		</link>
-		<link>
 			<name>hlo/audiofeatures.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.c</locationURI>
@@ -774,16 +764,6 @@
 			<name>hlo/audiohelper.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audiohelper.h</locationURI>
-		</link>
-		<link>
-			<name>hlo/audioprocessingtask.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.c</locationURI>
-		</link>
-		<link>
-			<name>hlo/audioprocessingtask.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.h</locationURI>
 		</link>
 		<link>
 			<name>hlo/audiosimilarity.h</name>

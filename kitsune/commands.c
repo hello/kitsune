@@ -46,7 +46,6 @@
 #include "dust_cmd.h"
 #include "fatfs_cmd.h"
 #include "spi_cmd.h"
-#include "audioprocessingtask.h"
 #include "audiotask.h"
 #include "top_board.h"
 #include "fft.h"
@@ -317,17 +316,6 @@ int Cmd_fs_read(int argc, char *argv[]) {
 	for (i = 0; i < bytes; ++i) {
 		LOGF("%x", buffer[i]);
 	}
-
-	return 0;
-}
-
-int Cmd_audio_turn_on(int argc, char * argv[]) {
-	AudioTask_StartCapture(AUDIO_SAMPLE_RATE);
-
-	AudioProcessingTask_SetControl(featureUploadsOn,0);
-#ifdef KIT_INCLUDE_FILE_UPLOAD
-	AudioProcessingTask_SetControl(rawUploadsOn,0);
-#endif
 
 	return 0;
 }
@@ -1999,13 +1987,10 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "pb", Cmd_pbstr, ""},
 		{ "hmac", Cmd_testhmac, ""},
 
-
-		{ "r", Cmd_AudioCapture,""}, //record sounds into SD card
-		{ "s",Cmd_audio_record_stop,""},
+		{ "s",Cmd_audio_stop,""},
 		{ "x", Cmd_stream_transfer, ""},
 		{ "p", Cmd_AudioPlayback, ""},
 		{ "getoct",Cmd_get_octogram,""},
-		{ "aon",Cmd_audio_turn_on,""},
 		{ "mictest", Cmd_mic_test,""},
 #if 0
 		{ "mode", Cmd_mode, "" }, //set the ap/station mode
@@ -2251,9 +2236,6 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(AudioPlaybackTask,"playbackTask",10*1024/4,NULL,4,NULL);
 	//xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
 	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 2, NULL);
-
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
-
 
 	/*******************************************************************************
 	*           AUDIO INIT END
