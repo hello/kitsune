@@ -227,7 +227,7 @@ typedef struct{
 	uint16_t reserved;
 	uint32_t timeout;
 	uint8_t is_speech;
-	uint8_t is_speech_finished;
+	uint8_t is_speaking;
 }nn_keyword_ctx_t;
 
 static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
@@ -245,16 +245,14 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 static void _speech_detect_callback(void * context, SpeechTransition_t transition) {
 	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)context;
 
-	if (transition == start_speech) {
+	if (transition == start_speech && !p->is_speaking ) {
 		DISP("start speech\r\n");
+		p->is_speaking = 1;
 	}
 
-	if (transition == stop_speech) {
+	if (transition == stop_speech && p->is_speaking) {
+		p->is_speaking = 0;
 		DISP("stop speech\r\n");
-	}
-
-	if (transition == stop_speech && !p->is_speech_finished) {
-		p->is_speech_finished = 1;
 	}
 
 }
@@ -306,7 +304,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				break;
 			}
 
-			if (nn_ctx.is_speech_finished) {
+			if (!nn_ctx.is_speaking) {
 				break;
 			}
 
