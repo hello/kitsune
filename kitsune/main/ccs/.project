@@ -331,16 +331,6 @@
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
-			<name>prox_signal.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/prox_signal.c</locationURI>
-		</link>
-		<link>
-			<name>prox_signal.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/prox_signal.h</locationURI>
-		</link>
-		<link>
 			<name>readme.txt</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/readme.txt</locationURI>

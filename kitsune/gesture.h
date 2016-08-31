@@ -17,15 +17,14 @@ typedef enum
 	GESTURE_WAVE,
 	GESTURE_HOLD,
 	GESTURE_OUT,
-} gesture;
+} gesture_t;
 
 void gesture_init();
+gesture_t gesture_input(int prox);
 int gesture_get_wave_count();
 int gesture_get_hold_count();
 void gesture_counter_reset();
-void gesture_increment_wave_count();
-void gesture_increment_hold_count();
-int gesture_get_and_reset_all_diagnostic_counts();
+int Cmd_get_gesture_count(int argc, char * argv[]);
 
 #ifdef __cplusplus
 }

@@ -92,7 +92,6 @@
 
 #include "hlo_stream.h"
 #include "pill_settings.h"
-#include "prox_signal.h"
 #include "hlo_audio_tools.h"
 #include "hlo_audio.h"
 #include "hlo_net_tools.h"
@@ -832,8 +831,6 @@ void thread_fast_i2c_poll(void * unused)  {
 	int w,r,g,b,p;
 
 	gesture_init();
-	ProxSignal_Init();
-	ProxGesture_t gesture;
 
 	uint32_t delay = 100;
 
@@ -881,20 +878,15 @@ void thread_fast_i2c_poll(void * unused)  {
 
 			prox = median_filter(p, filter_buf, &filter_idx);
 
-			gesture = ProxSignal_UpdateChangeSignals(prox);
-
-			//gesture gesture_state = gesture_input(prox);
-			switch(gesture)
+			switch(gesture_input(prox))
 			{
-			case proxGestureWave:
+			case GESTURE_WAVE:
 				_on_wave();
-				gesture_increment_wave_count();
 				break;
-			case proxGestureHold:
+			case GESTURE_HOLD:
 				_on_hold();
-				gesture_increment_hold_count();
 				break;
-			case proxGestureRelease:
+			case GESTURE_OUT:
 				_on_gesture_out();
 				break;
 			default:
@@ -1785,15 +1777,6 @@ int Cmd_inttemp(int argc, char *argv[]) {
 	xSemaphoreGive(dust_smphr);
 
 	LOGF("internal %u\n", temperature/i);
-	return 0;
-}
-
-int Cmd_get_gesture_count(int argc, char * argv[]) {
-
-	const int count = gesture_get_and_reset_all_diagnostic_counts();
-
-	LOGF("%d transitions\n",count);
-
 	return 0;
 }
 

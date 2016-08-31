@@ -31,7 +31,6 @@
 #include "pill_settings.h"
 #include "audiotask.h"
 #include "hlo_net_tools.h"
-#include "prox_signal.h"
 
 volatile static bool wifi_state_requested = false;
 
@@ -606,7 +605,6 @@ void hold_animate_progress_task(void * params) {
 			MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
 	ble_send_protobuf(&response);
 
-	assert( BLE_HOLD_TIMEOUT_MS < MAX_HOLD_TIME_MS );
 	vTaskDelay(BLE_HOLD_TIMEOUT_MS);
 	if( get_released() ) {
 		vTaskDelete(NULL);
