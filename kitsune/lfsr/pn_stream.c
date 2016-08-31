@@ -44,7 +44,7 @@
 #define NUM_PN_PERIODS_TO_WAIT   (CIRCULAR_BUFFER_FILL_TIME_MS / PN_PERIOD_TIME_MS + PLAY_BUFFER_FILL_TIME_MS / PN_PERIOD_TIME_MS +  1)
 #define WRITE_TASK_STARTUP_DELAY  (NUM_PN_PERIODS_TO_WAIT * PN_PERIOD_TIME_MS  +  PLAY_BUFFER_FILL_TIME_MS + 0)
 
-#define NUM_READ_PERIODS (NUM_PN_PERIODS_TO_WAIT + 20)
+#define NUM_READ_PERIODS (NUM_PN_PERIODS_TO_WAIT + 60)
 #define READ_BYTES_MAX (PN_LEN_SAMPLES * NUM_READ_PERIODS * sizeof(int16_t))
 
 
@@ -56,7 +56,7 @@
 //this takes a long time if you don't find a peak
 #define CORR_SEARCH_WINDOW    (PN_LEN_SAMPLES)
 #define CORR_SEARCH_START_IDX (0)
-#define DETECTION_THRESHOLD   (3e5)
+#define DETECTION_THRESHOLD   (1e5)
 #define NUM_DETECT            (2)
 
 #define WRITE_BUF_SKIP_BYTES (1 * TX_BUFFER_SIZE)
@@ -249,6 +249,7 @@ void pn_write_task( void * params ) {
 	hlo_stream_transfer_t * p = (hlo_stream_transfer_t *)params;
 	int32_t last_value;
 	int32_t current_value;
+	int32_t max_value;
 	int32_t decrease_count;
 
 	ctx.idx = 0;
@@ -348,7 +349,7 @@ void pn_write_task( void * params ) {
 		}
 
 
-		if (corr_result[corridx] >= DETECTION_THRESHOLD && !found_peak) {
+		if (ABS(corr_result[corridx]) >= DETECTION_THRESHOLD && !found_peak) {
 
 			ndetect++;
 
@@ -402,54 +403,38 @@ void pn_write_task( void * params ) {
 	//find peak magnitude and index
 	last_value = 0;
 	decrease_count = 0;
+	max_value = 0;
 	for (i = istart; i < iend; i++) {
 		current_value = ABS(corr_result[i]);
 		if (current_value > DETECTION_THRESHOLD) {
-			//find start of bounds, basically once we exceed the threshold
-			if (current_value == 0) {
+			if (current_value > max_value) {
+				max_value = current_value;
 				istart = i;
+				decrease_count = 0;
 			}
-
-			//two consecutive decreases?
-			if (current_value < last_value) {
-
+			else {
 				decrease_count++;
-				if (decrease_count >= 2) {
-					iend = i;
+
+				//exit condition 1, last value dropped by a third
+				if (last_value < (current_value * 2) / 3) {
 					break;
 				}
 			}
-			else {
-				decrease_count = 0;
-			}
-
 		}
 
-		last_value = ABS(corr_result[i]);
-	}
-
-	last_value = 0;
-
-	//search window is small enough? if not, something weird happened
-	if (iend - istart < 16) {
-		for (i = istart; i < iend; i++) {
-			current_value = ABS(corr_result[i]);
-
-			//find max
-			if (current_value > last_value) {
-				current_value = last_value;
-				istart = i;
-			}
+		//exit condition 2, two consecutive decreases
+		if (decrease_count >= 2) {
+			break;
 		}
 
-
-		DISP("{FIRST_PEAK_ABS_MAGNITUDE : %d, FIRST_PEAK_INDEX : %d}\r\n",current_value,istart);
-
+		last_value = current_value;
 
 	}
-	else {
-		DISP("error, search window was too large\r\n");
-	}
+
+
+
+	DISP("{FIRST_PEAK_ABS_MAGNITUDE : %d, FIRST_PEAK_INDEX : %d}\r\n",max_value,istart);
+
 
 
 
