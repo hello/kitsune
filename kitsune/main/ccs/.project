@@ -316,6 +316,26 @@
 			<locationURI>PARENT-1-PROJECT_LOC/pinmux.h</locationURI>
 		</link>
 		<link>
+			<name>pn.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/lfsr/pn.c</locationURI>
+		</link>
+		<link>
+			<name>pn.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/lfsr/pn.h</locationURI>
+		</link>
+		<link>
+			<name>pn_stream.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/lfsr/pn_stream.c</locationURI>
+		</link>
+		<link>
+			<name>pn_stream.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/lfsr/pn_stream.h</locationURI>
+		</link>
+		<link>
 			<name>proto_utils.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/proto_utils.c</locationURI>

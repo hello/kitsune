@@ -23,6 +23,7 @@
 #include "circ_buff.h"
 #include "hellofilesystem.h"
 #include "diskio.h"
+#include "lfsr/pn_stream.h"
 
 #include "FreeRTOS.h"
 
