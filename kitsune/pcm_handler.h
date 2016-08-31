@@ -62,7 +62,7 @@ extern "C"
 #define PCM_PING_PONG_MODE_SINGLE_CHANNEL_FULL_RATE (1)
 #define PCM_PING_PONG_MODE_ALL_CHANNELS_FULL_RATE   (2)
 
-void pcm_set_ping_pong_incoming_stream_mode(const uint8_t mode);
+void pcm_set_ping_pong_incoming_stream_mode(const int mode);
 
 
 __attribute__((section(".ramcode")))

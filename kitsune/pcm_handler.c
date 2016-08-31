@@ -116,7 +116,7 @@ extern xSemaphoreHandle record_isr_sem;
 extern xSemaphoreHandle playback_isr_sem;;
 
 
-volatile uint8_t _pcm_ping_pong_incoming_stream_mode = PCM_PING_PONG_MODE_SINGLE_CHANNEL_HALF_RATE;
+volatile int _pcm_ping_pong_incoming_stream_mode = PCM_PING_PONG_MODE_SINGLE_CHANNEL_HALF_RATE;
 
 //*****************************************************************************
 //
@@ -145,7 +145,7 @@ void set_isr_playback(bool active){
 	can_playback = active;
 }
 
-void pcm_set_ping_pong_incoming_stream_mode(const uint8_t mode) {
+void pcm_set_ping_pong_incoming_stream_mode(const int mode) {
 	_pcm_ping_pong_incoming_stream_mode = mode;
 }
 
