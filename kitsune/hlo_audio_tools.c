@@ -273,6 +273,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		if( nn_ctx.keyword_detected > 0 ) {
 			if( !light_open ) {
 				AudioTask_StopPlayback();
+				//todo update this bw rate when switching to adpcm
 				input = hlo_stream_bw_limited( input, AUDIO_NET_RATE*2 - 4, 5000);
 				input = hlo_light_stream( input,true, 300 );
 				input = hlo_stream_en( input );
@@ -337,7 +338,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		DISP("\r\n===========\r\n");
 			DISP("Playback Audio\r\n");
 
-			output = hlo_stream_bw_limited( output, AUDIO_NET_RATE*2 - 4, 5000);
+			output = hlo_stream_bw_limited( output, 2, 3000);
 			output = hlo_light_stream( output, false, LED_MAX/4 );
 
 			AudioPlaybackDesc_t desc;
