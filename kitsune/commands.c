@@ -323,7 +323,7 @@ int Cmd_fs_read(int argc, char *argv[]) {
 }
 
 int Cmd_audio_turn_on(int argc, char * argv[]) {
-	AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
+	AudioTask_StartCapture(AUDIO_SAMPLE_RATE);
 
 	AudioProcessingTask_SetControl(featureUploadsOn,0);
 #ifdef KIT_INCLUDE_FILE_UPLOAD
@@ -617,7 +617,7 @@ void thread_alarm(void * unused) {
 				desc.durationInSeconds = alarm.ring_duration_in_second;
 				desc.volume = 64;
 				desc.onFinished = thread_alarm_on_finished;
-				desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
+				desc.rate = AUDIO_SAMPLE_RATE;
 				desc.context = &alarm_led_id;
 				desc.p = hlo_filter_data_transfer;
 
@@ -1914,8 +1914,8 @@ extern volatile int ch;
 extern volatile int sys_volume;
 
 int cmd_vol(int argc, char *argv[]) {
- sys_volume = atoi(argv[1]);
- return set_volume(sys_volume, portMAX_DELAY);;
+ set_system_volume( atoi(argv[1])) ;
+ return 0;
 }
 
 
@@ -2262,7 +2262,6 @@ void vUARTTask(void *pvParameters) {
 	start_top_boot_watcher();
 
 //#define DEMO
-
 	hlo_audio_init();
 
 	// Create audio tasks for playback and record

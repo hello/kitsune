@@ -226,6 +226,8 @@ typedef struct{
 	uint8_t threshold;
 	uint16_t reserved;
 	uint32_t timeout;
+	uint8_t is_speech;
+	uint8_t is_speaking;
 }nn_keyword_ctx_t;
 
 static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
@@ -240,9 +242,27 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	}
 }
 
+static void _speech_detect_callback(void * context, SpeechTransition_t transition) {
+	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)context;
+
+	if (transition == start_speech && !p->is_speaking ) {
+		DISP("start speech\r\n");
+		p->is_speaking = 1;
+	}
+
+	if (transition == stop_speech && p->is_speaking) {
+		p->is_speaking = 0;
+		DISP("stop speech\r\n");
+	}
+
+}
+
+
+
 
 extern volatile int sys_volume;
 int32_t set_volume(int v, unsigned int dly);
+#define AUDIO_NET_RATE (AUDIO_SAMPLE_RATE/2)
 
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
@@ -256,6 +276,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	keyword_net_initialize();
 	nn_keyword_ctx_t nn_ctx = {0};
 	keyword_net_register_callback(&nn_ctx,okay_sense,80,_voice_begin_keyword,_voice_finish_keyword);
+	keyword_net_register_speech_callback(&nn_ctx,_speech_detect_callback);
 
 	//wrap output in hmac stream
 	uint8_t key[AES_BLOCKSIZE];
@@ -272,14 +293,21 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		if( nn_ctx.keyword_detected > 0 ) {
 			if( !light_open ) {
 				AudioTask_StopPlayback();
+				//todo update this bw rate when switching to adpcm
+				input = hlo_stream_bw_limited( input, AUDIO_NET_RATE*2 - 4, 5000);
 				input = hlo_light_stream( input,true, 300 );
-				input = hlo_stream_en( input );
+//				input = hlo_stream_en( input );
 				light_open = true;
 			}
 			ret = hlo_stream_transfer_all(INTO_STREAM, hmac_payload_str,  (uint8_t*)samples, ret, 4);
 			if ( ret <  0 ) {
 				break;
 			}
+
+			if (!nn_ctx.is_speaking) {
+				break;
+			}
+
 		} else {
 			keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 		}
@@ -312,11 +340,11 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		if( 0 == hlo_pb_decode(output,SpeechResponse_fields, &resp) ){
 			DISP("Resp %s\r\nUrl %s\r\n", resp.text.arg, resp.url.arg);
 			if(resp.audio_stream_size){
-				hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 60,HLO_AUDIO_PLAYBACK);
+				hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_SAMPLE_RATE, 60,HLO_AUDIO_PLAYBACK);
 				DISP("Playback Audio\r\n");
 				hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
 			}
-		/*	hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 60,HLO_AUDIO_PLAYBACK);
+		/*	hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_SAMPLE_RATE, 60,HLO_AUDIO_PLAYBACK);
 			hlo_stream_t * fs = hlo_http_get(resp.url.arg);
 			hlo_filter_adpcm_decoder(fs,aud,NULL,NULL);
 			hlo_stream_close(fs);
@@ -334,6 +362,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		DISP("\r\n===========\r\n");
 			DISP("Playback Audio\r\n");
 
+			output = hlo_stream_bw_limited( output, 2, 5000);
 			output = hlo_light_stream( output, false, LED_MAX/4 );
 
 			AudioPlaybackDesc_t desc;
@@ -341,7 +370,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			desc.durationInSeconds = INT32_MAX;
 			desc.to_fade_out_ms = desc.fade_in_ms = desc.fade_out_ms = 0;
 			desc.onFinished = NULL;
-			desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
+			desc.rate = AUDIO_SAMPLE_RATE;
 			desc.stream = output;
 			desc.volume = sys_volume;
 			desc.p = hlo_filter_mp3_decoder;
@@ -349,6 +378,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			AudioTask_StartPlayback(&desc);
 
 			DISP("\r\n===========\r\n");
+	}
+	else{
+		hlo_stream_close(output);
 	}
 #endif
 	keyword_net_deinitialize();
@@ -533,24 +565,38 @@ static
 enum mad_flow _mp3_output(void *data,
              struct mad_header const *header,
              struct mad_pcm *pcm){
-//    DISP("o %d\r\n", pcm->length);
-    mp3_ctx_t * ctx = (mp3_ctx_t*)data;
-    if(ctx->sig && ctx->sig(ctx->sig_ctx)){
-        return MAD_FLOW_STOP;
-    }
-    int16_t * i16_samples = (int16_t*)pcm->samples[1];
-    int i;
-    for(i = 0; i < pcm->length; i++){
-        i16_samples[i] = scale(pcm->samples[0][i]);
-    }
-    _upsample(i16_samples, pcm->length);
+	//DISP("o %d\r\n", pcm->length);
+	mp3_ctx_t * ctx = (mp3_ctx_t*)data;
+	if(ctx->sig && ctx->sig(ctx->sig_ctx)){
+		return MAD_FLOW_STOP;
+	}
+	int16_t * i16_samples = (int16_t*)pcm->samples[1];
+	int i;
+	for(i = 0; i < pcm->length; i++){
+		i16_samples[i] = scale(pcm->samples[0][i]);
+	}
 
-    int ret = hlo_stream_transfer_all(INTO_STREAM, ctx->out, (uint8_t*)i16_samples, 2 * pcm->length * sizeof(int16_t), 4);
-    if( ret < 0){
-        return MAD_FLOW_BREAK;
-    }
-    //vTaskDelay(100);
-    return MAD_FLOW_CONTINUE;
+	int ret;
+	uint32_t buf_size = pcm->length * sizeof(int16_t);
+	if(header)
+	{
+		if(header->samplerate == 16000)
+		{
+			_upsample(i16_samples, pcm->length);
+			buf_size <<= 1;
+		}
+		else if(header->samplerate == 32000)
+		{
+			// do nothing
+		}
+	}
+
+	ret = hlo_stream_transfer_all(INTO_STREAM, ctx->out, (uint8_t*)i16_samples, buf_size, 4);
+	if( ret < 0){
+		return MAD_FLOW_BREAK;
+	}
+	//vTaskDelay(100);
+	return MAD_FLOW_CONTINUE;
 }
 /*
  * This is the error callback function. It is called whenever a decoding
@@ -571,6 +617,14 @@ enum mad_flow _mp3_error(void *data,
 		return MAD_FLOW_CONTINUE;
 	}
 }
+
+static
+enum mad_flow _mp3_header_cb(void *data,
+		struct mad_header const *header){
+
+	return MAD_FLOW_CONTINUE;
+}
+
 int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	mp3_ctx_t mp3 = {0};
 	struct mad_decoder decoder;
@@ -585,7 +639,7 @@ int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * c
 	/* configure input, output, and error functions */
 
 	mad_decoder_init(&decoder, &mp3,
-		   _mp3_input, 0 /* header */, 0 /* filter */, _mp3_output,
+		   _mp3_input, _mp3_header_cb, 0 /* filter */, _mp3_output,
 		   _mp3_error, 0 /* message */);
 
 	/* start decoding */
@@ -605,7 +659,7 @@ static uint8_t _can_has_sig_stop(void * unused){
 int Cmd_audio_record_start(int argc, char *argv[]){
 	//audio_sig_stop = 0;
 	//hlo_audio_recorder_task("rec.raw");
-	AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
+	AudioTask_StartCapture(AUDIO_SAMPLE_RATE);
 	return 0;
 }
 int Cmd_audio_record_stop(int argc, char *argv[]){
@@ -699,7 +753,7 @@ void AudioControlTask(void * unused) {
 
 
 		hlo_stream_t * in;
-		in = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,HLO_AUDIO_RECORD);
+		in = hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_RECORD);
 
 		hlo_stream_t * out;
 		out = hlo_http_post("https://dev-speech.hello.is/v1/upload/audio?r=16000&response=mp3", NULL);

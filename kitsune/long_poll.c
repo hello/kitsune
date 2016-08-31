@@ -46,7 +46,7 @@ static void _on_play_audio( PlayAudio * cmd ) {
 	}
 	desc.stream = fs_stream_open_media(cmd->file_path,INT32_MAX);
 	ustrncpy(desc.source_name, cmd->file_path, sizeof(desc.source_name));
-	desc.volume = cmd->volume_percent * 60 / 100; //convert from percent to codec range
+	desc.volume = cmd->volume_percent * 64 / 100; //convert from percent to codec range
 	desc.fade_in_ms = cmd->fade_in_duration_seconds * 1000;
 	desc.fade_out_ms = cmd->fade_out_duration_seconds * 1000;
 	if( cmd->has_timeout_fade_out_duration_seconds ) {
@@ -56,7 +56,7 @@ static void _on_play_audio( PlayAudio * cmd ) {
 	}
 
 	desc.onFinished = NULL;
-	desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
+	desc.rate = AUDIO_SAMPLE_RATE;
 	desc.context = NULL;
 	desc.p = NULL;
 
@@ -66,6 +66,10 @@ static void _on_play_audio( PlayAudio * cmd ) {
 static void _on_stop_audio( StopAudio * cmd ) {
 	//TODO use cmd->fade_out_duration_seconds; ?
 	AudioTask_StopPlayback();
+}
+
+static void _on_volume( Volume * cmd ) {
+	set_system_volume(cmd->volume * 64 / 100); //convert from percent to codec range)
 }
 
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
@@ -89,6 +93,9 @@ static bool _on_message(pb_istream_t *stream, const pb_field_t *field, void **ar
 	}
 	if (message.has_play_audio) {
 		_on_play_audio(&message.play_audio);
+	}
+	if (message.has_volume) {
+		_on_volume(&message.volume);
 	}
 	if (message.has_stop_audio) {
 		_on_stop_audio(&message.stop_audio);

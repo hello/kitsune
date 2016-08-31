@@ -38,6 +38,9 @@
 
 #include "audiohelper.h"
 
+#include "led_cmd.h"
+#include "led_animations.h"
+
 #if 0
 #define PRINT_TIMING
 #endif
@@ -224,6 +227,9 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	ramp_ctx_t vol;
 	hlo_future_t * vol_task;
 
+	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,HLO_AUDIO_PLAYBACK);
+	hlo_stream_t * fs = desc->stream;
+
 	if(vol_ramp) {
 		vol = (ramp_ctx_t){
 			.current = 0,
@@ -237,9 +243,6 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	} else {
 		set_volume(desc->volume, portMAX_DELAY);
 	}
-
-	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,HLO_AUDIO_PLAYBACK);
-	hlo_stream_t * fs = desc->stream;
 
 	//playback
 	hlo_filter transfer_function = desc->p ? desc->p : hlo_filter_data_transfer;
@@ -279,15 +282,11 @@ void AudioPlaybackTask(void * data) {
 				{
 					AudioPlaybackDesc_t * info = &m.message.playbackdesc;
 					/** prep  **/
-					LOGI("Starting playback\r\n");
-					_print_heap_info();
 					_queue_audio_playback_state(PLAYING, info);
 					/** blocking loop to play the sound **/
 					_playback_loop(info, CheckForInterruptionDuringPlayback);
 					/** clean up **/
 					_queue_audio_playback_state(SILENT, info);
-					_print_heap_info();
-					LOGI("Completed playback\r\n");
 
 					if (m.message.playbackdesc.onFinished) {
 						m.message.playbackdesc.onFinished(m.message.playbackdesc.context);
@@ -422,7 +421,7 @@ int Cmd_AudioPlayback(int argc, char * argv[]){
 		desc.fade_in_ms = 1000;
 		desc.fade_out_ms = 1000;
 		desc.onFinished = NULL;
-		desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
+		desc.rate = AUDIO_SAMPLE_RATE;
 		desc.stream = fs_stream_open_media(argv[1], 0);
 		desc.volume = 64;
 		desc.p = hlo_filter_data_transfer;
@@ -439,7 +438,7 @@ int Cmd_AudioCapture(int argc, char * argv[]){
 			AudioTask_StopCapture();
 		}else{
 			LOGI("Starting Capture\r\n");
-			AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
+			AudioTask_StartCapture(AUDIO_SAMPLE_RATE);
 		}
 		return 0;
 	}
