@@ -60,10 +60,9 @@ inline uint8_t pn_get_next_bit() {
 }
 
 
-static inline int64_t accumulate_pn(const uint32_t n, const int16_t * in1, const int16_t * in2) {
+static inline int64_t accumulate_pn(const uint32_t n_in, const int16_t * in1, const int16_t * in2) {
     int64_t accumulator = 0;
-    int16_t nloop = n;
-    nloop = n;
+    int16_t nloop = n_in;
     {
         int n = (nloop + 15) / 16;
 
@@ -105,7 +104,7 @@ void get_pn_sequence(int16_t * p, const uint32_t len) {
 	}
 }
 
-int32_t pn_correlate_1x_soft(const int16_t * x,const int16_t * pn_sequence, const uint32_t len) {
+int64_t pn_correlate_1x_soft(const int16_t * x,const int16_t * pn_sequence, const uint32_t len) {
 	return accumulate_pn(len,x,pn_sequence);
 }
 

@@ -104,7 +104,7 @@ static uint32_t _write_bytes_count = 0;
 static TestResult_t _result;
 static uint32_t _channel;
 
-#define REQUIRED_WRITE_STACK_SIZE       (sizeof(write_buf_context_t) + CORR_SEARCH_WINDOW * sizeof(int32_t) + PN_LEN_SAMPLES * sizeof(int16_t) + 3000)
+#define REQUIRED_WRITE_STACK_SIZE       (sizeof(write_buf_context_t) + CORR_SEARCH_WINDOW * sizeof(int32_t) + PN_LEN_SAMPLES * sizeof(int16_t) + 10000)
 
 
 static int close (void * context) {
@@ -302,6 +302,11 @@ void pn_write_task( void * params ) {
 	get_pn_sequence(pn_sequence,PN_LEN_SAMPLES);
 
 	/*
+	for (i = 0; i < PN_LEN_SAMPLES; i++) {
+			DISP("%d\r\n",pn_sequence[i]);
+			vTaskDelay(2);
+		}
+	DISP("-------------\r\n");
 	for (i = 0; i < sizeof(ctx.samples) / sizeof(int16_t); i++) {
 		DISP("%d\r\n",ctx.samples[i]);
 		vTaskDelay(2);
@@ -314,15 +319,29 @@ void pn_write_task( void * params ) {
 		//DO THE CORRELATION
 		temp64 = pn_correlate_1x_soft(&ctx.samples[corrnumber],pn_sequence,PN_LEN_SAMPLES);
 
-		if (temp64 > INT32_MAX) {
+		/*
+		uint32_t hex1 = temp64 & 0x00000000FFFFFFFF;
+		uint32_t hex2 = (temp64 & 0xFFFFFFFF00000000) >> 32;
+
+		DISP("%x%x\r\n",hex2,hex1);
+		vTaskDelay(2);
+		*/
+
+
+		if (temp64 > (int64_t)INT32_MAX) {
 			corr_result[corridx] = INT32_MAX;
 		}
-		else if (temp64 < -INT32_MAX) {
-			corr_result[corridx] = -INT32_MAX;
+		else if (temp64 <  (int64_t)INT32_MIN) {
+			corr_result[corridx] = INT32_MIN;
 		}
 		else {
-			corr_result[corridx] = temp64;
+			corr_result[corridx] = (int32_t)temp64;
 		}
+
+		/*
+		DISP("%d\r\n",corr_result[corridx]);
+		vTaskDelay(2);
+		*/
 
 		if (p->test_impulse && ABS(corr_result[corridx]) > 500) {
 			DISP("%d\r\n",corr_result[corridx]);

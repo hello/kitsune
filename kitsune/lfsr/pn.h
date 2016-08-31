@@ -22,7 +22,7 @@ void pn_init_with_mask_12(void);
 void pn_init_with_mask_14(void);
 uint32_t pn_get_length();
 void get_pn_sequence(int16_t * p, const uint32_t len);
-int32_t pn_correlate_1x_soft(const int16_t * x,const int16_t * pn_sequence, const uint32_t len);
+int64_t pn_correlate_1x_soft(const int16_t * x,const int16_t * pn_sequence, const uint32_t len);
 #ifdef __cplusplus
 }
 #endif
