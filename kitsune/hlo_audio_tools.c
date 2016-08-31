@@ -337,7 +337,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		DISP("\r\n===========\r\n");
 			DISP("Playback Audio\r\n");
 
-			output = hlo_stream_bw_limited( output, 2, 3000);
+			output = hlo_stream_bw_limited( output, 2, 5000);
 			output = hlo_light_stream( output, false, LED_MAX/4 );
 
 			AudioPlaybackDesc_t desc;
