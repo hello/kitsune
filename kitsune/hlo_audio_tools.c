@@ -88,6 +88,7 @@ int hlo_filter_adpcm_encoder(hlo_stream_t * input, hlo_stream_t * output, void *
 	char compressed[ADPCM_SAMPLES/2];
 	short decompressed[ADPCM_SAMPLES];
 	adpcm_state state = (adpcm_state){0};
+
 	int ret = 0;
 	while(1){
 		ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)decompressed,ADPCM_SAMPLES * 2, 4);
@@ -220,6 +221,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	int16_t samples[NSAMPLES];
 	uint8_t hmac[SHA1_SIZE] = {0};
 
+	char compressed[NSAMPLES/2];
+	adpcm_state state = (adpcm_state){0};
+
 	bool ready = false;
 	bool light_open = false;
 
@@ -249,12 +253,14 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			if( !light_open ) {
 				AudioTask_StopPlayback();
 				//todo update this bw rate when switching to adpcm
-				input = hlo_stream_bw_limited( input, AUDIO_NET_RATE*2 - 4, 5000);
+				hmac_payload_str = hlo_stream_bw_limited( hmac_payload_str, AUDIO_NET_RATE*2 - 4, 5000);
 				input = hlo_light_stream( input,true, 300 );
 				input = hlo_stream_en( input );
 				light_open = true;
 			}
-			ret = hlo_stream_transfer_all(INTO_STREAM, hmac_payload_str,  (uint8_t*)samples, ret, 4);
+
+			adpcm_coder((short*)samples, (char*)compressed, ret / 2, &state);
+			ret = hlo_stream_transfer_all(INTO_STREAM, hmac_payload_str,  (uint8_t*)compressed, ret/4, 4);
 			if ( ret <  0 ) {
 				break;
 			}
@@ -696,7 +702,7 @@ void AudioControlTask(void * unused) {
 		in = hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_RECORD);
 
 		hlo_stream_t * out;
-		out = hlo_http_post("https://dev-speech.hello.is/v1/upload/audio?r=16000&response=mp3", NULL);
+		out = hlo_http_post("https://dev-speech.hello.is/v2/upload/audio?r=16000&response=mp3", NULL);
 
 		if( !started ) {
 			ble_proto_led_init();
