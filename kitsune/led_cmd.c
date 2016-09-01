@@ -58,6 +58,7 @@ static user_animation_t fadeout_animation;
 static user_animation_t hist[ANIMATION_HISTORY_SIZE];
 static int hist_idx;
 
+static portTickType last_run = 0;
 volatile int led_duration = 0;
 
 static int _clamp(int v, int min, int max){
@@ -337,6 +338,7 @@ _start_animation(void){
 	xEventGroupClearBits( led_events, 0xffffff );
 	xEventGroupSetBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 
+	last_run = xTaskGetTickCount();
 }
 void led_task( void * params ) {
 	led_color_t colors_last[NUM_LED+1];
@@ -397,7 +399,7 @@ void led_task( void * params ) {
 					//delay capped at 500 ms to improve task responsiveness
 					xSemaphoreGiveRecursive( led_smphr );
 					led_array(colors, get_cycle_time());
-					led_duration += get_cycle_time();
+					led_duration += xTaskGetTickCount() - last_run;
 					xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 				}else if( animation_result == ANIMATION_FADEOUT ){
 					vTaskDelay( user_animation.cycle_time );
@@ -453,17 +455,17 @@ void led_task( void * params ) {
 					xEventGroupSetBits(led_events,LED_RESET_BIT);
 				}
 				ledset(colors, led_from_rgb(0,0,0), NUM_LED);
-				led_duration = 0;
 				//DISP("led faded out\n");
 			} else {
 				led_brightness_all(colors, fade_alpha);
 				led_array(colors, get_cycle_time());
-				led_duration += get_cycle_time();
+				led_duration += xTaskGetTickCount() - last_run;
 				//DISP("led fading\n");
 			}
 			ledcpy(colors_last, colors, NUM_LED);
 			xSemaphoreGiveRecursive( led_smphr );
 		}
+		last_run = xTaskGetTickCount();
 	}
 }
 
