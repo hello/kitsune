@@ -146,7 +146,7 @@ void tinytensor_features_get_mel_bank(int16_t * melbank,const int16_t * fr, cons
 #define SPEECH_BIN_START (4)
 #define SPEECH_BIN_END (16)
 #define ENERGY_END (FFT_SIZE/2)
-static void get_speech_energy_ratio(int16_t * fr,int16_t * fi,int16_t input_scaling) {
+static void do_voice_activity_detection(int16_t * fr,int16_t * fi,int16_t input_scaling) {
     uint32_t i;
     int16_t log_energy_frac;
     uint64_t speech_energy = 0;
@@ -321,14 +321,14 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
     CHKCYC("FFT");
 
     //get "speech" energy ratio
-    get_speech_energy_ratio(fr,fi,temp16);
+    do_voice_activity_detection(fr,fi,temp16);
 
     //update counter
-    _this.speech_frame_counter++;
+    _this.speech_detector_counter++;
     //GET MEL FEATURES (one time slice in the mel spectrogram)
     tinytensor_features_get_mel_bank(melbank,fr,fi,temp16);
 
-    if( (_this.speech_frame_counter & 0x3)==0 ) {
+    if( (_this.speech_detector_counter & 0x3)==0 ) {
     	set_background_energy(fr, fi);
     }
 
