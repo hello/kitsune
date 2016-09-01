@@ -1088,6 +1088,7 @@ void thread_tx(void* unused) {
 	}
 }
 #include "audio_types.h"
+extern volatile int led_duration;
 
 void sample_sensor_data(periodic_data* data)
 {
@@ -1095,6 +1096,9 @@ void sample_sensor_data(periodic_data* data)
 	{
 		return;
 	}
+
+	data->has_light_duration_ms = true;
+	data->light_duration_ms = led_duration;
 
 	AudioOncePerMinuteData_t aud_data;
 	data->unix_time = get_time();
