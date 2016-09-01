@@ -212,7 +212,7 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 
 extern volatile int sys_volume;
 int32_t set_volume(int v, unsigned int dly);
-#define AUDIO_NET_RATE (AUDIO_SAMPLE_RATE/2)
+#define AUDIO_NET_RATE (AUDIO_SAMPLE_RATE/1024)
 
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
@@ -249,13 +249,17 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			if( !light_open ) {
 				AudioTask_StopPlayback();
 				//todo update this bw rate when switching to adpcm
-				input = hlo_stream_bw_limited( input, AUDIO_NET_RATE*2 - 4, 5000);
 				input = hlo_light_stream( input,true, 300 );
 				input = hlo_stream_en( input );
+				input = hlo_stream_bw_limited( input, AUDIO_NET_RATE - 4, 5000);
 				light_open = true;
 			}
 			ret = hlo_stream_transfer_all(INTO_STREAM, hmac_payload_str,  (uint8_t*)samples, ret, 4);
 			if ( ret <  0 ) {
+				if( ret == HLO_STREAM_ERROR) {
+					stop_led_animation( 0, 33 );
+					play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1,18, 1);
+				}
 				break;
 			}
 		} else {
@@ -270,45 +274,13 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		}
 	}
 
-	// grab the running hmac and drop it in the stream
-	get_hmac( hmac, hmac_payload_str );
-	ret = hlo_stream_transfer_all(INTO_STREAM, output, hmac, sizeof(hmac), 4);
-	hlo_stream_close(hmac_payload_str);
-	hlo_stream_close(input);
-
-	{//now play the swirling thing when we get response
-		//	play_led_wheel(get_alpha_from_light(),140,29,237,2,9,0);
-		//	DISP("Wheel\r\n");
-	}
-#if 0
-	//lastly, glow with voice output, since we can't do that in half duplex mode, simply queue it to the voice output
-	if( ret >= 0){
-		SpeechResponse resp = SpeechResponse_init_zero;
-		DISP("\r\n===========\r\n");
-		resp.text.funcs.decode = _decode_string_field;
-		resp.url.funcs.decode = _decode_string_field;
-		if( 0 == hlo_pb_decode(output,SpeechResponse_fields, &resp) ){
-			DISP("Resp %s\r\nUrl %s\r\n", resp.text.arg, resp.url.arg);
-			if(resp.audio_stream_size){
-				hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_SAMPLE_RATE, 60,HLO_AUDIO_PLAYBACK);
-				DISP("Playback Audio\r\n");
-				hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
-			}
-		/*	hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_SAMPLE_RATE, 60,HLO_AUDIO_PLAYBACK);
-			hlo_stream_t * fs = hlo_http_get(resp.url.arg);
-			hlo_filter_adpcm_decoder(fs,aud,NULL,NULL);
-			hlo_stream_close(fs);
-			hlo_stream_close(aud);
-		*/
-			vPortFree(resp.text.arg);
-			vPortFree(resp.url.arg);
-		}else{
-			DISP("Decoded Failed\r\n");
-		}
-		DISP("\r\n===========\r\n");
-	}
-#else
 	if(ret >= 0 || ret == HLO_STREAM_EOF ){
+		// grab the running hmac and drop it in the stream
+		get_hmac( hmac, hmac_payload_str );
+		ret = hlo_stream_transfer_all(INTO_STREAM, output, hmac, sizeof(hmac), 4);
+		hlo_stream_close(hmac_payload_str);
+		hlo_stream_close(input);
+
 		DISP("\r\n===========\r\n");
 			DISP("Playback Audio\r\n");
 
@@ -332,7 +304,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	else{
 		hlo_stream_close(output);
 	}
-#endif
 	keyword_net_deinitialize();
 	return ret;
 }
@@ -684,11 +655,6 @@ void AudioControlTask(void * unused) {
 
 		DISP("starting new stream\n");
 		audio_sig_stop = 0;
-
-		while( !wifi_status_get(HAS_IP) ) {
-			vTaskDelay(1000);
-		}
-
 
 		hlo_stream_t * in;
 		in = hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_RECORD);

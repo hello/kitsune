@@ -500,7 +500,7 @@ static int _check_bw(bw_stream_t * s, size_t t, int rv) {
 		LOGE("BW too low %d\n", _get_bw(s, t) );
 		stop_led_animation( 0, 33 );
 		play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1,18, 1);
-		return HLO_STREAM_ERROR;
+		return HLO_STREAM_EOF;
 	}
 	return rv;
 }
@@ -514,6 +514,7 @@ static int _write_bw(void * ctx, const void * buf, size_t size){
 static int _read_bw(void * ctx, void * buf, size_t size){
 	bw_stream_t * stream = (bw_stream_t*)ctx;
 	int rv = hlo_stream_read(stream->base, buf, size);
+
 	if( rv > 0 ) { stream->brd += rv; }
 	return _check_bw(stream, stream->brd, rv);
 }
