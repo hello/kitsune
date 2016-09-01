@@ -708,13 +708,13 @@ uint8_t get_alpha_from_light()
 	int adjust;
 
 
-	xSemaphoreTake(light_smphr, portMAX_DELAY);
+	xSemaphoreTakeRecursive(light_smphr, portMAX_DELAY);
 	if( light > adjust_max_light ) {
 		adjust = adjust_max_light;
 	} else {
 		adjust = light_mean;
 	}
-	xSemaphoreGive(light_smphr);
+	xSemaphoreGiveRecursive(light_smphr);
 
 	uint8_t alpha = 0xFF * adjust / adjust_max_light;
 	alpha = alpha < 10 ? 10 : alpha;
@@ -729,7 +729,7 @@ static int _is_light_off()
 	const int light_off_threshold = 500;
 	int ret = 0;
 
-	xSemaphoreTake(light_smphr, portMAX_DELAY);
+	xSemaphoreTakeRecursive(light_smphr, portMAX_DELAY);
 	if(last_light != -1)
 	{
 		int delta = last_light - light;
@@ -745,7 +745,7 @@ static int _is_light_off()
 	}
 
 	last_light = light;
-	xSemaphoreGive(light_smphr);
+	xSemaphoreGiveRecursive(light_smphr);
 	return ret;
 
 }
@@ -883,6 +883,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			}
 
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
+			if (xSemaphoreTakeRecursive(light_smphr, portMAX_DELAY)) {
 				light = w;
 				rgb[0] = r;
 				rgb[1] = g;
@@ -898,6 +899,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				}
 //				LOGI( "%d\t%d\t%d\t%d\t%d\n", delta, light_mean, light_m2, light_cnt, _is_light_off());
 				xSemaphoreGive(light_smphr);
+				xSemaphoreGiveRecursive(light_smphr);
 
 				if(light_cnt % 5 == 0 && led_is_idle(0) ) {
 					if(_is_light_off()) {
@@ -1171,6 +1173,7 @@ void sample_sensor_data(periodic_data* data)
 
 	// copy over light values
 	if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
+	if (xSemaphoreTakeRecursive(light_smphr, portMAX_DELAY)) {
 		if(light_cnt == 0)
 		{
 			data->has_light_sensor = false;
@@ -1202,6 +1205,7 @@ void sample_sensor_data(periodic_data* data)
 		data->light_sensor.has_clear = true;
 		data->light_sensor.clear = light;
 		xSemaphoreGive(light_smphr);
+		xSemaphoreGiveRecursive(light_smphr);
 	}
 
 	{
@@ -2186,7 +2190,7 @@ void vUARTTask(void *pvParameters) {
 	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
 	pill_prox_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
 	vSemaphoreCreateBinary(dust_smphr);
-	vSemaphoreCreateBinary(light_smphr);
+	light_smphr = xSemaphoreCreateRecursiveMutex();
 	vSemaphoreCreateBinary(spi_smphr);
 	alarm_smphr = xSemaphoreCreateRecursiveMutex();
 
