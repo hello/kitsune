@@ -251,7 +251,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				//todo update this bw rate when switching to adpcm
 				input = hlo_light_stream( input,true, 300 );
 				input = hlo_stream_en( input );
-				input = hlo_stream_bw_limited( input, AUDIO_NET_RATE - 4, 5000);
+				input = hlo_stream_bw_limited( input, AUDIO_NET_RATE - AUDIO_NET_RATE/4, 5000);
 				light_open = true;
 			}
 			ret = hlo_stream_transfer_all(INTO_STREAM, hmac_payload_str,  (uint8_t*)samples, ret, 4);
