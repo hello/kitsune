@@ -670,7 +670,6 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 #include "protobuf/state.pb.h"
 AudioState get_audio_state();
 
-void ble_proto_led_init();
 
 static volatile int confidence = 70;
 int cmd_confidence(int argc, char *argv[]) {
@@ -680,7 +679,6 @@ int cmd_confidence(int argc, char *argv[]) {
 void AudioControlTask(void * unused) {
 	audio_sig_stop = 0;
 	int ret;
-	bool started = false;
 
 	for(;;) {
 
@@ -697,11 +695,6 @@ void AudioControlTask(void * unused) {
 
 		hlo_stream_t * out;
 		out = hlo_http_post("https://dev-speech.hello.is/v1/upload/audio?r=16000&response=mp3", NULL);
-
-		if( !started ) {
-			ble_proto_led_init();
-			started = true;
-		}
 
 		if(in && out){
 			ret = hlo_filter_voice_command(in,out,NULL, NULL);
