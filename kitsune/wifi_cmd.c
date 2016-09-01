@@ -63,6 +63,7 @@ int send_top(char *, int);
 void mcu_reset()
 {
 	set_volume(0, 1000);
+	codec_mute_spkr();
 	uart_logger_flush_err_shutdown();
 	send_top("bounce", strlen("bounce"));
 	vTaskDelay(1000);
