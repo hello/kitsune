@@ -433,7 +433,7 @@ static int _read_energy(void * ctx, void * buf, size_t size){
 			stream->reduced = 15 * stream->reduced >> 4;
 			stream->reduced += abs(stream->eng - stream->last_eng)<<1;
 
-			stream->lp += ( stream->reduced - stream->lp ) >> 3;
+			stream->lp += ( stream->reduced - stream->lp ) >> 1;
 			DISP("%d\t\t\r", stream->eng);
 
 			stream->last_eng = stream->eng;
