@@ -3,6 +3,8 @@
 #include "hlo_async.h"
 #include "wlan.h"
 
+#define HOST_LEN 32
+#define PATH_LEN 64
 
 //scans and copies a list of unique result
 int get_unique_wifi_list(SlWlanNetworkEntry_t * result, size_t num_entries);
@@ -20,8 +22,8 @@ typedef struct{
 		HTTP,
 		HTTPS,
 	} protocol;
-	char host[32];
-	char path[64];
+	char host[HOST_LEN];
+	char path[PATH_LEN];
 }url_desc_t;
 int parse_url(url_desc_t * desc, const char * url);
 
