@@ -1705,6 +1705,7 @@ void launch_tasks() {
 	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
 #endif
+	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 2, NULL);
 }
 
 
@@ -2237,8 +2238,6 @@ void vUARTTask(void *pvParameters) {
 
 	// Create audio tasks for playback and record
 	xTaskCreate(AudioPlaybackTask,"playbackTask",10*1024/4,NULL,4,NULL);
-	//xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
-	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 2, NULL);
 
 	/*******************************************************************************
 	*           AUDIO INIT END
