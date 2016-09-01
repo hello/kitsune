@@ -213,7 +213,7 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 
 extern volatile int sys_volume;
 int32_t set_volume(int v, unsigned int dly);
-#define AUDIO_NET_RATE (AUDIO_SAMPLE_RATE/2)
+#define AUDIO_NET_RATE (AUDIO_SAMPLE_RATE/(1024*2))
 
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
@@ -253,7 +253,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			if( !light_open ) {
 				AudioTask_StopPlayback();
 				//todo update this bw rate when switching to adpcm
-				hmac_payload_str = hlo_stream_bw_limited( hmac_payload_str, AUDIO_NET_RATE*2 - 4, 5000);
+				hmac_payload_str = hlo_stream_bw_limited( hmac_payload_str, AUDIO_NET_RATE/2 - 1, 5000);
 				input = hlo_light_stream( input,true, 300 );
 				input = hlo_stream_en( input );
 				light_open = true;
