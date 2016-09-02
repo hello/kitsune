@@ -122,7 +122,7 @@ static int _start_connection(hlo_sock_ctx_t * ctx) {
 		if (!ctx->connected && ctx->setup) {
 			rv = connect(ctx->sock, &sAddr, sizeof(sAddr));
 
-			DISP("connect return %d\n", rv);
+			LOGI("connect return %d\n", rv);
 			if( rv < 0 ) {
 					LOGI("Could not connect %d\n\r\n\r", rv);
 			} else {

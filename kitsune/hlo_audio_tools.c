@@ -199,12 +199,12 @@ typedef struct{
 
 static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	if (keyword == okay_sense) {
-			DISP("OKAY SENSE\r\n");
+		LOGI("OKAY SENSE\r\n");
 	}
 }
 static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	if (keyword == okay_sense) {
-		DISP("Keyword Done\r\n");
+		LOGI("Keyword Done\r\n");
 		((nn_keyword_ctx_t *)ctx)->keyword_detected++;
 	}
 }
@@ -268,21 +268,17 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		BREAK_ON_SIG(signal);
 		if(nn_ctx.keyword_detected == 0 &&
 				xTaskGetTickCount() - begin > 10*60*1000 ) {
-			hlo_stream_close(hmac_payload_str);
-			keyword_net_deinitialize();
-			return HLO_STREAM_EOF;
+			ret = HLO_STREAM_EOF;
+			break;
 		}
 	}
 
-	// grab the running hmac and drop it in the stream
-	get_hmac( hmac, hmac_payload_str );
-	ret = hlo_stream_transfer_all(INTO_STREAM, output, hmac, sizeof(hmac), 4);
-	hlo_stream_close(hmac_payload_str);
-	hlo_stream_close(input);
-
 	if(ret >= 0 || ret == HLO_STREAM_EOF ){
-		DISP("\r\n===========\r\n");
-			DISP("Playback Audio\r\n");
+		LOGI("\r\n===========\r\n");
+			LOGI("Playback Audio\r\n");
+			// grab the running hmac and drop it in the stream
+			get_hmac( hmac, hmac_payload_str );
+			ret = hlo_stream_transfer_all(INTO_STREAM, output, hmac, sizeof(hmac), 4);
 
 			output = hlo_stream_bw_limited( output, 1, 5000);
 			output = hlo_light_stream( output, false, LED_MAX/4 );
@@ -299,11 +295,14 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			ustrncpy(desc.source_name, "voice", sizeof(desc.source_name));
 			AudioTask_StartPlayback(&desc);
 
-			DISP("\r\n===========\r\n");
+			LOGI("\r\n===========\r\n");
 	}
 	else{
 		hlo_stream_close(output);
 	}
+	hlo_stream_close(hmac_payload_str);
+	hlo_stream_close(input);
+
 	keyword_net_deinitialize();
 	return ret;
 }
