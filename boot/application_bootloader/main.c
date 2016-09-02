@@ -566,6 +566,9 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 		switch (ucActiveImg) {
 
 		case IMG_ACT_USER1:
+			if (Test(IMG_ACT_USER1,  GetSize((const unsigned char *)IMG_USER_1))) {
+				Execute();
+			}
 			Load((unsigned char *) IMG_USER_1, ulUserImg2Token);
 			if (!Test(IMG_ACT_USER1,  GetSize((const unsigned char *)IMG_USER_1))) {
 				LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulUserImg1Token);
@@ -575,6 +578,9 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 			break;
 
 		case IMG_ACT_USER2:
+			if (Test(IMG_ACT_USER2,  GetSize((const unsigned char *)IMG_USER_2))) {
+				Execute();
+			}
 			Load((unsigned char *) IMG_USER_2, ulUserImg2Token);
 			if (!Test(IMG_ACT_USER2,  GetSize((const unsigned char *)IMG_USER_2))) {
 				LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulUserImg1Token);
@@ -584,6 +590,9 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 			break;
 
 		default:
+			if (Test(IMG_ACT_FACTORY,  GetSize((const unsigned char *)IMG_FACTORY_DEFAULT))) {
+				Execute();
+			}
 			LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulFactoryImgToken);
 			break;
 		}
