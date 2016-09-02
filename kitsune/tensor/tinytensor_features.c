@@ -40,7 +40,7 @@
 #define START_SPEECH_THRESHOLD (4000)
 #define STOP_SPEECH_THRESHOLD (1000)
 
-#define NUM_NONSPEECH_FRAMES_TO_TURN_OFF   (50)
+#define NUM_NONSPEECH_FRAMES_TO_TURN_OFF   (200)
 #define NUM_SPEECH_FRAMES_TO_TURN_ON       (2)
 //hanning window
 __attribute__((section(".data")))

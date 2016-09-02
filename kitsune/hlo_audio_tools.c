@@ -207,6 +207,7 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	if (keyword == okay_sense) {
 		LOGI("Keyword Done\r\n");
 		((nn_keyword_ctx_t *)ctx)->keyword_detected++;
+		((nn_keyword_ctx_t *)ctx)->is_speaking = true;
 	}
 }
 
