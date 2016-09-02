@@ -491,7 +491,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					}
 					break;
 				case '~':
-					rstr = open_serial_flash(p+1, HLO_STREAM_READ, 65536);
+					rstr = open_serial_flash(p+1, HLO_STREAM_READ,  1024*128);
 					break;
 				default:
 					LOGE("stream missing\n");
@@ -530,7 +530,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					rstr = uart_stream();
 					break;
 				case '~':
-					rstr = open_serial_flash(p+1, HLO_STREAM_WRITE, 65536);
+					rstr = open_serial_flash(p+1, HLO_STREAM_WRITE, 1024*128);
 					break;
 				case 'f':
 				case 'F':
