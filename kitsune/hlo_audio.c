@@ -433,7 +433,7 @@ static int _read_energy(void * ctx, void * buf, size_t size){
 			stream->reduced = 15 * stream->reduced >> 4;
 			stream->reduced += abs(stream->eng - stream->last_eng)<<1;
 
-			stream->lp += ( stream->reduced - stream->lp ) >> 3;
+			stream->lp += ( stream->reduced - stream->lp ) >> 1;
 			DISP("%d\t\t\r", stream->eng);
 
 			stream->last_eng = stream->eng;
@@ -500,7 +500,7 @@ static int _check_bw(bw_stream_t * s, size_t t, int rv) {
 		LOGE("BW too low %d\n", _get_bw(s, t) );
 		stop_led_animation( 0, 33 );
 		play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1,18, 1);
-		return HLO_STREAM_ERROR;
+		return HLO_STREAM_EOF;
 	}
 	return rv;
 }
@@ -514,6 +514,7 @@ static int _write_bw(void * ctx, const void * buf, size_t size){
 static int _read_bw(void * ctx, void * buf, size_t size){
 	bw_stream_t * stream = (bw_stream_t*)ctx;
 	int rv = hlo_stream_read(stream->base, buf, size);
+
 	if( rv > 0 ) { stream->brd += rv; }
 	return _check_bw(stream, stream->brd, rv);
 }
@@ -544,7 +545,7 @@ hlo_stream_t * hlo_stream_bw_limited( hlo_stream_t * base, uint32_t bw, uint32_t
 	stream->bw = bw;
 	stream->base = base;
 	stream->startup = startup;
-	DISP("open bw\n") ;
+	LOGI("open bw\n") ;
 
 	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
 }

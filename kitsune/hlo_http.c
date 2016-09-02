@@ -24,6 +24,11 @@ hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const c
 //
 typedef struct{
 	int sock;
+	bool connected;
+	bool setup;
+	security_type sec;
+	unsigned long ip;
+	char host[HOST_LEN];
 }hlo_sock_ctx_t;
 
 #define DBG_SOCKSTREAM(...)
@@ -50,82 +55,104 @@ static sockaddr _get_addr(unsigned long ip, uint16_t port){
 	 sAddr.sa_data[5] = (char) (ip & 0xff);
 	 return sAddr;
 }
-static int _start_connection(unsigned long ip, security_type sec){
-	int sock = -1;
-	if( ip ){
-		 sockaddr sAddr;
-		 if(sec == SOCKET_SEC_SSL){
-			 wait_for_time(WAIT_FOREVER);
-			 sAddr = _get_addr(ip, 443);
-			 sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
-			 if(sock <= 0){
-				 goto exit;
-			 }
-			#define SL_SSL_CA_CERT_FILE_NAME "/cert/digi.cer"
+static int _start_connection(hlo_sock_ctx_t * ctx) {
+	int rv = 0;
+	if( !wifi_status_get(HAS_IP) ) {
+		return false;
+	}
+	if( !ctx->ip ) {
+		ctx->ip = _get_ip(ctx->host);
+		DISP("got ip %x\n", ctx->ip);
+	}
+	if (ctx->ip && !ctx->setup) {
+		DISP("setting up\n");
+		sockaddr sAddr = {0};
+		if (ctx->sec == SOCKET_SEC_SSL && has_good_time()) {
+			sAddr = _get_addr(ctx->ip, 443);
+			DISP("got addr\n");
+
+			ctx->sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
+			if (ctx->sock <= 0) {
+				DISP("sock fail\n");
+				goto exit;
+			}
+#define SL_SSL_CA_CERT_FILE_NAME "/cert/digi.cer"
 			// configure the socket as SSLV3.0
 			// configure the socket as RSA with RC4 128 SHA
 			// setup certificate
 			unsigned char method = SL_SO_SEC_METHOD_TLSV1_2;
-			#ifdef USE_SHA2
+#ifdef USE_SHA2
 			unsigned int cipher = SL_WLAN_SEC_MASK_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256;
-			#else
+#else
 			unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
-			#endif
-			if(	sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
-				sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
-				sl_SetSockOpt(sock, SL_SOL_SOCKET, \
-									   SL_SO_SECURE_FILES_CA_FILE_NAME, \
-									   SL_SSL_CA_CERT_FILE_NAME, \
-									   strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0  )
-			{
-			LOGI( "error setting ssl options\r\n" );
+#endif
+			if (sl_SetSockOpt(ctx->sock, SL_SOL_SOCKET, SL_SO_SECMETHOD,
+					&method, sizeof(method)) < 0
+					|| sl_SetSockOpt(ctx->sock, SL_SOL_SOCKET,
+							SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0
+					|| sl_SetSockOpt(ctx->sock, SL_SOL_SOCKET,
+							SL_SO_SECURE_FILES_CA_FILE_NAME,
+							SL_SSL_CA_CERT_FILE_NAME,
+							strlen(SL_SSL_CA_CERT_FILE_NAME)) < 0) {
+				LOGI("error setting ssl options\r\n");
 			}
 			{
 				char buf[8];
 				LOGI("Setting ignore cert store... %d\n",
-						sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_DISABLE_CERTIFICATE_STORE, buf, sizeof(buf) ));
+						sl_SetSockOpt(ctx->sock, SL_SOL_SOCKET,
+								SL_SO_SECURE_DISABLE_CERTIFICATE_STORE, buf,
+								sizeof(buf)));
 			}
-		 }else{
-			 sAddr = _get_addr(ip, 80);
-			 sock = socket(AF_INET, SOCK_STREAM, SL_IPPROTO_TCP);
-		 }
-		 if( sock < 0 ) goto exit;
+		} else {
+			sAddr = _get_addr(ctx->ip, 80);
+			DISP("got addr unsec\n");
+			ctx->sock = socket(AF_INET, SOCK_STREAM, SL_IPPROTO_TCP);
+		}
 
-		 timeval tv = (timeval){
-			.tv_sec = 2,
-			.tv_usec = 0,
-		 };
-		 sl_SetSockOpt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv) );
+		if (ctx->sock < 0) {
+			DISP("sock fail 2\n");
+			goto exit;
+		} else {
+			timeval tv = (timeval ) { .tv_sec = 1, .tv_usec = 0, };
+			sl_SetSockOpt(ctx->sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv,
+					sizeof(tv));
+			ctx->setup = true;
+		}
 
-		 int retry = 5;
-		 int rv;
-		 do{
-			 rv = connect(sock, &sAddr, sizeof(sAddr));
-			 vTaskDelay(100);
-		 }while(rv == SL_ERROR_BSD_EALREADY && retry--);
-		 if(rv < 0){
-			 LOGI("Could not connect %d\n\r\n\r", rv);
-			 sock = -1;
-		 }
-#if 0
-		 SlSockNonblocking_t enableOption;
-		 enableOption.NonblockingEnabled = 1;//blocking mode
-		 sl_SetSockOpt(sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption));
-#endif
+		if (!ctx->connected && ctx->setup) {
+			rv = connect(ctx->sock, &sAddr, sizeof(sAddr));
+
+			LOGI("connect return %d\n", rv);
+			if( rv < 0 ) {
+					LOGI("Could not connect %d\n\r\n\r", rv);
+			} else {
+				ctx->connected = true;
+			}
+		}
 	}
 exit:
-	return sock;
+	return ctx->setup && ctx->connected;
 }
 static int _close_sock(void * ctx){
-	int sock = (int)ctx;
-	close(sock);
+	hlo_sock_ctx_t * sock_ctx = (hlo_sock_ctx_t*)ctx;
+	if( sock_ctx->setup ) {
+		close(sock_ctx->sock);
+	}
+	vPortFree(sock_ctx);
 	//nwp_reset();
 	return 0;
 }
 static int _read_sock(void * ctx, void * buf, size_t size){
-	int sock = (int)ctx;
+	hlo_sock_ctx_t * sock_ctx = (hlo_sock_ctx_t*)ctx;
+
+	if( !sock_ctx->setup || !sock_ctx->connected ) {
+		if( !_start_connection(sock_ctx)) {
+			return HLO_STREAM_ERROR;
+		}
+	}
+
 	DBG_SOCKSTREAM("LISTENING %d\n", size);
-	int rv =  recv(sock, buf, size,0);
+	int rv =  recv(sock_ctx->sock, buf, size,0);
     DBG_SOCKSTREAM("RECV %d\n", rv);
 
 	if(rv == EAGAIN){
@@ -136,34 +163,39 @@ static int _read_sock(void * ctx, void * buf, size_t size){
 	return rv;
 }
 static int _write_sock(void * ctx, const void * buf, size_t size){
-	int sock = (int)ctx;
+	hlo_sock_ctx_t * sock_ctx = (hlo_sock_ctx_t*)ctx;
 	int rv = 0;
 
+	if( !sock_ctx->setup || !sock_ctx->connected ) {
+		if( !_start_connection(sock_ctx)) {
+			return HLO_STREAM_ERROR;
+		}
+	}
+
 	DBG_SOCKSTREAM("SENDING %d\n", size);
-	rv = send(sock, buf, size, 0);
+	rv = send(sock_ctx->sock, buf, size, 0);
 	DBG_SOCKSTREAM("SENT %d\n", rv);
 	if( rv == EAGAIN ){
 		rv = 0;
 	}
 	return rv;
 }
-hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
+hlo_stream_t * hlo_sock_stream(const char * host, security_type secure){
 	hlo_stream_vftbl_t impl = (hlo_stream_vftbl_t){
 		.write = _write_sock,
 		.read = _read_sock,
 		.close = _close_sock,
 	};
-	int sock = -1;
-	if(!secure){
-		sock = _start_connection(_get_ip(host), SOCKET_SEC_NONE);
-	}else{
-		sock = _start_connection(_get_ip(host), SOCKET_SEC_SSL);
-	}
-	if(sock >= 0){
-		LOGI("sock is %d\r\n", sock);
-		return hlo_stream_new(&impl, (void*)sock, HLO_STREAM_READ_WRITE);
-	}
-	return NULL;
+	hlo_sock_ctx_t * sock_ctx;
+	sock_ctx = pvPortMalloc(sizeof(*sock_ctx));
+	assert(sock_ctx);
+
+	memset(sock_ctx, 0, sizeof(*sock_ctx));
+	memcpy( sock_ctx->host, host, HOST_LEN );
+	sock_ctx->sec = secure;
+
+	_start_connection(sock_ctx);
+	return hlo_stream_new(&impl, (void*)sock_ctx, HLO_STREAM_READ_WRITE);
 }
 
 
@@ -588,7 +620,7 @@ hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const ch
 	}
 	hlo_http_context_t * session = (hlo_http_context_t*)ret->ctx;
 	int transfer_len = _generate_header(session->scratch, sizeof(session->scratch), GET, host, endpoint, "*/*");
-	DISP("%s", session->scratch);
+	//DISP("%s", session->scratch);
 	if(transfer_len > 0 &&  transfer_len == hlo_stream_transfer_all(INTO_STREAM, sock, session->scratch, transfer_len, 4) ){
 		return ret;
 	}else{

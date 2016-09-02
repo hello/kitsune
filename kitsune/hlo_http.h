@@ -7,13 +7,14 @@
  * --------------         ------------------                        ---------
  */
 #include "hlo_stream.h"
+#include "wifi_cmd.h"
 
 
 /**
  * primitive sock stream
  * for the requsts API
  */
-hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure);
+hlo_stream_t * hlo_sock_stream(const char * host, security_type secure);
 hlo_stream_t * hlo_ws_stream( hlo_stream_t * base);
 
 /**

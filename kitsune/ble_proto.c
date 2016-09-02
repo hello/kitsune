@@ -681,6 +681,32 @@ const char * get_top_version(void){
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
 	bool finished_with_command = true;
+
+	if(command->has_ble_bond_count) {
+		static bool played = false;
+		if( !played && booted && !is_test_boot() && xTaskGetTickCount() < 30000 ) {
+			if(command->has_ble_bond_count)
+			{
+				LOGI("BOND COUNT %d\n", command->ble_bond_count);
+				// this command fires before MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID
+				// and it is the 1st command you can get from top.
+				if(!command->ble_bond_count){
+					// If we had ble_bond_count field, boot LED animation can start from here. Visual
+					// delay of device boot can be greatly reduced.
+					play_startup_sound();
+					ble_proto_led_init();
+				}else{
+					ble_proto_led_init();
+				}
+			} else {
+				LOGI("NO BOND COUNT\n");
+				play_startup_sound();
+				ble_proto_led_init();
+			}
+			played = true;
+		}
+	}
+
 	switch(command->type)
 	{
 		case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
@@ -731,29 +757,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 			// Get morpheus device id request from Nordic
 			LOGI("GET DEVICE ID\n");
 			_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID);
-
-			static bool played = false;
-			if( !played && booted && !is_test_boot() && xTaskGetTickCount() < 5000 ) {
-				if(command->has_ble_bond_count)
-				{
-					LOGI("BOND COUNT %d\n", command->ble_bond_count);
-					// this command fires before MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID
-					// and it is the 1st command you can get from top.
-					if(!command->ble_bond_count){
-						// If we had ble_bond_count field, boot LED animation can start from here. Visual
-						// delay of device boot can be greatly reduced.
-						play_startup_sound();
-						ble_proto_led_init();
-					}else{
-						ble_proto_led_init();
-					}
-				} else {
-					LOGI("NO BOND COUNT\n");
-					play_startup_sound();
-					ble_proto_led_init();
-				}
-				played = true;
-			}
 		}
 		break;
 	}
