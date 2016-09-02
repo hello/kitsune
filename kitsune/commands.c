@@ -861,6 +861,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			vTaskDelay(1);
 
 			if( 0 != get_rgb_prox( &w,&r,&g,&b,&p ) ) {
+				xSemaphoreGiveRecursive(i2c_smphr);
 				goto fail_fast_i2c;
 			}
 			LOGP("%d,%d,%d,%d,%d\n", w,r,g,b,p );
@@ -882,7 +883,6 @@ void thread_fast_i2c_poll(void * unused)  {
 				break;
 			}
 
-			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 			if (xSemaphoreTakeRecursive(light_smphr, portMAX_DELAY)) {
 				light = w;
 				rgb[0] = r;
@@ -897,8 +897,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				if( light_m2 < 0 ) {
 					light_m2 = 0x7FFFFFFF;
 				}
-//				LOGI( "%d\t%d\t%d\t%d\t%d\n", delta, light_mean, light_m2, light_cnt, _is_light_off());
-				xSemaphoreGive(light_smphr);
+//				LOGI("Light: %d\t%d\t%d\t%d\t%d\n", delta, light_mean, light_m2, light_cnt, _is_light_off());
 				xSemaphoreGiveRecursive(light_smphr);
 
 				if(light_cnt % 5 == 0 && led_is_idle(0) ) {
@@ -1172,7 +1171,6 @@ void sample_sensor_data(periodic_data* data)
 	}
 
 	// copy over light values
-	if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 	if (xSemaphoreTakeRecursive(light_smphr, portMAX_DELAY)) {
 		if(light_cnt == 0)
 		{
@@ -1204,7 +1202,6 @@ void sample_sensor_data(periodic_data* data)
 		data->light_sensor.b = rgb[2];
 		data->light_sensor.has_clear = true;
 		data->light_sensor.clear = light;
-		xSemaphoreGive(light_smphr);
 		xSemaphoreGiveRecursive(light_smphr);
 	}
 

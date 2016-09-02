@@ -642,12 +642,14 @@ int Cmd_meas_TVOC(int argc, char *argv[]) {
 static bool haz_tmg4903() {
 	unsigned char b[2]={0};
 	b[0] = 0x92;
-	(I2C_IF_Write(0x39, b, 1, 1));
-	(I2C_IF_Read(0x39, b, 1));
-
+	if(xSemaphoreTakeRecursive(i2c_smphr, 1000)){
+		(I2C_IF_Write(0x39, b, 1, 1));
+		(I2C_IF_Read(0x39, b, 1));
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
 	if( b[0] != 0xb8 ) {
 		LOGE("can't find TMG4903\n");
-		xSemaphoreGiveRecursive(i2c_smphr);
+		//xSemaphoreGiveRecursive(i2c_smphr);
 		return false;
 	}
 	return true;
@@ -659,25 +661,29 @@ int init_light_sensor()
 
 	if( !haz_tmg4903() ) {
 		LOGE("can't find TMG4903\n");
-		xSemaphoreGiveRecursive(i2c_smphr);
+		//xSemaphoreGiveRecursive(i2c_smphr);
 		return FAILURE;
 	}
-	b[0] = 0x80;
-	b[1] = 0b1000111; //enable gesture/prox/als/power
-	b[2] = 249; //20ms integration
-	b[3] = 35; //100ms prox time
-	b[4] = 249; //20ms als time
-	(I2C_IF_Write(0x39, b, 5, 1));
-	b[0] = 0x8d;
-	b[1] = 0x0;
-	(I2C_IF_Write(0x39, b, 2, 1));
-	b[0] = 0x90;
-	b[1] = 0x3;
-	(I2C_IF_Write(0x39, b, 2, 1));
 
-	b[0] = 0x8F;
-	b[1] = 0x12;
-	(I2C_IF_Write(0x39, b, 2, 1));
+	if(xSemaphoreTakeRecursive(i2c_smphr, 1000)){
+		b[0] = 0x80;
+		b[1] = 0b1000111; //enable gesture/prox/als/power
+		b[2] = 249; //20ms integration
+		b[3] = 35; //100ms prox time
+		b[4] = 249; //20ms als time
+		(I2C_IF_Write(0x39, b, 5, 1));
+		b[0] = 0x8d;
+		b[1] = 0x0;
+		(I2C_IF_Write(0x39, b, 2, 1));
+		b[0] = 0x90;
+		b[1] = 0x3;
+		(I2C_IF_Write(0x39, b, 2, 1));
+
+		b[0] = 0x8F;
+		b[1] = 0x12;
+		(I2C_IF_Write(0x39, b, 2, 1));
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
 
 	vTaskDelay(50);
 	return SUCCESS;
@@ -692,7 +698,7 @@ int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p ) {
 	unsigned char b[10];
 	int i;
 
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	if(xSemaphoreTakeRecursive(i2c_smphr, 1000)){
 	/*Red, green, blue, and clear data are stored as 16-bit values.
 	The read sequence must read byte pairs (low followed by high)
 	 starting on an even address boundary (0x94, 0x96, 0x98, or 0x9A)
@@ -722,7 +728,8 @@ int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p ) {
 	if( i == 10  ) {
 		init_light_sensor();
 		LOGE("Fail to read TMG\n");
-		return 0;
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return FAILURE;
 	}
 
 	*w = get_le_short(b);
@@ -733,12 +740,19 @@ int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p ) {
 
 	xSemaphoreGiveRecursive(i2c_smphr);
 	return SUCCESS;
+	}
+	else{
+		return FAILURE;
+	}
+
 }
 
 int Cmd_readlight(int argc, char *argv[]) {
 	int r,g,b,w,p;
 	if( SUCCESS == get_rgb_prox( &w, &r, &g, &b, &p ) ) {
 		LOGF("%d,%d,%d,%d,%d\n", w,r,g,b,p );
+	}else{
+		LOGF("read light failed.\r\n");
 	}
 	return SUCCESS;
 }
@@ -939,6 +953,7 @@ int cmd_codec(int argc, char *argv[]) {
 		cmd[0] = atoi(argv[3]);
 		cmd[1] = atoi(argv[4]);
 		I2C_IF_Write(Codec_addr, cmd, 2, 1);
+		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
 	return 0;
