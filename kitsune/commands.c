@@ -912,6 +912,9 @@ void thread_fast_i2c_poll(void * unused)  {
 
 				if(_light_data.light_cnt % 5 == 0 && led_is_idle(0) ) {
 					if(_is_light_off()) {
+#if 0
+						LOGI("LIGHTS OUT\n");
+#endif
 						_show_led_status();
 					}
 				}
