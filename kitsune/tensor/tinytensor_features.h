@@ -30,6 +30,7 @@ void tinytensor_features_deinitialize(void);
 
 void tinytensor_features_add_samples(const int16_t * samples, const uint32_t num_samples);
 
+void tinytensor_features_force_voice_activity_detection(void);
     
     
 #ifdef __cplusplus

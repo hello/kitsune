@@ -205,10 +205,17 @@ static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	}
 }
 static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
+	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)ctx;
+
 	if (keyword == okay_sense) {
 		LOGI("Keyword Done\r\n");
-		((nn_keyword_ctx_t *)ctx)->keyword_detected++;
-		((nn_keyword_ctx_t *)ctx)->is_speaking = true;
+		p->keyword_detected++;
+
+		if (!p->is_speaking) {
+			tinytensor_features_force_voice_activity_detection();
+			p->is_speaking = true;
+		}
+
 	}
 }
 
