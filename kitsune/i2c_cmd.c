@@ -425,16 +425,14 @@ int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 	b[0] = 1;
 	b[2] = b[1] = 0;
 	cmd = 0xf3;
-	while (b[0] != 4) {
+	for(;;) {
 		(I2C_IF_Write(BME_i2c, &cmd, 1, 1));
 		(I2C_IF_Read(BME_i2c, b, 1));
 
+		if (b[0] == 0 || b[0] == 4 ) break;
 		DBG_BME("%x %x %x\n", b[0],b[1],b[2] );
 
 		xSemaphoreGiveRecursive(i2c_smphr);
-		if( b[0] == 0 ) {
-			return -1;
-		}
 		vTaskDelay(5);
 		assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 	}
