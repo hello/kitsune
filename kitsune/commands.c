@@ -1088,6 +1088,7 @@ void thread_tx(void* unused) {
 	}
 }
 #include "audio_types.h"
+extern volatile int led_duration;
 
 void sample_sensor_data(periodic_data* data)
 {
@@ -1095,6 +1096,9 @@ void sample_sensor_data(periodic_data* data)
 	{
 		return;
 	}
+
+	data->has_light_duration_ms = true;
+	data->light_duration_ms = led_duration;
 
 	AudioOncePerMinuteData_t aud_data;
 	data->unix_time = get_time();
@@ -1705,6 +1709,13 @@ void launch_tasks() {
 	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
 #endif
+
+	//#define DEMO
+	hlo_audio_init();
+
+	// Create audio tasks for playback and record
+	xTaskCreate(AudioPlaybackTask,"playbackTask",10*1024/4,NULL,4,NULL);
+
 	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 2, NULL);
 }
 
@@ -2232,12 +2243,6 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	start_top_boot_watcher();
-
-//#define DEMO
-	hlo_audio_init();
-
-	// Create audio tasks for playback and record
-	xTaskCreate(AudioPlaybackTask,"playbackTask",10*1024/4,NULL,4,NULL);
 
 	/*******************************************************************************
 	*           AUDIO INIT END

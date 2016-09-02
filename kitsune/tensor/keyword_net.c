@@ -13,6 +13,8 @@
 #include "arm_const_structs.h"
 #include "fft.h"
 
+static volatile int _is_net_running = 1;
+
 typedef struct {
 	KeywordCallback_t on_start;
 	KeywordCallback_t on_end;
@@ -30,9 +32,20 @@ typedef struct {
     CallbackItem_t callbacks[NUM_KEYWORDS];
     uint32_t counter;
 
+    tinytensor_speech_detector_callback_t speech_callback;
+    void * speech_callback_context;
+
 } KeywordNetContext_t;
 
 static KeywordNetContext_t _context;
+
+static void speech_detect_callback(void * context, SpeechTransition_t transition) {
+	KeywordNetContext_t * p = (KeywordNetContext_t *)context;
+
+	if (p->speech_callback) {
+		p->speech_callback(p->speech_callback_context,transition);
+	}
+}
 
 __attribute__((section(".ramcode")))
 static void feats_callback(void * p, Weight_t * feats) {
@@ -42,6 +55,10 @@ static void feats_callback(void * p, Weight_t * feats) {
 	uint32_t i;
 	int j;
 	DECLCHKCYC
+
+	if (!_is_net_running) {
+		return;
+	}
 
 	temp_tensor.dims[0] = 1;
 	temp_tensor.dims[1] = 1;
@@ -119,6 +136,13 @@ static void feats_callback(void * p, Weight_t * feats) {
 	CHKCYC("eval cmplt");
 }
 
+void keyword_net_resume_net_operation(void) {
+	_is_net_running = 1;
+}
+void keyword_net_pause_net_operation(void) {
+	_is_net_running = 0;
+}
+
 __attribute__((section(".ramcode")))
 void keyword_net_initialize(void) {
 	MEMSET(&_context,0,sizeof(_context));
@@ -127,7 +151,7 @@ void keyword_net_initialize(void) {
 
     tinytensor_allocate_states(&_context.state, &_context.net);
 
-	tinytensor_features_initialize(&_context,feats_callback, NULL);
+	tinytensor_features_initialize(&_context,feats_callback, speech_detect_callback);
 }
 
 __attribute__((section(".ramcode")))
@@ -146,6 +170,13 @@ void keyword_net_register_callback(void * target_context, Keyword_t keyword, int
 	_context.callbacks[keyword].activation_threshold = threshold;
 
 }
+
+__attribute__((section(".ramcode")))
+void keyword_net_register_speech_callback(void * context, tinytensor_speech_detector_callback_t callback) {
+	_context.speech_callback = callback;
+	_context.speech_callback_context = context;
+}
+
 __attribute__((section(".ramcode")))
 void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples) {
 	tinytensor_features_add_samples(samples,nsamples);
