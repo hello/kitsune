@@ -141,6 +141,10 @@ void tinytensor_features_get_mel_bank(int16_t * melbank,const int16_t * fr, cons
 
 }
 
+void tinytensor_features_force_voice_activity_detection(void) {
+	_this.is_speech = 1;
+	_this.num_nonspeech_frames = 0;
+}
 
 #define SPEECH_BIN_START (4)
 #define SPEECH_BIN_END (16)
@@ -204,14 +208,12 @@ static void do_voice_activity_detection(int16_t * fr,int16_t * fi,int16_t input_
             _this.speech_detector_callback(_this.results_context,stop_speech);
         }
         _this.is_speech = 0;
-        //printf("start speech\n");
     }
 
     if (_this.num_speech_frames == NUM_SPEECH_FRAMES_TO_TURN_ON && !_this.is_speech) {
         if (_this.speech_detector_callback) {
             _this.speech_detector_callback(_this.results_context,start_speech);
         }
-       // printf("end speech\n\n");
         _this.is_speech = 1;
     }
     
