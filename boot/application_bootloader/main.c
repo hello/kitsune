@@ -65,6 +65,7 @@ unsigned char sha[SHA1_SIZE] = {0};
 #define IMG_STATUS_TESTING      0x12344321
 #define IMG_STATUS_TESTREADY    0x56788765
 #define IMG_STATUS_NOTEST       0xABCDDCBA
+#define IMG_STATUS_FIRST_BOOT   0xA5A5A5A5
 
 /******************************************************************************
    Active Image
@@ -560,47 +561,16 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 			psBootInfo->ulImgStatus = IMG_STATUS_NOTEST;
 			BootInfoWrite(psBootInfo);
 		}
-		//
-		// Since boot the acive image.
-		//
-		switch (ucActiveImg) {
 
-		case IMG_ACT_USER1:
-			if (Test(IMG_ACT_USER1,  GetSize((const unsigned char *)IMG_USER_1))) {
-				Execute();
-			}
-			Load((unsigned char *) IMG_USER_1, ulUserImg2Token);
-			if (!Test(IMG_ACT_USER1,  GetSize((const unsigned char *)IMG_USER_1))) {
-				LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulUserImg1Token);
-			} else {
-				Execute();
-			}
-			break;
-
-		case IMG_ACT_USER2:
-			if (Test(IMG_ACT_USER2,  GetSize((const unsigned char *)IMG_USER_2))) {
-				Execute();
-			}
-			Load((unsigned char *) IMG_USER_2, ulUserImg2Token);
-			if (!Test(IMG_ACT_USER2,  GetSize((const unsigned char *)IMG_USER_2))) {
-				LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulUserImg1Token);
-			} else {
-				Execute();
-			}
-			break;
-
-		default:
-			if (Test(IMG_ACT_FACTORY,  GetSize((const unsigned char *)IMG_FACTORY_DEFAULT))) {
-				Execute();
-			}
-			LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulFactoryImgToken);
-			break;
+		// boot whatever was last loaded
+		if( IMG_STATUS_FIRST_BOOT != ulImgStatus ) {
+			Execute();
 		}
+
 	}
 
-	//
-	// Boot info might be corrupted just try for the factory one
-	//
+	psBootInfo->ulImgStatus = IMG_STATUS_NOTEST;
+	BootInfoWrite(psBootInfo);
 	LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT, ulFactoryImgToken);
 
 }
@@ -626,7 +596,7 @@ static int CreateDefaultBootInfo(sBootInfo_t *psBootInfo)
     //
     // Set the status to no test
     //
-    psBootInfo->ulImgStatus = IMG_STATUS_NOTEST;
+    psBootInfo->ulImgStatus = IMG_STATUS_FIRST_BOOT;
 
     //
     // Check if factor default image exists
@@ -668,89 +638,61 @@ void SimpleLinkSocketTriggerEventHandler(SlSockTriggerEvent_t	*pSlTriggerEvent)
 //! \return None
 //
 //*****************************************************************************
-int main()
-{
-  //
-  // Board Initialization
-  //
-  BoardInit();
+int main() {
+	//
+	// Board Initialization
+	//
+	BoardInit();
 
-  //
-  // Initialize the DMA
-  //
-  UDMAInit();
+	//
+	// Initialize the DMA
+	//
+	UDMAInit();
 
-  //
-  // Default configuration
-  //
-  sBootInfo.ucActiveImg = IMG_ACT_FACTORY;
-  sBootInfo.ulImgStatus = IMG_STATUS_NOTEST;
-  //
-  // Start slhost to get NVMEM service
-  //
-  sl_Start(NULL, NULL, NULL);
-  sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(0, 0, 0, 0), NULL, 0);
+	//
+	// Default configuration
+	//
+	sBootInfo.ucActiveImg = IMG_ACT_FACTORY;
+	sBootInfo.ulImgStatus = IMG_STATUS_FIRST_BOOT;
+	//
+	// Start slhost to get NVMEM service
+	//
+	sl_Start(NULL, NULL, NULL);
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION,
+			SL_WLAN_CONNECTION_POLICY(0, 0, 0, 0), NULL, 0);
 
-  //
-  // Open Boot info file for reading
-  //
-  long handle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO,
-		  SL_FS_READ,
-		  &ulBootInfoToken);
+	//
+	// Open Boot info file for reading
+	//
+	long handle = sl_FsOpen((unsigned char *) IMG_BOOT_INFO,
+	SL_FS_READ, &ulBootInfoToken);
 
-  //
-  // If successful, load the boot info
-  // else create a new file with default boot info.
-  //
-  if( handle >= 0 )
-  {
-    iRetVal = sl_FsRead(handle,0,
-                         (unsigned char *)&sBootInfo,
-                         sizeof(sBootInfo_t));
+	//
+	// If successful, load the boot info
+	// else create a new file with default boot info.
+	//
+	if (handle >= 0) {
+		iRetVal = sl_FsRead(handle, 0, (unsigned char *) &sBootInfo,
+				sizeof(sBootInfo_t));
 
-  }
-  else
-  {
+	} else {
+		handle = sl_FsOpen((unsigned char *) IMG_BOOT_INFO,
+				SL_FS_CREATE | SL_FS_OVERWRITE
+						| SL_FS_CREATE_MAX_SIZE(2 * sizeof(sBootInfo_t)),
+				&ulBootInfoToken);
+	}
 
-    //
-    // Create a new boot info file
-    //
-	  handle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO,
-			  	  SL_FS_CREATE|SL_FS_OVERWRITE| SL_FS_CREATE_MAX_SIZE( 2 * sizeof(sBootInfo_t)),
-                 &ulBootInfoToken);
+	iRetVal = sl_FsWrite(handle, 0, (unsigned char *) &sBootInfo,
+			sizeof(sBootInfo_t));
 
-    //
-    // Create a default boot info
-    //
-    iRetVal = CreateDefaultBootInfo(&sBootInfo);
+	//
+	// Close boot info function
+	//
+	sl_FsClose(handle, 0, 0, 0);
 
-    if(handle < 0)
-    {
-      //
-      // Can't boot no bootable image found
-      //
-      while(1)
-      {
-
-      }
-    }
-
-    //
-    // Write the default boot info.
-    //
-    iRetVal = sl_FsWrite(handle,0,
-                         (unsigned char *)&sBootInfo,
-                         sizeof(sBootInfo_t));
-  }
-
-  //
-  // Close boot info function
-  //
-  sl_FsClose(handle, 0, 0, 0);
-
-  //
-  // Load and execute the image base on boot info.
-  //
+	//
+	// Load and execute the image base on boot info.
+	//
   ImageLoader(&sBootInfo);
 
 }
