@@ -195,7 +195,6 @@ typedef struct{
 	uint8_t threshold;
 	uint16_t reserved;
 	uint32_t timeout;
-	uint8_t is_speech;
 	uint8_t is_speaking;
 }nn_keyword_ctx_t;
 
@@ -214,12 +213,12 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 static void _speech_detect_callback(void * context, SpeechTransition_t transition) {
 	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)context;
 
-	if (transition == start_speech && !p->is_speaking ) {
+	if (transition == start_speech) {
 		DISP("start speech\r\n");
 		p->is_speaking = 1;
 	}
 
-	if (transition == stop_speech && p->is_speaking) {
+	if (transition == stop_speech) {
 		p->is_speaking = 0;
 		DISP("stop speech\r\n");
 	}
@@ -265,9 +264,13 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		if( !ready ) {
 			ready = true;
 		}
+
+		//net always gets samples
+		keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
+
 		if( nn_ctx.keyword_detected > 0 ) {
 			if( !light_open ) {
-				AudioTask_StopPlayback();
+				keyword_net_pause_net_operation();
 				//todo update this bw rate when switching to adpcm
 				input = hlo_stream_bw_limited( input, AUDIO_NET_RATE*2 - 4, 5000);
 				input = hlo_light_stream( input,true, 300 );
@@ -284,8 +287,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			}
 
 		} else {
-			keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
+			keyword_net_resume_net_operation();
 		}
+
 		BREAK_ON_SIG(signal);
 		if(nn_ctx.keyword_detected == 0 &&
 				xTaskGetTickCount() - begin > 10*60*1000 ) {

@@ -13,6 +13,8 @@
 #include "arm_const_structs.h"
 #include "fft.h"
 
+static volatile int _is_net_running = 1;
+
 typedef struct {
 	KeywordCallback_t on_start;
 	KeywordCallback_t on_end;
@@ -53,6 +55,10 @@ static void feats_callback(void * p, Weight_t * feats) {
 	uint32_t i;
 	int j;
 	DECLCHKCYC
+
+	if (!_is_net_running) {
+		return;
+	}
 
 	temp_tensor.dims[0] = 1;
 	temp_tensor.dims[1] = 1;
@@ -128,6 +134,13 @@ static void feats_callback(void * p, Weight_t * feats) {
 	//free
 	out->delete_me(out);
 	CHKCYC("eval cmplt");
+}
+
+void keyword_net_resume_net_operation(void) {
+	_is_net_running = 1;
+}
+void keyword_net_pause_net_operation(void) {
+	_is_net_running = 0;
 }
 
 __attribute__((section(".ramcode")))

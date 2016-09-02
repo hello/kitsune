@@ -1,6 +1,8 @@
 #ifndef _KEYWORD_NET_H_
 #define _KEYWORD_NET_H_
 
+
+
 #include <stdint.h>
 #include "tinytensor_features.h" //this is a hack.  put definitions in another header
 typedef enum {
@@ -24,6 +26,11 @@ void keyword_net_register_speech_callback(void * context, tinytensor_speech_dete
 void keyword_net_deinitialize(void);
 
 void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples);
+
+void keyword_net_resume_net_operation(void);
+
+void keyword_net_pause_net_operation(void);
+
 
 int cmd_test_neural_net(int argc, char * argv[]);
 
