@@ -315,8 +315,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 		BREAK_ON_SIG(signal);
 		if(nn_ctx.keyword_detected == 0 &&
-				xTaskGetTickCount() - begin > 10*60*1000 ) {
-			ret = HLO_STREAM_EOF;
+				xTaskGetTickCount() - begin > 4*60*1000 ) {
+			ret = HLO_STREAM_ERROR;
 			break;
 		}
 	}
