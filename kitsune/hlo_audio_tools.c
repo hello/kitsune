@@ -346,7 +346,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 			LOGI("\r\n===========\r\n");
 	}
-	else{
+	else if(output) {
 		hlo_stream_close(output);
 	}
 	hlo_stream_close(hmac_payload_str);
