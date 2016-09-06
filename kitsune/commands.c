@@ -714,10 +714,10 @@ xSemaphoreHandle i2c_smphr;
 
 uint8_t get_alpha_from_light()
 {
-	int adjust_max_light = 800;
+	int adjust_max_light = 975;
 	int adjust;
 
-
+	/*
 	xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY);
 	if( _light_data.light > adjust_max_light ) {
 		adjust = adjust_max_light;
@@ -725,6 +725,18 @@ uint8_t get_alpha_from_light()
 		adjust = _light_data.light_mean;
 	}
 	xSemaphoreGiveRecursive(_light_data.light_smphr);
+	*/
+
+
+
+	int als = read_zopt( ZOPT_ALS );
+	LOGI("***GET ALPHA*** TMG: %d, ZOPT:%d\n",_light_data.light,als);
+	if( als > adjust_max_light ) {
+		adjust = adjust_max_light;
+	} else {
+		adjust = als;
+	}
+
 
 	uint8_t alpha = 0xFF * adjust / adjust_max_light;
 	alpha = alpha < 10 ? 10 : alpha;
@@ -764,6 +776,7 @@ static int _is_light_off()
 
 static void _show_led_status()
 {
+	//int als = read_zopt( ZOPT_ALS );
 	uint8_t alpha = get_alpha_from_light();
 	bool light = alpha > 128;
 
