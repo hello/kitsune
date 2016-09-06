@@ -843,13 +843,13 @@ void thread_fast_i2c_poll(void * unused)  {
 
 		if(check_button() ) {
 			++button_cnt;
-			DISP("b %d\n", button_cnt );
+			//DISP("b %d\n", button_cnt );
 			if( button_cnt < BUTTON_PRESS_TIME ) {
 				if( button_cnt == 1) {
 					stop_led_animation(portMAX_DELAY, 18);
 					play_led_progress_bar(LED_MAX, 20, 20, 0, portMAX_DELAY);
 				} else {
-					DISP( "%d\n", LED_MAX * button_cnt/BUTTON_PRESS_TIME );
+					// DISP( "%d\n", LED_MAX * button_cnt/BUTTON_PRESS_TIME );
 					set_led_progress_bar( LED_MAX * button_cnt/BUTTON_PRESS_TIME );
 				}
 			}
@@ -874,7 +874,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				xSemaphoreGiveRecursive(i2c_smphr);
 				goto fail_fast_i2c;
 			}
-			LOGI("%d,%d,%d,%d,%d\n", w,r,g,b,p );
+			// LOGI("%d,%d,%d,%d,%d\n", w,r,g,b,p );
 
 			prox = median_filter(p, filter_buf, &filter_idx);
 
@@ -907,12 +907,13 @@ void thread_fast_i2c_poll(void * unused)  {
 				if( _light_data.light_m2 < 0 ) {
 					_light_data.light_m2 = 0x7FFFFFFF;
 				}
-//				LOGI("Light: %d\t%d\t%d\t%d\t%d\n", delta, light_mean, light_m2, light_cnt, _is_light_off());
 				xSemaphoreGiveRecursive(_light_data.light_smphr);
+
+				// LOGI("Light: %d\t%d\t%d\t%d\t%d\n", delta, _light_data.light_mean, _light_data.light_m2, _light_data.light_cnt, _is_light_off());
 
 				if(_light_data.light_cnt % 5 == 0 && led_is_idle(0) ) {
 					if(_is_light_off()) {
-#if 0
+#if 1
 						LOGI("LIGHTS OUT\n");
 #endif
 						_show_led_status();
