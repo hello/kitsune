@@ -41,7 +41,9 @@ static void * alloc_state(const void * context) {
 }
 
 static void free_state(const void * context, void ** state) {
-    void * s = *state;
+	LstmLayerState_t * s = *state;
+	FREE(s->cell_state);
+	FREE(s->output);
     FREE(s);
     *state = NULL;
 }

@@ -1124,7 +1124,10 @@ SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 
     if(SL_SOCKET_ASYNC_EVENT == pSock->Event)
     {
-        DISP("[SocketEvent] an event received on socket %d\r\n",pSock->SocketAsyncEvent.SockAsyncData.Sd);
+        DISP("[SocketEvent] %d event received on socket %d\r\n",
+        		pSock->SocketAsyncEvent.SockAsyncData.Type,
+        		pSock->SocketAsyncEvent.SockAsyncData.Sd);
+
         switch(pSock->SocketAsyncEvent.SockAsyncData.Type)
         {
         case SL_SSL_NOTIFICATION_WRONG_ROOT_CA:
@@ -1210,7 +1213,7 @@ int start_connection(int * sock, char * host, security_type sec) {
 
     //connect it up
     //LOGI("Connecting \n\r\n\r");
-    if (*sock > 0 && sock_begin < 0) {
+    if (*sock >= 0 && sock_begin < 0) {
     	LOGI("connecting sock %d %d\n", *sock, sock_begin);
 
     	tv.tv_sec = 2;             // Seconds

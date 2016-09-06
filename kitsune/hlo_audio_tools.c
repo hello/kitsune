@@ -259,8 +259,10 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		init_background_energy(StatsCallback);
 	}
 
+	static nn_keyword_ctx_t nn_ctx;
+	memset(&nn_ctx, 0, sizeof(nn_ctx));
+
 	keyword_net_initialize();
-	nn_keyword_ctx_t nn_ctx = {0};
 	keyword_net_register_callback(&nn_ctx,okay_sense,80,_voice_begin_keyword,_voice_finish_keyword);
 	keyword_net_register_speech_callback(&nn_ctx,_speech_detect_callback);
 
@@ -309,11 +311,12 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 		BREAK_ON_SIG(signal);
 		if(nn_ctx.keyword_detected == 0 &&
-				xTaskGetTickCount() - begin > 10*60*1000 ) {
-			ret = HLO_STREAM_EOF;
+				xTaskGetTickCount() - begin > 4*60*1000 ) {
+			ret = HLO_STREAM_ERROR;
 			break;
 		}
 	}
+	hlo_stream_close(input);
 
 	if(ret >= 0 || ret == HLO_STREAM_EOF ){
 		LOGI("\r\n===========\r\n");
@@ -339,11 +342,10 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 			LOGI("\r\n===========\r\n");
 	}
-	else{
+	else if(output) {
 		hlo_stream_close(output);
 	}
 	hlo_stream_close(hmac_payload_str);
-	hlo_stream_close(input);
 
 	keyword_net_deinitialize();
 	return ret;
