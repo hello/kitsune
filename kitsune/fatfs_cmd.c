@@ -1269,29 +1269,22 @@ int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
     unsigned char sha[SHA1_SIZE] = { 0 };
     static unsigned char buffer[128];
     SHA1_CTX sha1ctx;
-    SHA1_Init(&sha1ctx);
-    unsigned long tok = 0;
-    long hndl, bytes, bytes_to_read;
-    SlFsFileInfo_t info;
-    //fetch path info
     LOGI( "computing SHA of %s\n", serial_file_path);
-    sl_FsGetInfo((unsigned char*)serial_file_path, tok, &info);
-    hndl = sl_FsOpen((unsigned char*)serial_file_path, SL_FS_READ, &tok );
-    if (hndl < 0) {
-        LOGI("error opening for read %d\n", hndl);
-        return -1;
+    hlo_stream_t * fs = open_serial_flash((char*)serial_file_path, HLO_STREAM_READ, 0);
+    SHA1_Init(&sha1ctx);
+    if(fs){
+    	int read = -1;
+    	while(1){
+    		read = hlo_stream_transfer_all(FROM_STREAM, fs, buffer,sizeof(buffer),4);
+    		if(read > 0){
+    			SHA1_Update(&sha1ctx, buffer, read);
+    		}else{
+    			break;
+    		}
+    	}
+    	hlo_stream_close(fs);
+    	SHA1_Final(sha, &sha1ctx);
     }
-    //compute sha
-    bytes_to_read = info.Len;
-    while (bytes_to_read > 0) {
-        bytes = sl_FsRead(hndl, info.Len - bytes_to_read,
-                buffer,
-                (minval(sizeof(buffer),bytes_to_read)));
-        SHA1_Update(&sha1ctx, buffer, bytes);
-        bytes_to_read -= bytes;
-    }
-    sl_FsClose(hndl, 0, 0, 0);
-    SHA1_Final(sha, &sha1ctx);
     //compare
     if (memcmp(sha, sha_truth, SHA1_SIZE) != 0) {
         LOGE( "fw update SHA did not match!\n");
