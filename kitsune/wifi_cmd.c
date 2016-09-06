@@ -1213,7 +1213,7 @@ int start_connection(int * sock, char * host, security_type sec) {
 
     //connect it up
     //LOGI("Connecting \n\r\n\r");
-    if (*sock > 0 && sock_begin < 0) {
+    if (*sock >= 0 && sock_begin < 0) {
     	LOGI("connecting sock %d %d\n", *sock, sock_begin);
 
     	tv.tv_sec = 2;             // Seconds
