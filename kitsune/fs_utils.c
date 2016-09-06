@@ -20,7 +20,7 @@ int fs_get( char * file, void * data, int max_rd, int * len ) {
 	// read in aes key
 	hndl = sl_FsOpen((const _u8*)file, SL_FS_READ, NULL );
 	if (hndl < 0) {
-		LOGE("failed to open %s\n", file);
+		LOGE("failed to open %s\n, error %d", file, hndl);
 		return hndl;
 	}
 
