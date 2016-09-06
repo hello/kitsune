@@ -1262,8 +1262,8 @@ void sample_sensor_data(periodic_data* data)
 		if( uv >= 0 ) {
 			LOGI("uv %d\n", uv);
 			data->has_light_sensor = true;
-			data->light_sensor.has_lux_count = true;
-			data->light_sensor.lux_count = uv;
+			data->light_sensor.has_uv_count = true;
+			data->light_sensor.uv_count = uv;
 		} else {
 			LOGE("uv err %d\n", uv);
 		}
