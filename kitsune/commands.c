@@ -786,8 +786,9 @@ static void _on_wave(){
 
 static void _on_hold(){
 	stop_led_animation( 0, 33 );
-	cancel_alarm();
-	ble_proto_start_hold();
+	if(	!cancel_alarm() ) {
+		ble_proto_start_hold();
+	}
 }
 
 static void _on_gesture_out()
