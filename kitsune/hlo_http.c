@@ -35,12 +35,15 @@ typedef struct{
 extern void set_backup_dns();
 static unsigned long _get_ip(const char * host){
 	unsigned long ip = 0;
-	set_backup_dns();
-	if(0 == gethostbyname((_i8*)host, strlen(host), &ip, SL_AF_INET)){
+//	set_backup_dns()
+	short rv = gethostbyname((_i8*)host, strlen(host), &ip, SL_AF_INET);
+	if(0 == rv){
 		LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
 										 host, SL_IPV4_BYTE(ip, 3), SL_IPV4_BYTE(ip, 2),
 									   SL_IPV4_BYTE(ip, 1), SL_IPV4_BYTE(ip, 0));
 		return ip;
+	} else {
+		LOGE("DNS resolution fails %d\n", rv);
 	}
 	return 0;
 }
