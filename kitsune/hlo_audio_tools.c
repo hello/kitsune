@@ -259,16 +259,12 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		init_background_energy(StatsCallback);
 	}
 
-	static bool init = false;
 	static nn_keyword_ctx_t nn_ctx;
 	memset(&nn_ctx, 0, sizeof(nn_ctx));
-	if( !init ) {
-		//todo debug why init/deinit of this one leaks 448 bytes
-		keyword_net_initialize();
-		keyword_net_register_callback(&nn_ctx,okay_sense,80,_voice_begin_keyword,_voice_finish_keyword);
-		keyword_net_register_speech_callback(&nn_ctx,_speech_detect_callback);
-		init = true;
-	}
+
+	keyword_net_initialize();
+	keyword_net_register_callback(&nn_ctx,okay_sense,80,_voice_begin_keyword,_voice_finish_keyword);
+	keyword_net_register_speech_callback(&nn_ctx,_speech_detect_callback);
 
 	//wrap output in hmac stream
 	uint8_t key[AES_BLOCKSIZE];
@@ -351,7 +347,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	}
 	hlo_stream_close(hmac_payload_str);
 
-	//keyword_net_deinitialize();
+	keyword_net_deinitialize();
 	return ret;
 }
 
