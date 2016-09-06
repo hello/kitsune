@@ -1264,8 +1264,6 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 }
 int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
     //compute the sha of the file..
-#define minval( a,b ) a < b ? a : b
-
     unsigned char sha[SHA1_SIZE] = { 0 };
     static unsigned char buffer[128];
     SHA1_CTX sha1ctx;
@@ -1273,9 +1271,8 @@ int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
     hlo_stream_t * fs = open_serial_flash((char*)serial_file_path, HLO_STREAM_READ, 0);
     SHA1_Init(&sha1ctx);
     if(fs){
-    	int read = -1;
     	while(1){
-    		read = hlo_stream_transfer_all(FROM_STREAM, fs, buffer,sizeof(buffer),4);
+    		int read = hlo_stream_transfer_all(FROM_STREAM, fs, buffer,sizeof(buffer),4);
     		if(read > 0){
     			SHA1_Update(&sha1ctx, buffer, read);
     		}else{
