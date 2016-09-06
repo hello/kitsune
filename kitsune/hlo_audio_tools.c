@@ -88,6 +88,7 @@ int hlo_filter_adpcm_encoder(hlo_stream_t * input, hlo_stream_t * output, void *
 	char compressed[ADPCM_SAMPLES/2];
 	short decompressed[ADPCM_SAMPLES];
 	adpcm_state state = (adpcm_state){0};
+
 	int ret = 0;
 	while(1){
 		ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)decompressed,ADPCM_SAMPLES * 2, 4);
@@ -195,19 +196,45 @@ typedef struct{
 	uint8_t threshold;
 	uint16_t reserved;
 	uint32_t timeout;
+	uint8_t is_speaking;
 }nn_keyword_ctx_t;
 
 static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	if (keyword == okay_sense) {
-			DISP("OKAY SENSE\r\n");
+		LOGI("OKAY SENSE\r\n");
 	}
 }
 static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
+	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)ctx;
+
 	if (keyword == okay_sense) {
-		DISP("Keyword Done\r\n");
-		((nn_keyword_ctx_t *)ctx)->keyword_detected++;
+		LOGI("Keyword Done\r\n");
+		p->keyword_detected++;
+
+		if (!p->is_speaking) {
+			tinytensor_features_force_voice_activity_detection();
+			p->is_speaking = true;
+		}
+
 	}
 }
+
+static void _speech_detect_callback(void * context, SpeechTransition_t transition) {
+	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)context;
+
+	if (transition == start_speech) {
+		DISP("start speech\r\n");
+		p->is_speaking = 1;
+	}
+
+	if (transition == stop_speech) {
+		p->is_speaking = 0;
+		DISP("stop speech\r\n");
+	}
+
+}
+
+
 
 
 extern volatile int sys_volume;
@@ -220,6 +247,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	int16_t samples[NSAMPLES];
 	uint8_t hmac[SHA1_SIZE] = {0};
 
+	char compressed[NSAMPLES/2];
+	adpcm_state state = (adpcm_state){0};
+
 	bool ready = false;
 	bool light_open = false;
 
@@ -229,9 +259,12 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		init_background_energy(StatsCallback);
 	}
 
+	static nn_keyword_ctx_t nn_ctx;
+	memset(&nn_ctx, 0, sizeof(nn_ctx));
+
 	keyword_net_initialize();
-	nn_keyword_ctx_t nn_ctx = {0};
 	keyword_net_register_callback(&nn_ctx,okay_sense,80,_voice_begin_keyword,_voice_finish_keyword);
+	keyword_net_register_speech_callback(&nn_ctx,_speech_detect_callback);
 
 	//wrap output in hmac stream
 	uint8_t key[AES_BLOCKSIZE];
@@ -245,16 +278,21 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		if( !ready ) {
 			ready = true;
 		}
+
+		//net always gets samples
+		keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
+
 		if( nn_ctx.keyword_detected > 0 ) {
 			if( !light_open ) {
-				AudioTask_StopPlayback();
+				keyword_net_pause_net_operation();
 				//todo update this bw rate when switching to adpcm
 				input = hlo_light_stream( input,true, 300 );
-				input = hlo_stream_en( input );
-				input = hlo_stream_bw_limited( input, AUDIO_NET_RATE/2, 5000);
+				input = hlo_stream_bw_limited( input, AUDIO_NET_RATE/4 - AUDIO_NET_RATE/8, 5000);
 				light_open = true;
 			}
-			ret = hlo_stream_transfer_all(INTO_STREAM, hmac_payload_str,  (uint8_t*)samples, ret, 4);
+
+			adpcm_coder((short*)samples, (char*)compressed, ret / 2, &state);
+			ret = hlo_stream_transfer_all(INTO_STREAM, hmac_payload_str,  (uint8_t*)compressed, ret/4, 4);
 			if ( ret <  0 ) {
 				if( ret == HLO_STREAM_ERROR) {
 					stop_led_animation( 0, 33 );
@@ -262,27 +300,30 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				}
 				break;
 			}
+
+			if (!nn_ctx.is_speaking) {
+				break;
+			}
+
 		} else {
-			keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
+			keyword_net_resume_net_operation();
 		}
+
 		BREAK_ON_SIG(signal);
 		if(nn_ctx.keyword_detected == 0 &&
-				xTaskGetTickCount() - begin > 10*60*1000 ) {
-			hlo_stream_close(hmac_payload_str);
-			keyword_net_deinitialize();
-			return HLO_STREAM_EOF;
+				xTaskGetTickCount() - begin > 4*60*1000 ) {
+			ret = HLO_STREAM_ERROR;
+			break;
 		}
 	}
-
-	// grab the running hmac and drop it in the stream
-	get_hmac( hmac, hmac_payload_str );
-	ret = hlo_stream_transfer_all(INTO_STREAM, output, hmac, sizeof(hmac), 4);
-	hlo_stream_close(hmac_payload_str);
 	hlo_stream_close(input);
 
 	if(ret >= 0 || ret == HLO_STREAM_EOF ){
-		DISP("\r\n===========\r\n");
-			DISP("Playback Audio\r\n");
+		LOGI("\r\n===========\r\n");
+			LOGI("Playback Audio\r\n");
+			// grab the running hmac and drop it in the stream
+			get_hmac( hmac, hmac_payload_str );
+			ret = hlo_stream_transfer_all(INTO_STREAM, output, hmac, sizeof(hmac), 4);
 
 			output = hlo_stream_bw_limited( output, 1, 5000);
 			output = hlo_light_stream( output, false, LED_MAX/4 );
@@ -299,11 +340,13 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			ustrncpy(desc.source_name, "voice", sizeof(desc.source_name));
 			AudioTask_StartPlayback(&desc);
 
-			DISP("\r\n===========\r\n");
+			LOGI("\r\n===========\r\n");
 	}
-	else{
+	else if(output) {
 		hlo_stream_close(output);
 	}
+	hlo_stream_close(hmac_payload_str);
+
 	keyword_net_deinitialize();
 	return ret;
 }
@@ -660,7 +703,7 @@ void AudioControlTask(void * unused) {
 		in = hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_RECORD);
 
 		hlo_stream_t * out;
-		out = hlo_http_post("https://dev-speech.hello.is/v1/upload/audio?r=16000&response=mp3", NULL);
+		out = hlo_http_post("https://dev-speech.hello.is/v2/upload/audio?r=16000&response=mp3", NULL);
 
 		if(in && out){
 			ret = hlo_filter_voice_command(in,out,NULL, NULL);

@@ -35,12 +35,15 @@ typedef struct{
 extern void set_backup_dns();
 static unsigned long _get_ip(const char * host){
 	unsigned long ip = 0;
-	set_backup_dns();
-	if(0 == gethostbyname((_i8*)host, strlen(host), &ip, SL_AF_INET)){
+//	set_backup_dns()
+	short rv = gethostbyname((_i8*)host, strlen(host), &ip, SL_AF_INET);
+	if(0 == rv){
 		LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
 										 host, SL_IPV4_BYTE(ip, 3), SL_IPV4_BYTE(ip, 2),
 									   SL_IPV4_BYTE(ip, 1), SL_IPV4_BYTE(ip, 0));
 		return ip;
+	} else {
+		LOGE("DNS resolution fails %d\n", rv);
 	}
 	return 0;
 }
@@ -122,7 +125,7 @@ static int _start_connection(hlo_sock_ctx_t * ctx) {
 		if (!ctx->connected && ctx->setup) {
 			rv = connect(ctx->sock, &sAddr, sizeof(sAddr));
 
-			DISP("connect return %d\n", rv);
+			LOGI("connect return %d\n", rv);
 			if( rv < 0 ) {
 					LOGI("Could not connect %d\n\r\n\r", rv);
 			} else {
@@ -741,6 +744,7 @@ static int _fetch_response_code(void * ctx){
 static int _close_post_session(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
 	int code = 0;
+#if 0
 	if( session->post_state != DONE_POST ){		//if no response has been parsed by a read call, we just finish here
 		session->post_state = DONE_POST;
 		if( _finish_post(ctx) < 0 ){
@@ -751,6 +755,7 @@ static int _close_post_session(void * ctx){
 		}
 	}
 cleanup:
+#endif
 	if(session->code){
 		code = session->code;
 		LOGI("POST returned code %d\r\n", session->code);

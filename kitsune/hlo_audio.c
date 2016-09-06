@@ -545,7 +545,7 @@ hlo_stream_t * hlo_stream_bw_limited( hlo_stream_t * base, uint32_t bw, uint32_t
 	stream->bw = bw;
 	stream->base = base;
 	stream->startup = startup;
-	DISP("open bw\n") ;
+	LOGI("open bw\n") ;
 
 	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
 }

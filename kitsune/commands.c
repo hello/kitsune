@@ -1724,6 +1724,13 @@ void launch_tasks() {
 	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
 #endif
+
+	//#define DEMO
+	hlo_audio_init();
+
+	// Create audio tasks for playback and record
+	xTaskCreate(AudioPlaybackTask,"playbackTask",10*1024/4,NULL,4,NULL);
+
 	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 2, NULL);
 }
 
@@ -2251,12 +2258,6 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	start_top_boot_watcher();
-
-//#define DEMO
-	hlo_audio_init();
-
-	// Create audio tasks for playback and record
-	xTaskCreate(AudioPlaybackTask,"playbackTask",10*1024/4,NULL,4,NULL);
 
 	/*******************************************************************************
 	*           AUDIO INIT END
