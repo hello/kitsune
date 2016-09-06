@@ -147,7 +147,7 @@ hlo_stream_t * open_serial_flash( char * filepath, uint32_t options, uint32_t ma
 				(_u32*)&tok)) < 0){
 			return NULL;
 		}
-		sl_FsWrite(hndl, 0, data, 1);
+		//sl_FsWrite(hndl, 0, data, 1);
 	}else{
 		LOGE("serial flash may not operate in duplex mode\r\n");
 		return NULL;
