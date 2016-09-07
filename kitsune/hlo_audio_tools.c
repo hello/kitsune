@@ -248,6 +248,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	uint8_t hmac[SHA1_SIZE] = {0};
 
 	char compressed[NSAMPLES/2];
+	char wakeword[sizeof(compressed)*20];
+	memset(wakeword, 0, sizeof(wakeword));
+
 	adpcm_state state = (adpcm_state){0};
 
 	bool ready = false;
@@ -272,6 +275,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	hlo_stream_t * hmac_payload_str = hlo_hmac_stream(output, key, sizeof(key) );
 	assert(hmac_payload_str);
 
+	hlo_stream_t * send_str = hmac_payload_str;
+
 	uint32_t begin = xTaskGetTickCount();
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
@@ -281,19 +286,25 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 		//net always gets samples
 		keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
+		adpcm_coder((short*)samples, (char*)compressed, ret / 2, &state);
+		memmove( wakeword+ret/4, wakeword, sizeof(wakeword) - ret/4 );
+		memcpy( wakeword, compressed, ret/4 );
 
 		if( nn_ctx.keyword_detected > 0 ) {
 			if( !light_open ) {
 				keyword_net_pause_net_operation();
-				//todo update this bw rate when switching to adpcm
 				input = hlo_light_stream( input,true, 300 );
-				input = hlo_stream_bw_limited( input, AUDIO_NET_RATE/4 - AUDIO_NET_RATE/8, 5000);
+				send_str = hlo_stream_bw_limited( send_str, AUDIO_NET_RATE/8, 5000);
 				light_open = true;
+				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword, sizeof(wakeword), 4);
+				if( ret < 0 ) {
+					goto error_transfer;
+				}
 			}
+			ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)compressed, ret/4, 4);
 
-			adpcm_coder((short*)samples, (char*)compressed, ret / 2, &state);
-			ret = hlo_stream_transfer_all(INTO_STREAM, hmac_payload_str,  (uint8_t*)compressed, ret/4, 4);
 			if ( ret <  0 ) {
+				error_transfer:
 				if( ret == HLO_STREAM_ERROR) {
 					stop_led_animation( 0, 33 );
 					play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1,18, 1);
@@ -345,7 +356,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	else if(output) {
 		hlo_stream_close(output);
 	}
-	hlo_stream_close(hmac_payload_str);
+	hlo_stream_close(send_str);
 
 	keyword_net_deinitialize();
 	return ret;
