@@ -714,7 +714,7 @@ xSemaphoreHandle i2c_smphr;
 
 uint8_t get_alpha_from_light()
 {
-	int adjust_max_light = 800;
+	int adjust_max_light = 500;
 	int adjust;
 
 #if 0
