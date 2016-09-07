@@ -1070,6 +1070,12 @@ void file_download_task( void * params ) {
 				strncpy( buf, serial_flash_path, 64 );
 				strncat(buf, serial_flash_name, 64 );
 
+				if(strstr(buf, "top/top.bin")){
+					memset(buf, 0, sizeof(buf));
+					strcpy(buf,"/top/update.bin");
+					LOGW("Wrong top board name used, updating path to %s\r\n", buf);
+				}
+
 				//TODO get max size from protobuf and set it here
 				sf_str = open_serial_flash(buf, HLO_STREAM_WRITE, download_info.has_file_size ? download_info.file_size : 300 * 1024);
 				if(sf_str){
