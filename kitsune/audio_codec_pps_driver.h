@@ -15,17 +15,16 @@ typedef struct{
 #define Codec_addr                           (0x18U)
 
 
-
 #define PLL_P 1
 #define PLL_R 1
-#define PLL_J 9
-#define PLL_D 112UL
-#define NDAC 2
-#define MDAC 22
-#define NADC 2
-#define MADC 22
-#define DOSR 96UL
-#define AOSR 96UL
+#define PLL_J 6
+#define PLL_D 9120UL
+#define NDAC 3
+#define MDAC 9
+#define NADC 3
+#define MADC 9
+#define DOSR 64UL
+#define AOSR 64UL
 
 
 #if (DOSR != AOSR)

@@ -1686,29 +1686,29 @@ void launch_tasks() {
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  2*1024 / 4, NULL, 5, NULL);
-
-
-#ifdef KIT_INCLUDE_FILE_UPLOAD
-	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask", 1024/4,NULL,1,NULL);
-#endif
-#ifdef BUILD_SERVERS //todo PVT disable!
-	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,4,NULL);
-	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,4,NULL);
-#endif
-	UARTprintf("*");
-#if !ONLY_MID
-	UARTprintf("*");
-
-	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
-	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 2, NULL);
-	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
-	UARTprintf("*");
-	long_poll_task_init( 2560 / 4 );
-	downloadmanagertask_init(3072 / 4);
-#endif
+//	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  2*1024 / 4, NULL, 5, NULL);
+//
+//
+//#ifdef KIT_INCLUDE_FILE_UPLOAD
+//	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask", 1024/4,NULL,1,NULL);
+//#endif
+//#ifdef BUILD_SERVERS //todo PVT disable!
+//	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,4,NULL);
+//	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,4,NULL);
+//#endif
+//	UARTprintf("*");
+//#if !ONLY_MID
+//	UARTprintf("*");
+//
+//	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
+//	UARTprintf("*");
+//	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 2, NULL);
+//	UARTprintf("*");
+//	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
+//	UARTprintf("*");
+//	long_poll_task_init( 2560 / 4 );
+//	downloadmanagertask_init(3072 / 4);
+//#endif
 
 	//#define DEMO
 	hlo_audio_init();
@@ -1716,7 +1716,7 @@ void launch_tasks() {
 	// Create audio tasks for playback and record
 	xTaskCreate(AudioPlaybackTask,"playbackTask",10*1024/4,NULL,4,NULL);
 
-	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 2, NULL);
+	//xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 2, NULL);
 }
 
 
