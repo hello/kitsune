@@ -714,10 +714,10 @@ xSemaphoreHandle i2c_smphr;
 
 uint8_t get_alpha_from_light()
 {
-	int adjust_max_light = 975;
+	int adjust_max_light = 800;
 	int adjust;
 
-	/*
+#if 0
 	xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY);
 	if( _light_data.light > adjust_max_light ) {
 		adjust = adjust_max_light;
@@ -725,8 +725,8 @@ uint8_t get_alpha_from_light()
 		adjust = _light_data.light_mean;
 	}
 	xSemaphoreGiveRecursive(_light_data.light_smphr);
-	*/
 
+#else
 
 
 	int als = read_zopt( ZOPT_ALS );
@@ -736,7 +736,7 @@ uint8_t get_alpha_from_light()
 	} else {
 		adjust = als;
 	}
-
+#endif
 
 	uint8_t alpha = 0xFF * adjust / adjust_max_light;
 	alpha = alpha < 10 ? 10 : alpha;
@@ -937,8 +937,9 @@ void thread_fast_i2c_poll(void * unused)  {
 			vTaskDelay(1);
 			xSemaphoreGiveRecursive(i2c_smphr);
 		} else {
-			fail_fast_i2c:
 			LOGW("failed to get i2c %d\n", __LINE__);
+			fail_fast_i2c:
+			LOGE("Thread fast i2c fail\n");
 		}
 		vTaskDelayUntil(&now, delay);
 	}
