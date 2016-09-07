@@ -2256,7 +2256,7 @@ void vUARTTask(void *pvParameters) {
 		vTaskDelete(NULL);
 		return;
 	} else {
-		//play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
+		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
 	}
 #else
 	/* remove anything we recieved before we were ready */
