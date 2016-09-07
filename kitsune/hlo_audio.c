@@ -48,7 +48,8 @@ static void _reset_codec(void){
 	//codec_test_commands();
 
 	// Program codec
-	codec_init();
+	//codec_init();
+	codec_init_no_dsp();
 }
 ////------------------------------
 // playback stream driver
