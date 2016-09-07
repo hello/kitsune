@@ -776,7 +776,6 @@ static int _is_light_off()
 
 static void _show_led_status()
 {
-	//int als = read_zopt( ZOPT_ALS );
 	uint8_t alpha = get_alpha_from_light();
 	bool light = alpha > 128;
 
