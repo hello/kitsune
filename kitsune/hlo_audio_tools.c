@@ -275,6 +275,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	hlo_stream_t * hmac_payload_str = hlo_hmac_stream(output, key, sizeof(key) );
 	assert(hmac_payload_str);
 
+	hlo_stream_t * send_str = hmac_payload_str;
+
 	uint32_t begin = xTaskGetTickCount();
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
@@ -291,16 +293,15 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		if( nn_ctx.keyword_detected > 0 ) {
 			if( !light_open ) {
 				keyword_net_pause_net_operation();
-				//todo update this bw rate when switching to adpcm
 				input = hlo_light_stream( input,true, 300 );
-				input = hlo_stream_bw_limited( input, AUDIO_NET_RATE/4 - AUDIO_NET_RATE/8, 5000);
+				send_str = hlo_stream_bw_limited( send_str, AUDIO_NET_RATE/8, 5000);
 				light_open = true;
-				ret = hlo_stream_transfer_all(INTO_STREAM, hmac_payload_str,  (uint8_t*)wakeword, sizeof(wakeword), 4);
+				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword, sizeof(wakeword), 4);
 				if( ret < 0 ) {
 					goto error_transfer;
 				}
 			}
-			ret = hlo_stream_transfer_all(INTO_STREAM, hmac_payload_str,  (uint8_t*)compressed, ret/4, 4);
+			ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)compressed, ret/4, 4);
 
 			if ( ret <  0 ) {
 				error_transfer:
@@ -355,7 +356,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	else if(output) {
 		hlo_stream_close(output);
 	}
-	hlo_stream_close(hmac_payload_str);
+	hlo_stream_close(send_str);
 
 	keyword_net_deinitialize();
 	return ret;
