@@ -1078,11 +1078,13 @@ void file_download_task( void * params ) {
 
 				//TODO get max size from protobuf and set it here
 				sf_str = open_serial_flash(buf, HLO_STREAM_WRITE, download_info.has_file_size ? download_info.file_size : 300 * 1024);
-				if(sf_str){
-					hlo_filter_data_transfer(http_str, sf_str, NULL, NULL);
-					DISP("filesize %d, transferred %d\r\n", download_info.file_size, sf_str->info.bytes_written);
-					hlo_stream_close(sf_str);
+
+				while(1){
+					if(hlo_stream_transfer_between( http_str, sf_str, (uint8_t*)buf, sizeof(buf), 4 ) < 0){
+						break;
+					}
 				}
+				hlo_stream_close(sf_str);
 
                 if (strcmp(buf, "/top/update.bin") == 0) {
                     if (download_info.has_sha1) {
@@ -1094,8 +1096,6 @@ void file_download_task( void * params ) {
                         }else{
                             top_need_dfu = 1;
                         }
-                    }else{
-                    	LOGE("NO sha\r\n");
                     }
                 }
                 LOGI("done, closing\n");
