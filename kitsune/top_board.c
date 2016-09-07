@@ -22,6 +22,7 @@
 #include "crypto.h"
 #include "hlo_async.h"
 #include "cmdline.h"
+#include "hlo_pipe.h"
 
 #define TOPBOARD_INFO_FILE "/top/info.bin"
 
@@ -331,7 +332,19 @@ _load_top_info(top_info_t * info){
 }
 static int
 _save_top_info(const top_info_t * info){
-	return fs_save( TOPBOARD_INFO_FILE, (void*)info,  sizeof(top_info_t));
+	int ret = -1;
+	hlo_stream_t * fs = open_serial_flash(TOPBOARD_INFO_FILE, HLO_STREAM_WRITE, sizeof(top_info_t));
+	if(fs){
+		int ret = hlo_stream_transfer_all(INTO_STREAM,fs,info,sizeof(*info), 4);
+		if(ret == sizeof(*info)){
+			LOGI("Top Info Success\r\n");
+			ret = 0;
+		}else{
+			LOGW("Top Info Failure %d\r\n", ret);
+		}
+		hlo_stream_close(fs);
+	}
+	return ret;
 }
 int top_board_dfu_begin(const char * bin){
 	int ret;
