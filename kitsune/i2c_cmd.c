@@ -668,25 +668,23 @@ int init_light_sensor()
 	}
 
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
-	{
-		b[0] = 0x80;
-		b[1] = 0b1000111; //enable gesture/prox/als/power
-		b[2] = 249; //20ms integration
-		b[3] = 35; //100ms prox time
-		b[4] = 249; //20ms als time
-		(I2C_IF_Write(0x39, b, 5, 1));
-		b[0] = 0x8d;
-		b[1] = 0x0;
-		(I2C_IF_Write(0x39, b, 2, 1));
-		b[0] = 0x90;
-		b[1] = 0x3;
-		(I2C_IF_Write(0x39, b, 2, 1));
+	b[0] = 0x80;
+	b[1] = 0b1000111; //enable gesture/prox/als/power
+	b[2] = 249; //20ms integration
+	b[3] = 35; //100ms prox time
+	b[4] = 249; //20ms als time
+	(I2C_IF_Write(0x39, b, 5, 1));
+	b[0] = 0x8d;
+	b[1] = 0x0;
+	(I2C_IF_Write(0x39, b, 2, 1));
+	b[0] = 0x90;
+	b[1] = 0x3;
+	(I2C_IF_Write(0x39, b, 2, 1));
 
-		b[0] = 0x8F;
-		b[1] = 0x12;
-		(I2C_IF_Write(0x39, b, 2, 1));
-		xSemaphoreGiveRecursive(i2c_smphr);
-	}
+	b[0] = 0x8F;
+	b[1] = 0x12;
+	(I2C_IF_Write(0x39, b, 2, 1));
+	xSemaphoreGiveRecursive(i2c_smphr);
 
 	vTaskDelay(50);
 	return SUCCESS;
@@ -701,34 +699,33 @@ int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p ) {
 	unsigned char b[10];
 
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
-	{
-		/*Red, green, blue, and clear data are stored as 16-bit values.
-		The read sequence must read byte pairs (low followed by high)
-		 starting on an even address boundary (0x94, 0x96, 0x98, or 0x9A)
-		  inside the CRGB Data Register block. In addition, reading the
-		  Clear channel data low byte (0x94) latches all 8 data bytes.
-		   Reading these 8 bytes consecutively (0x94 - 0x9A) ensures that
-			the data is concurrent.
-		*/
-		if( !haz_tmg4903() ) {
-			LOGE("haz_tmg4903 fail\n");
-			xSemaphoreGiveRecursive(i2c_smphr);
-			return FAILURE;
-		}
 
-		b[0] = 0x94;
-		(I2C_IF_Write(0x39, b, 1, 1));
-		(I2C_IF_Read(0x39, b, 10));
-
-		*w = get_le_short(b);
-		*r = get_le_short(b+2);
-		*g = get_le_short(b+4);
-		*bl = get_le_short(b+6);
-		*p = get_le_short(b+8);
-
+	/*Red, green, blue, and clear data are stored as 16-bit values.
+	The read sequence must read byte pairs (low followed by high)
+	 starting on an even address boundary (0x94, 0x96, 0x98, or 0x9A)
+	  inside the CRGB Data Register block. In addition, reading the
+	  Clear channel data low byte (0x94) latches all 8 data bytes.
+	   Reading these 8 bytes consecutively (0x94 - 0x9A) ensures that
+		the data is concurrent.
+	*/
+	if( !haz_tmg4903() ) {
+		LOGE("haz_tmg4903 fail\n");
 		xSemaphoreGiveRecursive(i2c_smphr);
-		return SUCCESS;
+		return FAILURE;
 	}
+
+	b[0] = 0x94;
+	(I2C_IF_Write(0x39, b, 1, 1));
+	(I2C_IF_Read(0x39, b, 10));
+
+	*w = get_le_short(b);
+	*r = get_le_short(b+2);
+	*g = get_le_short(b+4);
+	*bl = get_le_short(b+6);
+	*p = get_le_short(b+8);
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+	return SUCCESS;
 
 }
 
@@ -737,7 +734,7 @@ int Cmd_readlight(int argc, char *argv[]) {
 	if( SUCCESS == get_rgb_prox( &w, &r, &g, &b, &p ) ) {
 		LOGF("%d,%d,%d,%d,%d\n", w,r,g,b,p );
 	}else{
-		LOGF("read light failed.\r\n");
+		LOGE("read light failed.\r\n");
 	}
 	return SUCCESS;
 }

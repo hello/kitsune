@@ -886,7 +886,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				xSemaphoreGiveRecursive(i2c_smphr);
 				goto fail_fast_i2c;
 			}
-			// LOGI("%d,%d,%d,%d,%d\n", w,r,g,b,p );
+			LOGP("%d,%d,%d,%d,%d\n", w,r,g,b,p );
 
 			prox = median_filter(p, filter_buf, &filter_idx);
 
