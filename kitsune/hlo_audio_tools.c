@@ -248,8 +248,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	uint8_t hmac[SHA1_SIZE] = {0};
 
 	char compressed[NSAMPLES/2];
-	char * wakeword = pvPortMalloc(sizeof(compressed)*20);
-	memset(wakeword, 0, sizeof(sizeof(compressed)*20));
+#define NWAKE sizeof(compressed)*20
+	char * wakeword = pvPortMalloc(NWAKE);
+	memset(wakeword, 0, sizeof(NWAKE);
 
 	adpcm_state state = (adpcm_state){0};
 
@@ -295,7 +296,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				input = hlo_light_stream( input,true, 300 );
 				input = hlo_stream_bw_limited( input, AUDIO_NET_RATE/4 - AUDIO_NET_RATE/8, 5000);
 				light_open = true;
-				ret = hlo_stream_transfer_all(INTO_STREAM, hmac_payload_str,  (uint8_t*)wakeword, sizeof(wakeword), 4);
+				ret = hlo_stream_transfer_all(INTO_STREAM, hmac_payload_str,  (uint8_t*)wakeword, NWAKE, 4);
 				if( ret < 0 ) {
 					goto error_transfer;
 				}
