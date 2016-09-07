@@ -697,47 +697,32 @@ int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p ) {
 	int i;
 
 	if(xSemaphoreTakeRecursive(i2c_smphr, 1000)){
-	/*Red, green, blue, and clear data are stored as 16-bit values.
-	The read sequence must read byte pairs (low followed by high)
-	 starting on an even address boundary (0x94, 0x96, 0x98, or 0x9A)
-	  inside the CRGB Data Register block. In addition, reading the
-	  Clear channel data low byte (0x94) latches all 8 data bytes.
-	   Reading these 8 bytes consecutively (0x94 - 0x9A) ensures that
-	    the data is concurrent.
-	*/
-	if( !haz_tmg4903() ) {
-		LOGE("can't find TMG4903\n");
-		xSemaphoreGiveRecursive(i2c_smphr);
-		return FAILURE;
-	}
-
-	b[0] = 0x94;
-	(I2C_IF_Write(0x39, b, 1, 1));
-	(I2C_IF_Read(0x39, b, 10));
-	for(i=0;i<10;++i) {
-		DBG_TMG("%x,",b[i]);
-	}DBG_TMG("\n");
-
-	for( i=0;i<10;++i) {
-		if( b[i] != 0 ) {
-			break;
+		/*Red, green, blue, and clear data are stored as 16-bit values.
+		The read sequence must read byte pairs (low followed by high)
+		 starting on an even address boundary (0x94, 0x96, 0x98, or 0x9A)
+		  inside the CRGB Data Register block. In addition, reading the
+		  Clear channel data low byte (0x94) latches all 8 data bytes.
+		   Reading these 8 bytes consecutively (0x94 - 0x9A) ensures that
+			the data is concurrent.
+		*/
+		if( !haz_tmg4903() ) {
+			LOGE("can't find TMG4903\n");
+			xSemaphoreGiveRecursive(i2c_smphr);
+			return FAILURE;
 		}
-	}
-	if( i == 10  ) {
-		init_light_sensor();
-		LOGE("Fail to read TMG\n");
+
+		b[0] = 0x94;
+		(I2C_IF_Write(0x39, b, 1, 1));
+		(I2C_IF_Read(0x39, b, 10));
+
+		*w = get_le_short(b);
+		*r = get_le_short(b+2);
+		*g = get_le_short(b+4);
+		*bl = get_le_short(b+6);
+		*p = get_le_short(b+8);
+
 		xSemaphoreGiveRecursive(i2c_smphr);
-		return FAILURE;
-	}
-
-	*w = get_le_short(b);
-	*r = get_le_short(b+2);
-	*g = get_le_short(b+4);
-	*bl = get_le_short(b+6);
-	*p = get_le_short(b+8);
-
-	xSemaphoreGiveRecursive(i2c_smphr);
-	return SUCCESS;
+		return SUCCESS;
 	}
 	else{
 		return FAILURE;
