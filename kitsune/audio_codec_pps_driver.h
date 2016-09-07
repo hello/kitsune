@@ -328,7 +328,7 @@ static const reg_value REG_Section_program2[] = {
 //			# reg[0][4][90] = 0x04      ; GPIO5 in input mode
     { 90,(0x01 << 2)},
 //			# reg[0][4][87] = 0x28      ; GPIO2 is ADC_MOD_CLK
-    { 87,(0x0A << 2)},
+    //{ 87,(0x0A << 2)},
 	{89,(0x01 << 2)},
 	{96,0}, //GPIO 1 is disabled
 	// DigMic2 L&R ; GPIO6 --> DigMic2 and DigMic3 data, GPIO6 --> DigMic4 and DigMic5 data
