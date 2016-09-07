@@ -250,7 +250,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	char compressed[NSAMPLES/2];
 #define NWAKE sizeof(compressed)*20
 	char * wakeword = pvPortMalloc(NWAKE);
-	memset(wakeword, 0, sizeof(NWAKE);
+	memset(wakeword, 0, sizeof(NWAKE));
 
 	adpcm_state state = (adpcm_state){0};
 
