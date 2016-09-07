@@ -285,8 +285,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		//net always gets samples
 		keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 		adpcm_coder((short*)samples, (char*)compressed, ret / 2, &state);
-		memmove( wakeword+ret, wakeword, sizeof(wakeword) - ret );
-		memcpy( wakeword, compressed, ret );
+		memmove( wakeword+ret/4, wakeword, sizeof(wakeword) - ret/4 );
+		memcpy( wakeword, compressed, ret/4 );
 
 		if( nn_ctx.keyword_detected > 0 ) {
 			if( !light_open ) {
