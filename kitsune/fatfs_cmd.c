@@ -1050,7 +1050,7 @@ void file_download_task( void * params ) {
             }
             hello_fs_unlink(path_buff);
 
-			char buf[512];
+            char path_buf[64] = {0};
 
 			hlo_stream_t * sf_str, *http_str, *sock_str;
 			sock_str = hlo_sock_stream(host, false);
@@ -1067,27 +1067,27 @@ void file_download_task( void * params ) {
                     LOGI("MCU image name converted to %s \n", serial_flash_name);
                 }
 
-				strncpy( buf, serial_flash_path, 64 );
-				strncat(buf, serial_flash_name, 64 );
+				strncpy(path_buf, serial_flash_path, 32 );
+				strncat(path_buf, serial_flash_name, 32 );
 
-				if(strstr(buf, "top/top.bin")){
-					memset(buf, 0, sizeof(buf));
-					strcpy(buf,"/top/update.bin");
-					LOGW("Wrong top board name used, updating path to %s\r\n", buf);
+				if(strstr(path_buf, "top/top.bin")){
+					memset(path_buf, 0, sizeof(path_buf));
+					strcpy(path_buf,"/top/update.bin");
+					LOGW("Wrong top board name used, updating path to %s\r\n", path_buf);
 				}
 
 				//TODO get max size from protobuf and set it here
-				sf_str = open_serial_flash(buf, HLO_STREAM_WRITE, download_info.has_file_size ? download_info.file_size : 300 * 1024);
+				sf_str = open_serial_flash(path_buf, HLO_STREAM_WRITE, download_info.has_file_size ? download_info.file_size : 300 * 1024);
 				if(sf_str){
 					hlo_filter_data_transfer(http_str, sf_str, NULL, NULL);
 					DISP("filesize %d, transferred %d\r\n", download_info.file_size, sf_str->info.bytes_written);
 					hlo_stream_close(sf_str);
 				}
 
-                if (strcmp(buf, "/top/update.bin") == 0) {
+                if (strcmp(path_buf, "/top/update.bin") == 0) {
                     if (download_info.has_sha1) {
                         memcpy(top_sha_cache, download_info.sha1.bytes, SHA1_SIZE );
-                        if( sf_sha1_verify((char *)download_info.sha1.bytes, buf)){
+                        if( sf_sha1_verify((char *)download_info.sha1.bytes, path_buf)){
                             LOGW("Top DFU download failed\r\n");
                             top_need_dfu = 0;
                             goto end_download_task;
@@ -1100,7 +1100,7 @@ void file_download_task( void * params ) {
                 }
                 LOGI("done, closing\n");
 			} else {
-
+				char buf[512];
 				// Set file download pending for download manager
 				update_file_download_status(true);
 
