@@ -2213,7 +2213,7 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("*");
 
-	init_download_task( 3200 / 4 );
+	init_download_task( 3280 / 4 );
 
 
 	networktask_init(3 * 1024 / 4);
