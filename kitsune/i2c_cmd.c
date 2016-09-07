@@ -644,12 +644,17 @@ static bool haz_tmg4903() {
 		(I2C_IF_Write(0x39, b, 1, 1));
 		(I2C_IF_Read(0x39, b, 1));
 		xSemaphoreGiveRecursive(i2c_smphr);
+
+		if( b[0] != 0xb8 ) {
+			LOGE("can't find TMG4903\n");
+			return false;
+		}
 	}
-	if( b[0] != 0xb8 ) {
-		LOGE("can't find TMG4903\n");
-		//xSemaphoreGiveRecursive(i2c_smphr);
+	else{
+		LOGW("failed to get i2c %d\n", __LINE__);
 		return false;
 	}
+
 	return true;
 }
 
@@ -658,12 +663,12 @@ int init_light_sensor()
 	unsigned char b[5];
 
 	if( !haz_tmg4903() ) {
-		LOGE("can't find TMG4903\n");
-		//xSemaphoreGiveRecursive(i2c_smphr);
+		LOGE("haz_tmg4903 fail\n");
 		return FAILURE;
 	}
 
-	if(xSemaphoreTakeRecursive(i2c_smphr, 1000)){
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	{
 		b[0] = 0x80;
 		b[1] = 0b1000111; //enable gesture/prox/als/power
 		b[2] = 249; //20ms integration
@@ -694,9 +699,9 @@ static int get_le_short( uint8_t * b ) {
 #define DBG_TMG(...)
 int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p ) {
 	unsigned char b[10];
-	int i;
 
-	if(xSemaphoreTakeRecursive(i2c_smphr, 1000)){
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	{
 		/*Red, green, blue, and clear data are stored as 16-bit values.
 		The read sequence must read byte pairs (low followed by high)
 		 starting on an even address boundary (0x94, 0x96, 0x98, or 0x9A)
@@ -706,7 +711,7 @@ int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p ) {
 			the data is concurrent.
 		*/
 		if( !haz_tmg4903() ) {
-			LOGE("can't find TMG4903\n");
+			LOGE("haz_tmg4903 fail\n");
 			xSemaphoreGiveRecursive(i2c_smphr);
 			return FAILURE;
 		}
@@ -723,9 +728,6 @@ int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p ) {
 
 		xSemaphoreGiveRecursive(i2c_smphr);
 		return SUCCESS;
-	}
-	else{
-		return FAILURE;
 	}
 
 }
