@@ -1101,6 +1101,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/response.pb.h</locationURI>
 		</link>
 		<link>
+			<name>protobuf/speech.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/speech.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/speech.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/speech.pb.h</locationURI>
+		</link>
+		<link>
 			<name>protobuf/state.pb.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/state.pb.c</locationURI>

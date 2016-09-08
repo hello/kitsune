@@ -13,6 +13,8 @@
 #include "hlo_proto_tools.h"
 #include "crypto.h"
 #include "wifi_cmd.h"
+
+#include "speech.pb.h"
 ////-------------------------------------------
 //The feature/extractor processor we used in sense 1.0
 //
@@ -202,14 +204,20 @@ typedef struct{
 static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	LOGI("KEYWORD BEGIN\n");
 }
+speech_data speech_pb;
 
 bool cancel_alarm();
 static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)ctx;
 
+	speech_pb.has_confidence = true;
+	speech_pb.confidence = value;
+
 	switch (keyword ) {
 	case okay_sense:
 		LOGI("OKAY SENSE\r\n");
+		speech_pb.has_word = true;
+		speech_pb.word = keyword_OK_SENSE;
 		p->keyword_detected++;
 
 		if (!p->is_speaking) {
@@ -219,8 +227,15 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 		break;
 	case snooze:
 		LOGI("SNOOZE\r\n");
+		speech_pb.has_word = true;
+		speech_pb.word = keyword_SNOOZE;
+		stop_led_animation( 0, 33 );
+		cancel_alarm();
+		break;
 	case stop:
 		LOGI("STOP\r\n");
+		speech_pb.has_word = true;
+		speech_pb.word = keyword_STOP;
 		stop_led_animation( 0, 33 );
 		cancel_alarm();
 		break;
@@ -292,6 +307,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 		if( nn_ctx.keyword_detected > 0 ) {
 			if( !light_open ) {
+				hlo_pb_encode(hmac_payload_str, speech_data_fields, &speech_pb);
 				keyword_net_pause_net_operation();
 				//todo update this bw rate when switching to adpcm
 				input = hlo_light_stream( input,true, 300 );
