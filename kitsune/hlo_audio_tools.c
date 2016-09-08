@@ -345,8 +345,12 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			ustrncpy(desc.source_name, "voice", sizeof(desc.source_name));
 			AudioTask_StartPlayback(&desc);
 
-			speech_response_time = xTaskGetTickCount();
+
 			LOGI("\r\n===========\r\n");
+
+			speech_response_time = xTaskGetTickCount();
+			analytics_event("{speech_length:%d}", speech_finished_time - speech_detected_time);
+			analytics_event("{speech_latency:%d}", speech_response_time - speech_finished_time);
 	}
 	else if(output) {
 		hlo_stream_close(output);
