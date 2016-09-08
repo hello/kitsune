@@ -697,24 +697,46 @@ static void thread_dust(void * unused) {
 	}
 }
 
+typedef struct{
+	int light_m2;
+	int light_mean;
+	int light_cnt;
+	int light_log_sum;
+	int light_sf;
+	int light;
+	int rgb[3];
+	xSemaphoreHandle light_smphr;
+}light_data_t;
 
-static int light_m2,light_mean, light_cnt,light_log_sum,light_sf,light, rgb[3];
-static xSemaphoreHandle light_smphr;
+static light_data_t _light_data = {0};
+
 xSemaphoreHandle i2c_smphr;
 
 uint8_t get_alpha_from_light()
 {
-	int adjust_max_light = 800;
+	int adjust_max_light = 500;
 	int adjust;
 
-
-	xSemaphoreTake(light_smphr, portMAX_DELAY);
-	if( light > adjust_max_light ) {
+#if 0
+	xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY);
+	if( _light_data.light > adjust_max_light ) {
 		adjust = adjust_max_light;
 	} else {
-		adjust = light_mean;
+		adjust = _light_data.light_mean;
 	}
-	xSemaphoreGive(light_smphr);
+	xSemaphoreGiveRecursive(_light_data.light_smphr);
+
+#else
+
+
+	int als = read_zopt( ZOPT_ALS );
+	LOGI("***GET ALPHA*** TMG: %d, ZOPT:%d\n",_light_data.light,als);
+	if( als > adjust_max_light ) {
+		adjust = adjust_max_light;
+	} else {
+		adjust = als;
+	}
+#endif
 
 	uint8_t alpha = 0xFF * adjust / adjust_max_light;
 	alpha = alpha < 10 ? 10 : alpha;
@@ -729,23 +751,23 @@ static int _is_light_off()
 	const int light_off_threshold = 500;
 	int ret = 0;
 
-	xSemaphoreTake(light_smphr, portMAX_DELAY);
+	xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY);
 	if(last_light != -1)
 	{
-		int delta = last_light - light;
+		int delta = last_light - _light_data.light;
 		if(xTaskGetTickCount() - last_light_time > 2000
 				&& delta >= light_off_threshold
-				&& light < 1000)
+				&& _light_data.light < 1000)
 		{
-			LOGI("light delta: %d, current %d, last %d\n", delta, light, last_light);
+			LOGI("light delta: %d, current %d, last %d\n", delta, _light_data.light, last_light);
 			ret = 1;
-			light_mean = light; //so the led alpha will be at the lights off level
+			_light_data.light_mean =_light_data. light; //so the led alpha will be at the lights off level
 			last_light_time = xTaskGetTickCount();
 		}
 	}
 
-	last_light = light;
-	xSemaphoreGive(light_smphr);
+	last_light = _light_data.light;
+	xSemaphoreGiveRecursive(_light_data.light_smphr);
 	return ret;
 
 }
@@ -861,6 +883,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			vTaskDelay(1);
 
 			if( 0 != get_rgb_prox( &w,&r,&g,&b,&p ) ) {
+				xSemaphoreGiveRecursive(i2c_smphr);
 				goto fail_fast_i2c;
 			}
 			LOGP("%d,%d,%d,%d,%d\n", w,r,g,b,p );
@@ -882,25 +905,27 @@ void thread_fast_i2c_poll(void * unused)  {
 				break;
 			}
 
-			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-				light = w;
-				rgb[0] = r;
-				rgb[1] = g;
-				rgb[2] = b;
-				light_log_sum += bitlog(light);
-				++light_cnt;
+			if (xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY)) {
+				_light_data.light = w;
+				_light_data.rgb[0] = r;
+				_light_data.rgb[1] = g;
+				_light_data.rgb[2] = b;
+				_light_data.light_log_sum += bitlog(_light_data.light);
+				++_light_data.light_cnt;
 
-				int delta = light - light_mean;
-				light_mean = light_mean + delta/light_cnt;
-				light_m2 = light_m2 + delta * (light - light_mean);
-				if( light_m2 < 0 ) {
-					light_m2 = 0x7FFFFFFF;
+				int delta = _light_data.light - _light_data.light_mean;
+				_light_data.light_mean = _light_data.light_mean + delta/_light_data.light_cnt;
+				_light_data.light_m2 = _light_data.light_m2 + delta * (_light_data.light - _light_data.light_mean);
+				if( _light_data.light_m2 < 0 ) {
+					_light_data.light_m2 = 0x7FFFFFFF;
 				}
-//				LOGI( "%d\t%d\t%d\t%d\t%d\n", delta, light_mean, light_m2, light_cnt, _is_light_off());
-				xSemaphoreGive(light_smphr);
+				xSemaphoreGiveRecursive(_light_data.light_smphr);
 
-				if(light_cnt % 5 == 0 && led_is_idle(0) ) {
+				if(_light_data.light_cnt % 5 == 0 && led_is_idle(0) ) {
 					if(_is_light_off()) {
+#if 1
+						LOGI("LIGHTS OUT\n");
+#endif
 						_show_led_status();
 					}
 				}
@@ -909,8 +934,9 @@ void thread_fast_i2c_poll(void * unused)  {
 			vTaskDelay(1);
 			xSemaphoreGiveRecursive(i2c_smphr);
 		} else {
-			fail_fast_i2c:
 			LOGW("failed to get i2c %d\n", __LINE__);
+			fail_fast_i2c:
+			LOGE("Thread fast i2c fail\n");
 		}
 		vTaskDelayUntil(&now, delay);
 	}
@@ -1174,38 +1200,38 @@ void sample_sensor_data(periodic_data* data)
 	}
 
 	// copy over light values
-	if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-		if(light_cnt == 0)
+	if (xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY)) {
+		if(_light_data.light_cnt == 0)
 		{
 			data->has_light_sensor = false;
 		}else{
-			light_log_sum /= light_cnt;  // just be careful for devide by zero.
-			light_sf = (light_mean << 8) / bitexp( light_log_sum );
+			_light_data.light_log_sum /= _light_data.light_cnt;  // just be careful for devide by zero.
+			_light_data.light_sf = (_light_data.light_mean << 8) / bitexp( _light_data.light_log_sum );
 
-			if(light_cnt > 1)
+			if(_light_data.light_cnt > 1)
 			{
-				data->light_variability = light_m2 / (light_cnt - 1);
+				data->light_variability = _light_data.light_m2 / (_light_data.light_cnt - 1);
 				data->has_light_variability = true;
 			}else{
 				data->has_light_variability = false;
 			}
 
 			//LOGI( "%d lightsf %d var %d cnt\n", light_sf, light_var, light_cnt );
-			data->light_tonality = light_sf;
+			data->light_tonality = _light_data.light_sf;
 			data->has_light_tonality = true;
 
-			data->light = light_mean;
+			data->light = _light_data.light_mean;
 			data->has_light = true;
 
-			light_m2 = light_mean = light_cnt = light_log_sum = light_sf = 0;
+			_light_data.light_m2 = _light_data.light_mean = _light_data.light_cnt = _light_data.light_log_sum = _light_data.light_sf = 0;
 		}
 		data->has_light_sensor = true;
-		data->light_sensor.r = rgb[0];
-		data->light_sensor.g = rgb[1];
-		data->light_sensor.b = rgb[2];
+		data->light_sensor.r = _light_data.rgb[0];
+		data->light_sensor.g = _light_data.rgb[1];
+		data->light_sensor.b = _light_data.rgb[2];
 		data->light_sensor.has_clear = true;
-		data->light_sensor.clear = light;
-		xSemaphoreGive(light_smphr);
+		data->light_sensor.clear = _light_data.light;
+		xSemaphoreGiveRecursive(_light_data.light_smphr);
 	}
 
 	{
@@ -2198,7 +2224,7 @@ void vUARTTask(void *pvParameters) {
 	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
 	pill_prox_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
 	vSemaphoreCreateBinary(dust_smphr);
-	vSemaphoreCreateBinary(light_smphr);
+	_light_data.light_smphr = xSemaphoreCreateRecursiveMutex();
 	vSemaphoreCreateBinary(spi_smphr);
 	alarm_smphr = xSemaphoreCreateRecursiveMutex();
 
