@@ -273,6 +273,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	assert(hmac_payload_str);
 
 	uint32_t begin = xTaskGetTickCount();
+	uint32_t speech_detected_time = begin;
+	uint32_t speech_finished_time = begin;
+	uint32_t speech_response_time = begin;
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
 		if( !ready ) {
@@ -289,6 +292,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				input = hlo_light_stream( input,true, 300 );
 				input = hlo_stream_bw_limited( input, AUDIO_NET_RATE/4 - AUDIO_NET_RATE/8, 5000);
 				light_open = true;
+				speech_detected_time = xTaskGetTickCount();
 			}
 
 			adpcm_coder((short*)samples, (char*)compressed, ret / 2, &state);
@@ -302,6 +306,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			}
 
 			if (!nn_ctx.is_speaking) {
+				speech_finished_time = xTaskGetTickCount();
 				break;
 			}
 
@@ -340,6 +345,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			ustrncpy(desc.source_name, "voice", sizeof(desc.source_name));
 			AudioTask_StartPlayback(&desc);
 
+			speech_response_time = xTaskGetTickCount();
 			LOGI("\r\n===========\r\n");
 	}
 	else if(output) {
