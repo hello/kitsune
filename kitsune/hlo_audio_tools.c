@@ -321,11 +321,13 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 		if( nn_ctx.keyword_detected > 0) {
 			if( !light_open ) {
-				hlo_pb_encode(hmac_payload_str, speech_data_fields, &speech_pb);
 				keyword_net_pause_net_operation();
 				input = hlo_light_stream( input,true, 300 );
 				send_str = hlo_stream_bw_limited( send_str, AUDIO_NET_RATE/8, 5000);
 				light_open = true;
+
+				hlo_pb_encode(send_str, speech_data_fields, &speech_pb);
+				memset( &speech_pb, 0, sizeof(speech_pb));
 
 				if( ww_idx != WW_WINDOWS ) {
 					ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword[ww_idx], sizeof(wakeword[0])*(WW_WINDOWS - ww_idx), 4);
