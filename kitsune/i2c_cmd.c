@@ -2172,17 +2172,17 @@ static void codec_speaker_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 2F 0c # Route LOR to SPK_RIGHT_CH_IN @ -6dB
-	cmd[0] = 0x2F;
-	cmd[1] = 0x0C;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+//	cmd[0] = 0x2F;
+//	cmd[1] = 0x0C;
+//	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 30 21 # SPK Gain = 12dB, unmute SPK_RIGHT_CH_IN
 	cmd[0] = 0x30;
-	cmd[1] = (2 << 4) | (1 << 0); //0x21;
+	cmd[1] = (5 << 4) | (0 << 0); //0x21;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// ENable PGA, might not be needed //TODO
-#if 1
+#if 0
 	cmd[0] = 59;
 	cmd[1] = 0x80;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
@@ -2192,18 +2192,19 @@ static void codec_speaker_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 #endif
 
+
 	//	w 30 2D 06 # Power-up SPK, route SPK_RIGHT_CH_IN to SPK
 	cmd[0] = 0x2D;
-	cmd[1] = (1 << 2) | (1 << 1); //0x06;
+	cmd[1] = (0 << 2) | (1 << 1); //0x06;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-
+/*
 
 	// ENable DRC hold
 	cmd[0] = 0x45;
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
+*/
 
 	vTaskDelay(20);
 }
