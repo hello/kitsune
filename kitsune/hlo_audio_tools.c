@@ -306,7 +306,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			}
 
 			if (!nn_ctx.is_speaking) {
-				speech_finished_time = xTaskGetTickCount();
 				break;
 			}
 
@@ -321,6 +320,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			break;
 		}
 	}
+	speech_finished_time = xTaskGetTickCount();
 	hlo_stream_close(input);
 
 	if(ret >= 0 || ret == HLO_STREAM_EOF ){
