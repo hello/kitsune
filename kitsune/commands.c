@@ -457,7 +457,7 @@ int load_alarm( ) {
 	return fs_get( ALARM_LOC, &alarm, sizeof(alarm), NULL );
 }
 
-static bool cancel_alarm() {
+bool cancel_alarm() {
 	bool was_ringing = false;
 	if(xTaskGetTickCount() > 10000) {
 		AudioTask_StopPlayback();

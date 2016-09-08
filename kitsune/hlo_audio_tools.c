@@ -200,22 +200,30 @@ typedef struct{
 }nn_keyword_ctx_t;
 
 static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
-	if (keyword == okay_sense) {
-		LOGI("OKAY SENSE\r\n");
-	}
+	LOGI("KEYWORD BEGIN\n");
 }
+
+bool cancel_alarm();
 static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)ctx;
 
-	if (keyword == okay_sense) {
-		LOGI("Keyword Done\r\n");
+	switch (keyword ) {
+	case okay_sense:
+		LOGI("OKAY SENSE\r\n");
 		p->keyword_detected++;
 
 		if (!p->is_speaking) {
 			tinytensor_features_force_voice_activity_detection();
 			p->is_speaking = true;
 		}
-
+		break;
+	case snooze:
+		LOGI("SNOOZE\r\n");
+	case stop:
+		LOGI("STOP\r\n");
+		stop_led_animation( 0, 33 );
+		cancel_alarm();
+		break;
 	}
 }
 
