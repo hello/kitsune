@@ -273,9 +273,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	assert(hmac_payload_str);
 
 	uint32_t begin = xTaskGetTickCount();
-	uint32_t speech_detected_time = begin;
-	uint32_t speech_finished_time = begin;
-	uint32_t speech_response_time = begin;
+	uint32_t speech_detected_time;
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
 		if( !ready ) {
@@ -306,6 +304,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			}
 
 			if (!nn_ctx.is_speaking) {
+				analytics_event("{speech_length:%d}", xTaskGetTickCount() - speech_detected_time);
 				break;
 			}
 
@@ -320,7 +319,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			break;
 		}
 	}
-	speech_finished_time = xTaskGetTickCount();
 	hlo_stream_close(input);
 
 	if(ret >= 0 || ret == HLO_STREAM_EOF ){
@@ -349,8 +347,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			LOGI("\r\n===========\r\n");
 
 			speech_response_time = xTaskGetTickCount();
-			analytics_event("{speech_length:%d}", speech_finished_time - speech_detected_time);
-			analytics_event("{speech_latency:%d}", speech_response_time - speech_finished_time);
 	}
 	else if(output) {
 		hlo_stream_close(output);
