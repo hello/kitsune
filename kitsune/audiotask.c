@@ -158,7 +158,6 @@ typedef struct{
 	unsigned long ramp_down_ms;
 	int32_t  duration;
 }ramp_ctx_t;
-extern xSemaphoreHandle i2c_smphr;
 
 int32_t set_volume(int v, unsigned int dly);
 
