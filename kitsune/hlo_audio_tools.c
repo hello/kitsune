@@ -468,6 +468,7 @@ typedef struct{
 	hlo_stream_t * in;
 	hlo_stream_t * out;
 	hlo_stream_signal sig;
+	uint32_t t_start;
 	void * sig_ctx;
 	uint8_t frame_buf[800];
 }mp3_ctx_t;
@@ -562,6 +563,10 @@ enum mad_flow _mp3_output(void *data,
 	}
 
 	ret = hlo_stream_transfer_all(INTO_STREAM, ctx->out, (uint8_t*)i16_samples, buf_size, 4);
+	if(ctx->t_start){
+		analytics_event("{speech_latency: %d}", xTaskGetTickCount() - ctx->t_start);
+		ctx->t_start = 0;
+	}
 	if( ret < 0){
 		return MAD_FLOW_BREAK;
 	}
@@ -605,6 +610,7 @@ int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * c
 	mp3.out = output;
 	mp3.sig = signal;
 	mp3.sig_ctx = ctx;
+	mp3.t_start = xTaskGetTickCount();	/* log start time, set to 0 if no report */
 
 	/* configure input, output, and error functions */
 
