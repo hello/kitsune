@@ -194,7 +194,7 @@ extern bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, 
 #include "tensor/keyword_net.h"
 typedef struct{
 	hlo_stream_t * base;
-	int8_t keyword_detected;
+	speech_data speech_pb;
 	uint8_t threshold;
 	uint16_t reserved;
 	uint32_t timeout;
@@ -204,38 +204,34 @@ typedef struct{
 static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	LOGI("KEYWORD BEGIN\n");
 }
-speech_data speech_pb;
 
 bool cancel_alarm();
 static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)ctx;
 
-	speech_pb.has_confidence = true;
-	speech_pb.confidence = value;
+	p->speech_pb.has_confidence = true;
+	p->speech_pb.confidence = value;
+
+	if (!p->is_speaking) {
+		tinytensor_features_force_voice_activity_detection();
+		p->is_speaking = true;
+	}
+	p->speech_pb.has_word = true;
 
 	switch (keyword ) {
 	case okay_sense:
 		LOGI("OKAY SENSE\r\n");
-		speech_pb.has_word = true;
-		speech_pb.word = keyword_OK_SENSE;
-		p->keyword_detected++;
-
-		if (!p->is_speaking) {
-			tinytensor_features_force_voice_activity_detection();
-			p->is_speaking = true;
-		}
+		p->speech_pb.word = keyword_OK_SENSE;
 		break;
 	case snooze:
 		LOGI("SNOOZE\r\n");
-		speech_pb.has_word = true;
-		speech_pb.word = keyword_SNOOZE;
+		p->speech_pb.word = keyword_SNOOZE;
 		stop_led_animation( 0, 33 );
 		cancel_alarm();
 		break;
 	case stop:
 		LOGI("STOP\r\n");
-		speech_pb.has_word = true;
-		speech_pb.word = keyword_STOP;
+		p->speech_pb.word = keyword_STOP;
 		stop_led_animation( 0, 33 );
 		cancel_alarm();
 		break;
@@ -295,8 +291,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	int ww_idx = WW_WINDOWS;
 
 	adpcm_state state = (adpcm_state){0};
-
-	bool ready = false;
 	bool light_open = false;
 
 	if(!_statsMutex){
@@ -325,11 +319,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	uint32_t begin = xTaskGetTickCount();
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
-		if( !ready ) {
-			ready = true;
-		}
-//		if( ret > 0 )
-
 		//net always gets samples
 		keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 
@@ -339,15 +328,14 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		}
 		memcpy( wakeword[ww_idx++], compressed, sizeof(compressed) );
 
-		if( nn_ctx.keyword_detected > 0) {
+		if( nn_ctx.speech_pb.has_word ) {
 			if( !light_open ) {
 				keyword_net_pause_net_operation();
 				input = hlo_light_stream( input,true, 300 );
 				send_str = hlo_stream_bw_limited( send_str, AUDIO_NET_RATE/8, 5000);
 				light_open = true;
 
-				hlo_pb_encode(send_str, speech_data_fields, &speech_pb);
-				memset( &speech_pb, 0, sizeof(speech_pb));
+				hlo_pb_encode(send_str, speech_data_fields, &nn_ctx.speech_pb);
 
 				if( ww_idx != WW_WINDOWS ) {
 					ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword[ww_idx], sizeof(wakeword[0])*(WW_WINDOWS - ww_idx), 4);
@@ -382,7 +370,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		}
 
 		BREAK_ON_SIG(signal);
-		if(nn_ctx.keyword_detected == 0 &&
+		if(!nn_ctx.speech_pb.has_word &&
 				xTaskGetTickCount() - begin > 4*60*1000 ) {
 			ret = HLO_STREAM_EAGAIN;
 			break;
