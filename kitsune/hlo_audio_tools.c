@@ -241,6 +241,24 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 		break;
 	}
 }
+static void _ok_sense_start(void * ctx, Keyword_t keyword, int8_t value){
+	_voice_begin_keyword(ctx, keyword, value);
+}
+static void _ok_sense_stop(void * ctx, Keyword_t keyword, int8_t value){
+	_voice_finish_keyword(ctx, keyword, value);
+}
+static void _snooze_start(void * ctx, Keyword_t keyword, int8_t value){
+	_voice_begin_keyword(ctx, keyword, value);
+}
+static void _snooze_stop(void * ctx, Keyword_t keyword, int8_t value){
+	_voice_finish_keyword(ctx, keyword, value);
+}
+static void _stop_start(void * ctx, Keyword_t keyword, int8_t value){
+	_voice_begin_keyword(ctx, keyword, value);
+}
+static void _stop_stop(void * ctx, Keyword_t keyword, int8_t value){
+	_voice_finish_keyword(ctx, keyword, value);
+}
 
 static void _speech_detect_callback(void * context, SpeechTransition_t transition) {
 	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)context;
@@ -291,7 +309,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	memset(&nn_ctx, 0, sizeof(nn_ctx));
 
 	keyword_net_initialize();
-	keyword_net_register_callback(&nn_ctx,okay_sense,80,_voice_begin_keyword,_voice_finish_keyword);
+	keyword_net_register_callback(&nn_ctx,okay_sense,80,_ok_sense_start,_ok_sense_stop);
+	keyword_net_register_callback(&nn_ctx,snooze,80,_snooze_start,_snooze_stop);
+	keyword_net_register_callback(&nn_ctx,stop,80,_stop_start,_stop_stop);
 	keyword_net_register_speech_callback(&nn_ctx,_speech_detect_callback);
 
 	//wrap output in hmac stream
