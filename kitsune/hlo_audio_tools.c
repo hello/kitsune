@@ -247,9 +247,11 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	int16_t samples[NSAMPLES];
 	uint8_t hmac[SHA1_SIZE] = {0};
 
-	char compressed[NSAMPLES/2];
-	char wakeword[sizeof(compressed)*20];
+	char compressed[160/2];
+#define WW_WINDOWS 150
+	char wakeword[WW_WINDOWS][sizeof(compressed)];
 	memset(wakeword, 0, sizeof(wakeword));
+	int ww_idx = WW_WINDOWS;
 
 	adpcm_state state = (adpcm_state){0};
 
@@ -283,36 +285,49 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		if( !ready ) {
 			ready = true;
 		}
+//		if( ret > 0 )
 
 		//net always gets samples
 		keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
-		adpcm_coder((short*)samples, (char*)compressed, ret / 2, &state);
-		memmove( wakeword+ret/4, wakeword, sizeof(wakeword) - ret/4 );
-		memcpy( wakeword, compressed, ret/4 );
 
-		if( nn_ctx.keyword_detected > 0 ) {
+		adpcm_coder((short*)samples, (char*)compressed, ret / 2, &state);
+		if( ww_idx == WW_WINDOWS ) {
+			ww_idx = 0;
+		}
+		memcpy( wakeword[ww_idx++], compressed, sizeof(compressed) );
+
+		if( nn_ctx.keyword_detected > 0) {
 			if( !light_open ) {
 				keyword_net_pause_net_operation();
 				input = hlo_light_stream( input,true, 300 );
 				send_str = hlo_stream_bw_limited( send_str, AUDIO_NET_RATE/8, 5000);
 				light_open = true;
-				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword, sizeof(wakeword), 4);
-				if( ret < 0 ) {
-					goto error_transfer;
-				}
-			}
-			ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)compressed, ret/4, 4);
 
-			if ( ret <  0 ) {
-				error_transfer:
-				if( ret == HLO_STREAM_ERROR) {
-					stop_led_animation( 0, 33 );
-					play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1,18, 1);
+				if( ww_idx != WW_WINDOWS ) {
+					ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword[ww_idx], sizeof(wakeword[0])*(WW_WINDOWS - ww_idx), 4);
+					if( ret < 0 ) {
+						break;
+					}
 				}
-				break;
+				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword, sizeof(wakeword[0])*(ww_idx), 4);
+				if( ret < 0 ) {
+					break;
+				}
+				ww_idx = 0;
+#if( WW_WINDOWS < 1536/80 )
+#error "wakeword buffer too small"
+#endif
+			} else if( ww_idx == 1536/sizeof(wakeword[0]) ) {
+				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword, sizeof(wakeword[0])*(ww_idx), 4);
+				ww_idx = 0;
+				if( ret < 0 ) {
+					break;
+				}
 			}
 
 			if (!nn_ctx.is_speaking) {
+				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword, sizeof(wakeword[0])*(ww_idx), 4);
+				ww_idx = 0;
 				break;
 			}
 
@@ -325,6 +340,13 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				xTaskGetTickCount() - begin > 4*60*1000 ) {
 			ret = HLO_STREAM_ERROR;
 			break;
+		}
+	}
+
+	if (ret < 0) {
+		if (ret == HLO_STREAM_ERROR) {
+			stop_led_animation(0, 33);
+			play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1, 18, 1);
 		}
 	}
 	hlo_stream_close(input);
