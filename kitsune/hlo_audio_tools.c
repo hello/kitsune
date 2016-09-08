@@ -345,8 +345,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 
 			LOGI("\r\n===========\r\n");
-
-			speech_response_time = xTaskGetTickCount();
 	}
 	else if(output) {
 		hlo_stream_close(output);
