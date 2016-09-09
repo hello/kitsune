@@ -714,7 +714,7 @@ xSemaphoreHandle i2c_smphr;
 
 uint8_t get_alpha_from_light()
 {
-	int adjust_max_light = 500;
+	int adjust_max_light = 7366 / 4;
 	int adjust;
 
 #if 0
@@ -730,7 +730,6 @@ uint8_t get_alpha_from_light()
 
 
 	int als = read_zopt( ZOPT_ALS );
-	LOGI("***GET ALPHA*** TMG: %d, ZOPT:%d\n",_light_data.light,als);
 	if( als > adjust_max_light ) {
 		adjust = adjust_max_light;
 	} else {
@@ -740,6 +739,7 @@ uint8_t get_alpha_from_light()
 
 	uint8_t alpha = 0xFF * adjust / adjust_max_light;
 	alpha = alpha < 10 ? 10 : alpha;
+	LOGI("***GET ALPHA*** TMG: %d, ZOPT:%d ALPHA %d\n",_light_data.light,als, alpha);
 	return alpha;
 }
 
@@ -757,7 +757,7 @@ static int _is_light_off()
 		int delta = last_light - _light_data.light;
 		if(xTaskGetTickCount() - last_light_time > 2000
 				&& delta >= light_off_threshold
-				&& _light_data.light < 1000)
+				&& _light_data.light < 100)
 		{
 			LOGI("light delta: %d, current %d, last %d\n", delta, _light_data.light, last_light);
 			ret = 1;
