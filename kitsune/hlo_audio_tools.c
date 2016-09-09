@@ -211,11 +211,8 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 		LOGI("Keyword Done\r\n");
 		p->keyword_detected++;
 
-		if (!p->is_speaking) {
-			tinytensor_features_force_voice_activity_detection();
-			p->is_speaking = true;
-		}
-
+		tinytensor_features_force_voice_activity_detection();
+		p->is_speaking = true;
 	}
 }
 

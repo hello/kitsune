@@ -7,6 +7,10 @@
 #include "fft.h"
 #include "hellomath.h"
 
+
+
+void set_background_energy(const int16_t fr[], const int16_t fi[]);
+
 #define USE_BACKGROUND_NORMALIZATION (1)
 #define BACKGROUND_NOISE_MAX_ATTENUATION (-2048)
 
@@ -40,7 +44,7 @@
 #define START_SPEECH_THRESHOLD (4000)
 #define STOP_SPEECH_THRESHOLD (1000)
 
-#define NUM_NONSPEECH_FRAMES_TO_TURN_OFF   (200)
+#define NUM_NONSPEECH_FRAMES_TO_TURN_OFF   (50)
 #define NUM_SPEECH_FRAMES_TO_TURN_ON       (2)
 //hanning window
 __attribute__((section(".data")))
@@ -73,7 +77,7 @@ typedef struct {
     
     uint32_t speech_detector_counter;
     uint32_t num_speech_frames;
-    uint32_t num_nonspeech_frames;
+    int32_t num_nonspeech_frames;
     int16_t last_speech_energy_average;
     
     int32_t log_liklihood_of_speech;
@@ -145,7 +149,7 @@ void tinytensor_features_get_mel_bank(int16_t * melbank,const int16_t * fr, cons
 
 void tinytensor_features_force_voice_activity_detection(void) {
 	_this.is_speech = 1;
-	_this.num_nonspeech_frames = 0;
+	_this.num_nonspeech_frames = -150;
 }
 
 #define SPEECH_BIN_START (4)
@@ -209,6 +213,7 @@ static void do_voice_activity_detection(int16_t * fr,int16_t * fi,int16_t input_
         if (_this.speech_detector_callback) {
             _this.speech_detector_callback(_this.results_context,stop_speech);
         }
+
         _this.is_speech = 0;
     }
 
