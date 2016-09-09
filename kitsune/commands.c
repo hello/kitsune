@@ -2079,10 +2079,10 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "set-time",cmd_set_time,""},
 		{ "rssi", Cmd_rssi, "" },
 		{"dev", Cmd_setDev, ""},
+		{ "scan",Cmd_scan_wifi,""},
 #if 0
 		{ "frag",cmd_memfrag,""},
 		{ "burntopkey",Cmd_burn_top,""},
-		{ "scan",Cmd_scan_wifi,""},
 		{"future",Cmd_FutureTest,""},
 		{"ana", Cmd_analytics, ""},
 		{"noint", Cmd_disableInterrupts, ""},
