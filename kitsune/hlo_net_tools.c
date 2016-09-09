@@ -163,53 +163,24 @@ int _replace_ssid_by_rssi(SlWlanNetworkEntry_t * main, size_t main_size, const S
 //this implementation is O(n^2)
 int get_unique_wifi_list(SlWlanNetworkEntry_t * result, size_t num_entries){
 	size_t size = num_entries * sizeof(SlWlanNetworkEntry_t);
-	int retries, ret, tally = 0;
-	SlWlanNetworkEntry_t * ifa_list = pvPortMalloc(size);
-	SlWlanNetworkEntry_t * pcb_list = pvPortMalloc(size);
-
+	int retries, ret = 0;
 	DISP("Scan begin\n");
 
 	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(0, 0, 0, 0), NULL, 0);
 	sl_WlanDisconnect();
 	vTaskDelay(100);
 
-	if(!ifa_list || !pcb_list){
-		goto exit;
-	}
-	if( get_hw_ver() < EVT1_1p5 ) {
-		DISP("Scan IFA\n");
-		//do ifa
-		retries = 3;
-		while(--retries > 0 && (ret = scan_for_wifi(ifa_list, num_entries, IFA_ANT, 5000)) == 0){
-			DISP("Retrying IFA %d\r\n", retries);
-		}
-		while(--ret > 0){
-			ifa_list[ret].Reserved[0] = IFA_ANT;
-			ifa_list[ret].SsidLen = 0;
-			tally += _replace_ssid_by_rssi(result, num_entries, &ifa_list[ret]);
-		}
-	}
 	DISP("Scan PCB\n");
 	//now do pcb
 	retries = 3;
-	while(--retries > 0 && (ret = scan_for_wifi(pcb_list, num_entries, PCB_ANT, 5000)) == 0){
+	while(--retries > 0 && (ret = scan_for_wifi(result, num_entries, PCB_ANT, 5000)) == 0){
 		DISP("Retrying PCB %d\r\n", retries);
-	}
-	while(--ret > 0){
-		pcb_list[ret].Reserved[0] = PCB_ANT;
-		pcb_list[ret].SsidLen = 0;
-		tally += _replace_ssid_by_rssi(result, num_entries, &pcb_list[ret]);
 	}
 exit:
 	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 
-	if(ifa_list){vPortFree(ifa_list);}
-	if(pcb_list){vPortFree(pcb_list);}
-	DISP("Scan selecting antenna\n");
-
-	reselect_antenna( result, num_entries );
 	DISP("Scan complete\n");
-	return tally;
+	return ret;
 
 }
 hlo_future_t * prescan_wifi(size_t num_entries){
