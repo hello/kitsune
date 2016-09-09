@@ -441,25 +441,24 @@ void set_background_energy(const int16_t fr[], const int16_t fi[]) {
     //enjoy this nice large stack.
     //this can all go away if we get fftr to work, and do the
     int16_t psd[PSD_SIZE];
-    
-    uint16_t i,j;
+
     uint8_t log2scaleOfRawSignal;
     int16_t logTotalEnergy;
     int16_t logTotalEnergyAvg;
 
     EChangeModes_t currentMode;
     uint8_t isStable;
-    
+
     /* Normalize time series signal  */
     //ScaleInt16Vector(fr,&log2scaleOfRawSignal,AUDIO_FFT_SIZE,RAW_SAMPLES_SCALE);
     log2scaleOfRawSignal = 0;
-    
+
     /* Get PSD of variously spaced non-overlapping frequency windows*/
     logpsdmel(&logTotalEnergy,psd,fr,fi,log2scaleOfRawSignal,_data.psd_min_energy); //psd is now 64, and on a logarithmic scale after 1khz
-    
+
     /* Determine stability of signal energy order to figure out when to estimate background spectrum */
     logTotalEnergyAvg = MovingAverage16(_data.callcounter, logTotalEnergy, _data.energybuf, &_data.energyaccumulator,ENERGY_BUF_MASK,ENERGY_BUF_SIZE_2N);
-    
+
     /*
      *  Determine stability of average energy -- we will use this to determine when it's safe to assume
      *   that all the audio we are hearing is just background noise
@@ -467,18 +466,18 @@ void set_background_energy(const int16_t fr[], const int16_t fi[]) {
     UpdateChangeSignals(&currentMode, logTotalEnergyAvg, _data.callcounter);
 
     isStable = IsStable(currentMode,logTotalEnergyAvg);
-    
+
     //if (c++ == 255) {
     	LOGA("%d\n",GetAudioEnergyAsDBA(logTotalEnergyAvg));
     //}
 
 
     UpdateEnergyStats(isStable,logTotalEnergyAvg,logTotalEnergy);
-    
+
     _data.lastEnergy = logTotalEnergy;
-    
+
     /* Update counter.  It's okay if this one rolls over*/
     _data.callcounter++;
-    
-    
+
+
 }

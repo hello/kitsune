@@ -366,6 +366,7 @@ void main()
 #endif
 
 
+
   VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
 
   MAP_PinDirModeSet(PIN_07,PIN_DIR_MODE_OUT);
