@@ -244,7 +244,12 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	int16_t samples[NSAMPLES];
 	uint8_t hmac[SHA1_SIZE] = {0};
 
-	char compressed[NSAMPLES/2];
+	char compressed[160/2];
+#define WW_WINDOWS 150
+	char wakeword[WW_WINDOWS][sizeof(compressed)];
+	memset(wakeword, 0, sizeof(wakeword));
+	int ww_idx = WW_WINDOWS;
+
 	adpcm_state state = (adpcm_state){0};
 
 	bool ready = false;
@@ -269,36 +274,59 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	hlo_stream_t * hmac_payload_str = hlo_hmac_stream(output, key, sizeof(key) );
 	assert(hmac_payload_str);
 
+	hlo_stream_t * send_str = hmac_payload_str;
+
 	uint32_t begin = xTaskGetTickCount();
+	uint32_t speech_detected_time;
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
 		if( !ready ) {
 			ready = true;
 		}
+//		if( ret > 0 )
 
 		//net always gets samples
 		keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 
-		if( nn_ctx.keyword_detected > 0 ) {
+		adpcm_coder((short*)samples, (char*)compressed, ret / 2, &state);
+		if( ww_idx == WW_WINDOWS ) {
+			ww_idx = 0;
+		}
+		memcpy( wakeword[ww_idx++], compressed, sizeof(compressed) );
+
+		if( nn_ctx.keyword_detected > 0) {
 			if( !light_open ) {
 				keyword_net_pause_net_operation();
-				//todo update this bw rate when switching to adpcm
 				input = hlo_light_stream( input,true, 300 );
-				input = hlo_stream_bw_limited( input, AUDIO_NET_RATE/4 - AUDIO_NET_RATE/8, 5000);
+				send_str = hlo_stream_bw_limited( send_str, AUDIO_NET_RATE/8, 5000);
 				light_open = true;
-			}
-
-			adpcm_coder((short*)samples, (char*)compressed, ret / 2, &state);
-			ret = hlo_stream_transfer_all(INTO_STREAM, hmac_payload_str,  (uint8_t*)compressed, ret/4, 4);
-			if ( ret <  0 ) {
-				if( ret == HLO_STREAM_ERROR) {
-					stop_led_animation( 0, 33 );
-					play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1,18, 1);
+				speech_detected_time = xTaskGetTickCount();
+				if( ww_idx != WW_WINDOWS ) {
+					ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword[ww_idx], sizeof(wakeword[0])*(WW_WINDOWS - ww_idx), 4);
+					if( ret < 0 ) {
+						break;
+					}
 				}
-				break;
+				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword, sizeof(wakeword[0])*(ww_idx), 4);
+				if( ret < 0 ) {
+					break;
+				}
+				ww_idx = 0;
+#if( WW_WINDOWS < 1536/80 )
+#error "wakeword buffer too small"
+#endif
+			} else if( ww_idx == 1536/sizeof(wakeword[0]) ) {
+				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword, sizeof(wakeword[0])*(ww_idx), 4);
+				ww_idx = 0;
+				if( ret < 0 ) {
+					break;
+				}
 			}
 
 			if (!nn_ctx.is_speaking) {
+				analytics_event("{speech_length:%d}", xTaskGetTickCount() - speech_detected_time);
+				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword, sizeof(wakeword[0])*(ww_idx), 4);
+				ww_idx = 0;
 				break;
 			}
 
@@ -309,8 +337,15 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		BREAK_ON_SIG(signal);
 		if(nn_ctx.keyword_detected == 0 &&
 				xTaskGetTickCount() - begin > 4*60*1000 ) {
-			ret = HLO_STREAM_ERROR;
+			ret = HLO_STREAM_EAGAIN;
 			break;
+		}
+	}
+
+	if (ret < 0) {
+		if (ret == HLO_STREAM_ERROR) {
+			stop_led_animation(0, 33);
+			play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1, 18, 1);
 		}
 	}
 	hlo_stream_close(input);
@@ -337,12 +372,13 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			ustrncpy(desc.source_name, "voice", sizeof(desc.source_name));
 			AudioTask_StartPlayback(&desc);
 
+
 			LOGI("\r\n===========\r\n");
 	}
 	else if(output) {
 		hlo_stream_close(output);
 	}
-	hlo_stream_close(hmac_payload_str);
+	hlo_stream_close(send_str);
 
 	keyword_net_deinitialize();
 	return ret;
@@ -459,6 +495,7 @@ typedef struct{
 	hlo_stream_t * in;
 	hlo_stream_t * out;
 	hlo_stream_signal sig;
+	uint32_t t_start;
 	void * sig_ctx;
 	uint8_t frame_buf[800];
 }mp3_ctx_t;
@@ -553,6 +590,10 @@ enum mad_flow _mp3_output(void *data,
 	}
 
 	ret = hlo_stream_transfer_all(INTO_STREAM, ctx->out, (uint8_t*)i16_samples, buf_size, 4);
+	if(ctx->t_start){
+		analytics_event("{speech_latency: %d}", xTaskGetTickCount() - ctx->t_start);
+		ctx->t_start = 0;
+	}
 	if( ret < 0){
 		return MAD_FLOW_BREAK;
 	}
@@ -596,6 +637,7 @@ int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * c
 	mp3.out = output;
 	mp3.sig = signal;
 	mp3.sig_ctx = ctx;
+	mp3.t_start = xTaskGetTickCount();	/* log start time, set to 0 if no report */
 
 	/* configure input, output, and error functions */
 
