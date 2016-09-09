@@ -528,7 +528,7 @@ int Cmd_read_temp_hum_press(int argc, char *argv[]) {
 }
 
 bool tvoc_wa = false;
-int init_tvoc() {
+int init_tvoc(int measmode) {
 	unsigned char b[2];
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
@@ -554,7 +554,7 @@ int init_tvoc() {
 		return -1;
 	}
 	b[0] = 1;
-	b[1] = 0x20; //60sec
+	b[1] = measmode;
 	(I2C_IF_Write(0x5a, b, 2, 1));
 
 	b[0] = 0x24;
@@ -630,6 +630,10 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 int Cmd_meas_TVOC(int argc, char *argv[]) {
 	int32_t temp;
 	uint32_t hum,press;
+	if( argc > 1 ) {
+		init_tvoc(strtoul(argv[1], NULL, 16));
+	}
+
 	int tvoc, eco2, current, voltage;
 	if( 0 == get_temp_press_hum(&temp, &press, &hum) &&
 	    0 == get_tvoc( &tvoc, &eco2, &current, &voltage, temp, hum) ) {
