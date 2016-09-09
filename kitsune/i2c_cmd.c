@@ -594,6 +594,7 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 
 	b[0] = 2;
 	(I2C_IF_Write(0x5a, b, 1, 1));
+	memset(b,0, sizeof(b));
 	(I2C_IF_Read(0x5a, b, 8));
 
 	DBG_TVOC("%x:%x:%x:%x:%x:%x:%x:%x\n",
