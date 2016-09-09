@@ -164,8 +164,9 @@ void checki2c() {
 	//SDA is now high again, go back to i2c controller...
 	PinTypeI2C(PIN_01, PIN_MODE_1);
 	PinTypeI2C(PIN_04, PIN_MODE_5);
-    if(I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE) {
-    	LOGE("i2c err %x\n", I2CMasterErr(I2C_BASE) );
+	int err = I2CMasterErr(I2C_BASE);
+    if( err != I2C_MASTER_ERR_NONE) {
+    	LOGE("i2c err %x\n", err );
 		vTaskDelay(2);
 		I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
     }
