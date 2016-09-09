@@ -1288,8 +1288,8 @@ void sample_sensor_data(periodic_data* data)
 		if( uv >= 0 ) {
 			LOGI("uv %d\n", uv);
 			data->has_light_sensor = true;
-			data->light_sensor.has_lux_count = true;
-			data->light_sensor.lux_count = uv;
+			data->light_sensor.has_uv_count = true;
+			data->light_sensor.uv_count = uv;
 		} else {
 			LOGE("uv err %d\n", uv);
 		}
@@ -2239,7 +2239,7 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("*");
 
-	init_download_task( 3072 / 4 );
+	init_download_task( 3280 / 4 );
 
 
 	networktask_init(3 * 1024 / 4);
@@ -2282,7 +2282,7 @@ void vUARTTask(void *pvParameters) {
 		vTaskDelete(NULL);
 		return;
 	} else {
-		//play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
+		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
 	}
 #else
 	/* remove anything we recieved before we were ready */

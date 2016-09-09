@@ -1050,7 +1050,7 @@ void file_download_task( void * params ) {
             }
             hello_fs_unlink(path_buff);
 
-			char buf[512];
+            char path_buf[64] = {0};
 
 			hlo_stream_t * sf_str, *http_str, *sock_str;
 			sock_str = hlo_sock_stream(host, false);
@@ -1067,34 +1067,40 @@ void file_download_task( void * params ) {
                     LOGI("MCU image name converted to %s \n", serial_flash_name);
                 }
 
-				strncpy( buf, serial_flash_path, 64 );
-				strncat(buf, serial_flash_name, 64 );
+				strncpy(path_buf, serial_flash_path, 32 );
+				strncat(path_buf, serial_flash_name, 32 );
+
+				if(strstr(path_buf, "top/top.bin")){
+					memset(path_buf, 0, sizeof(path_buf));
+					strcpy(path_buf,"/top/update.bin");
+					LOGW("Wrong top board name used, updating path to %s\r\n", path_buf);
+				}
 
 				//TODO get max size from protobuf and set it here
-				sf_str = open_serial_flash(buf, HLO_STREAM_WRITE, download_info.has_file_size ? download_info.file_size : 300 * 1024);
-
-				while(1){
-					if(hlo_stream_transfer_between( http_str, sf_str, (uint8_t*)buf, sizeof(buf), 4 ) < 0){
-						break;
-					}
+				sf_str = open_serial_flash(path_buf, HLO_STREAM_WRITE, download_info.has_file_size ? download_info.file_size : 300 * 1024);
+				if(sf_str){
+					hlo_filter_data_transfer(http_str, sf_str, NULL, NULL);
+					DISP("filesize %d, transferred %d\r\n", download_info.file_size, sf_str->info.bytes_written);
+					hlo_stream_close(sf_str);
 				}
-				hlo_stream_close(sf_str);
 
-                if (strcmp(buf, "/top/update.bin") == 0) {
+                if (strcmp(path_buf, "/top/update.bin") == 0) {
                     if (download_info.has_sha1) {
                         memcpy(top_sha_cache, download_info.sha1.bytes, SHA1_SIZE );
-                        if( sf_sha1_verify((char *)download_info.sha1.bytes, buf)){
+                        if( sf_sha1_verify((char *)download_info.sha1.bytes, path_buf)){
                             LOGW("Top DFU download failed\r\n");
                             top_need_dfu = 0;
                             goto end_download_task;
                         }else{
                             top_need_dfu = 1;
                         }
+                    }else{
+                    	LOGE("NO sha\r\n");
                     }
                 }
                 LOGI("done, closing\n");
 			} else {
-
+				char buf[512];
 				// Set file download pending for download manager
 				update_file_download_status(true);
 
@@ -1264,34 +1270,24 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 }
 int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
     //compute the sha of the file..
-#define minval( a,b ) a < b ? a : b
-
     unsigned char sha[SHA1_SIZE] = { 0 };
     static unsigned char buffer[128];
     SHA1_CTX sha1ctx;
-    SHA1_Init(&sha1ctx);
-    unsigned long tok = 0;
-    long hndl, bytes, bytes_to_read;
-    SlFsFileInfo_t info;
-    //fetch path info
     LOGI( "computing SHA of %s\n", serial_file_path);
-    sl_FsGetInfo((unsigned char*)serial_file_path, tok, &info);
-    hndl = sl_FsOpen((unsigned char*)serial_file_path, SL_FS_READ, &tok );
-    if (hndl < 0) {
-        LOGI("error opening for read %d\n", hndl);
-        return -1;
+    hlo_stream_t * fs = open_serial_flash((char*)serial_file_path, HLO_STREAM_READ, 0);
+    SHA1_Init(&sha1ctx);
+    if(fs){
+    	while(1){
+    		int read = hlo_stream_transfer_all(FROM_STREAM, fs, buffer,sizeof(buffer),4);
+    		if(read > 0){
+    			SHA1_Update(&sha1ctx, buffer, read);
+    		}else{
+    			break;
+    		}
+    	}
+    	hlo_stream_close(fs);
+    	SHA1_Final(sha, &sha1ctx);
     }
-    //compute sha
-    bytes_to_read = info.Len;
-    while (bytes_to_read > 0) {
-        bytes = sl_FsRead(hndl, info.Len - bytes_to_read,
-                buffer,
-                (minval(sizeof(buffer),bytes_to_read)));
-        SHA1_Update(&sha1ctx, buffer, bytes);
-        bytes_to_read -= bytes;
-    }
-    sl_FsClose(hndl, 0, 0, 0);
-    SHA1_Final(sha, &sha1ctx);
     //compare
     if (memcmp(sha, sha_truth, SHA1_SIZE) != 0) {
         LOGE( "fw update SHA did not match!\n");
