@@ -280,6 +280,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	hlo_stream_t * send_str = hmac_payload_str;
 
 	uint32_t begin = xTaskGetTickCount();
+	uint32_t speech_detected_time;
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
 		if( !ready ) {
@@ -302,7 +303,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				input = hlo_light_stream( input,true, 300 );
 				send_str = hlo_stream_bw_limited( send_str, AUDIO_NET_RATE/8, 5000);
 				light_open = true;
-
+				speech_detected_time = xTaskGetTickCount();
 				if( ww_idx != WW_WINDOWS ) {
 					ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword[ww_idx], sizeof(wakeword[0])*(WW_WINDOWS - ww_idx), 4);
 					if( ret < 0 ) {
@@ -326,6 +327,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			}
 
 			if (!nn_ctx.is_speaking) {
+				analytics_event("{speech_length:%d}", xTaskGetTickCount() - speech_detected_time);
 				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword, sizeof(wakeword[0])*(ww_idx), 4);
 				ww_idx = 0;
 				break;
@@ -372,6 +374,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			desc.p = hlo_filter_mp3_decoder;
 			ustrncpy(desc.source_name, "voice", sizeof(desc.source_name));
 			AudioTask_StartPlayback(&desc);
+
 
 			LOGI("\r\n===========\r\n");
 	}
@@ -495,6 +498,7 @@ typedef struct{
 	hlo_stream_t * in;
 	hlo_stream_t * out;
 	hlo_stream_signal sig;
+	uint32_t t_start;
 	void * sig_ctx;
 	uint8_t frame_buf[800];
 }mp3_ctx_t;
@@ -589,6 +593,10 @@ enum mad_flow _mp3_output(void *data,
 	}
 
 	ret = hlo_stream_transfer_all(INTO_STREAM, ctx->out, (uint8_t*)i16_samples, buf_size, 4);
+	if(ctx->t_start){
+		analytics_event("{speech_latency: %d}", xTaskGetTickCount() - ctx->t_start);
+		ctx->t_start = 0;
+	}
 	if( ret < 0){
 		return MAD_FLOW_BREAK;
 	}
@@ -632,6 +640,7 @@ int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * c
 	mp3.out = output;
 	mp3.sig = signal;
 	mp3.sig_ctx = ctx;
+	mp3.t_start = xTaskGetTickCount();	/* log start time, set to 0 if no report */
 
 	/* configure input, output, and error functions */
 
