@@ -145,16 +145,18 @@ void gesture_init(){
 gesture_t gesture_input(int prox){
 	int prox_delta;
 	fsm_state state = self.fsm.state;
-	LOGP( "\t%d %d %d\t", prox, self.fsm.prox_slow, self.fsm.prox_impluse );
 
 	gesture_t result = GESTURE_NONE;
 	if (self.fsm.prox_last != 0) {
 		self.fsm.prox_slow += (prox - self.fsm.prox_slow) / 32;
-		if( (self.fsm.prox_slow-prox) > 0 ) {
-			self.fsm.prox_slow = prox;
-		}
+
 		prox_delta = prox - self.fsm.prox_slow;
 		self.fsm.prox_impluse  = abs( prox_delta );
+		LOGP( "\t%d %d %d\t", prox, self.fsm.prox_slow, self.fsm.prox_impluse );
+
+		if( (self.fsm.prox_slow-prox) > 0 || self.fsm.prox_impluse < DETECTION_THRESH ) {
+			self.fsm.prox_slow = prox;
+		}
 		result = _fsm(self.fsm.prox_impluse);
 
 		//reset the filter also on any 0 transition
