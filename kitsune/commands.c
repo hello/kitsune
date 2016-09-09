@@ -2213,7 +2213,7 @@ void vUARTTask(void *pvParameters) {
 
 
 	// Init sensors
-	init_tvoc();
+	init_tvoc(0x30);
 	init_temp_sensor();
 	init_light_sensor();
 

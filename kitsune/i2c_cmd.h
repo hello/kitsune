@@ -34,7 +34,7 @@ int Cmd_uvw(int argc, char *argv[]);
 int init_humid_sensor();
 int init_temp_sensor();
 int init_light_sensor();
-int init_tvoc();
+int init_tvoc(int measmode);
 
 // AUDIO CODEC
 #define CODEC_1P5_TEST
