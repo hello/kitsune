@@ -22,7 +22,7 @@
 
 /* Timeouts for the sync objects  */
 #ifndef SL_DRIVER_TIMEOUT_SHORT
-#define SL_DRIVER_TIMEOUT_SHORT        (1000) /* msec units */
+#define SL_DRIVER_TIMEOUT_SHORT        (10000) /* msec units */
 #endif
 #ifndef SL_DRIVER_TIMEOUT_LONG
 #define SL_DRIVER_TIMEOUT_LONG         (65535) /* msec units */
