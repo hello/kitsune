@@ -210,7 +210,6 @@ typedef struct{
 	int32_t last_eng;
 	int32_t eng;
 	int32_t ctr;
-	uint32_t off;
 	uint32_t begin;
 	bool close_lights;
 }light_stream_t;
@@ -236,7 +235,7 @@ static void _do_lights(void * ctx, const void * buf, size_t size) {
 
 			stream->last_eng = stream->eng;
 
-			uint32_t light = stream->lp + stream->off;
+			uint32_t light = stream->lp * get_alpha_from_light() >> 8;
 
 			if(light > 253){
 				light = 253;
@@ -278,7 +277,7 @@ static int _close_light(void * ctx){
 	vPortFree(stream);
 	return 0;
 }
-hlo_stream_t * hlo_light_stream( hlo_stream_t * base, bool start, uint32_t offset){
+hlo_stream_t * hlo_light_stream( hlo_stream_t * base, bool start){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
 		.write = _write_light,
 		.read = _read_light,
@@ -293,7 +292,6 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base, bool start, uint32_t offse
 	}
 	memset(stream, 0, sizeof(*stream) );
 	stream->base = base;
-	stream->off = offset;
 
 	stream->close_lights = true;
 

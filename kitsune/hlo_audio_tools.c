@@ -329,7 +329,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		if( nn_ctx.speech_pb.has_word ) {
 			if( !light_open ) {
 				keyword_net_pause_net_operation();
-				input = hlo_light_stream( input,true, 300 );
+				input = hlo_light_stream( input,true );
 				send_str = hlo_stream_bw_limited( send_str, AUDIO_NET_RATE/8, 5000);
 				light_open = true;
 
@@ -393,7 +393,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			ret = hlo_stream_transfer_all(INTO_STREAM, output, hmac, sizeof(hmac), 4);
 
 			output = hlo_stream_bw_limited( output, 1, 5000);
-			output = hlo_light_stream( output, false, LED_MAX/4 );
+			output = hlo_light_stream( output, false );
 
 			AudioPlaybackDesc_t desc;
 			desc.context = NULL;

@@ -727,19 +727,27 @@ uint8_t get_alpha_from_light()
 	xSemaphoreGiveRecursive(_light_data.light_smphr);
 
 #else
+	static TickType_t last_als = 0;
+	static int als = 0;
+	static uint8_t alpha = 0;
 
+	if( xTaskGetTickCount() - last_als > 1000 ) {
+		last_als = xTaskGetTickCount();
+		als = read_zopt( ZOPT_ALS );
 
-	int als = read_zopt( ZOPT_ALS );
-	if( als > adjust_max_light ) {
-		adjust = adjust_max_light;
-	} else {
-		adjust = als;
+		if( als > adjust_max_light ) {
+			adjust = adjust_max_light;
+		} else {
+			adjust = als;
+		}
+		alpha = 0xFF * adjust / adjust_max_light;
+		alpha = alpha < 10 ? 10 : alpha;
+
+		LOGI("%d, %d ALPHA %d\n",_light_data.light,als, alpha);
 	}
+
 #endif
 
-	uint8_t alpha = 0xFF * adjust / adjust_max_light;
-	alpha = alpha < 10 ? 10 : alpha;
-	LOGI("***GET ALPHA*** TMG: %d, ZOPT:%d ALPHA %d\n",_light_data.light,als, alpha);
 	return alpha;
 }
 
