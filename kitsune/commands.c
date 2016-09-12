@@ -1330,11 +1330,12 @@ void thread_sensor_poll(void* unused) {
 		sample_sensor_data(&data);
 
 		if( booted ) {
-			LOGI(	"collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
+			LOGI(	"collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d, inq %d\n",
 					data.unix_time, data.light, data.light_variability,
 					data.light_tonality, data.temperature, data.humidity,
 					data.dust, data.dust_max, data.dust_min,
-					data.dust_variability, data.wave_count, data.hold_count);
+					data.dust_variability, data.wave_count, data.hold_count,
+					uxQueueMessagesWaiting(data_queue));
 
 			Cmd_free(0,0);
 			send_top("free", strlen("free"));
