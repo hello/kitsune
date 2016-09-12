@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 #include "tinytensor_types.h"
-#define NUM_SAMPLES_TO_RUN_FFT (160)
+#define NUM_SAMPLES_TO_RUN_FFT (240)
 #define FFT_UNPADDED_SIZE (400)
 #define BUF_SIZE_IN_SAMPLES (600)
 #define NUM_MEL_BINS (40)

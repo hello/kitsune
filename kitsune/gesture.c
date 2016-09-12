@@ -9,7 +9,7 @@
 
 /* how much delta does it take to activate the fsm over noise floor */
 /* set to 2x observed max at idle on DVT 1p5 */
-#define DETECTION_THRESH 18
+#define DETECTION_THRESH 100
 
 /* minimal frames require for the wave gesture */
 #define GESTURE_WAVE_MULTIPLIER (1)
@@ -154,7 +154,7 @@ gesture_t gesture_input(int prox){
 		self.fsm.prox_impluse  = abs( prox_delta );
 		LOGP( "\t%d %d %d\t", prox, self.fsm.prox_slow, self.fsm.prox_impluse );
 
-		if( (self.fsm.prox_slow-prox) > 0 || self.fsm.prox_impluse < DETECTION_THRESH ) {
+		if( (self.fsm.prox_slow-prox) > DETECTION_THRESH || self.fsm.prox_impluse < DETECTION_THRESH ) {
 			self.fsm.prox_slow = prox;
 		}
 		result = _fsm(self.fsm.prox_impluse);
