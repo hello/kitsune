@@ -9,7 +9,7 @@
 
 /* how much delta does it take to activate the fsm over noise floor */
 /* set to 2x observed max at idle on DVT 1p5 */
-#define DETECTION_THRESH 18
+#define DETECTION_THRESH 100
 
 /* minimal frames require for the wave gesture */
 #define GESTURE_WAVE_MULTIPLIER (1)

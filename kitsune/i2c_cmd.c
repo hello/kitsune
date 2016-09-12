@@ -686,8 +686,14 @@ int init_light_sensor()
 	b[1] = 0x3;
 	(I2C_IF_Write(0x39, b, 2, 1));
 
+	//max pulse length, number of pluses
+	b[0] = 0x8E;
+	b[1] = 0xC3;
+	(I2C_IF_Write(0x39, b, 2, 1));
+
+	//gain and power
 	b[0] = 0x8F;
-	b[1] = 0x12;
+	b[1] = 0xD8;
 	(I2C_IF_Write(0x39, b, 2, 1));
 	xSemaphoreGiveRecursive(i2c_smphr);
 
