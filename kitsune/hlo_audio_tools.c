@@ -281,8 +281,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	int16_t samples[NSAMPLES];
 	uint8_t hmac[SHA1_SIZE] = {0};
 
-	char compressed[160/2];
-#define WW_WINDOWS 150
+	char compressed[NUM_SAMPLES_TO_RUN_FFT/2];
+#define WW_WINDOWS 100
 	char wakeword[WW_WINDOWS][sizeof(compressed)];
 	memset(wakeword, 0, sizeof(wakeword));
 	int ww_idx = WW_WINDOWS;
@@ -316,7 +316,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	uint32_t begin = xTaskGetTickCount();
 	uint32_t speech_detected_time;
 
-	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 160*2, 4)) > 0 ){
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, NUM_SAMPLES_TO_RUN_FFT*2, 4)) > 0 ){
 		//net always gets samples
 		keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 
@@ -463,7 +463,7 @@ static void _finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 }
 //note that filter and the stream version can not run concurrently
 int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
-	int16_t samples[160];
+	int16_t samples[NUM_SAMPLES_TO_RUN_FFT];
 	int ret;
 	keyword_net_initialize();
 
