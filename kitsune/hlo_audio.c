@@ -142,6 +142,12 @@ static int _close(void * ctx){
 ////------------------------------
 //  Public API
 void hlo_audio_init(void){
+	static bool audio_init = false;
+	if( !audio_init ) {
+		audio_init = true;
+	} else {
+		return;
+	}
 	lock = xSemaphoreCreateRecursiveMutex();
 	assert(lock);
 	hlo_stream_vftbl_t tbl = { 0 };
@@ -174,6 +180,7 @@ void hlo_audio_init(void){
 
 hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint32_t direction){
 	hlo_stream_t * ret;
+	hlo_audio_init();
 	LOCK();
 	if(direction == HLO_AUDIO_PLAYBACK) {
 		flush_audio_playback_buffer();
