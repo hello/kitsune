@@ -33,7 +33,7 @@
 #define NUM_CHANNELS (4)
 #define PN_LEN_SAMPLES PN_LEN_10
 #define PN_INIT pn_init_with_mask_10
-#define PN_AMPLITUDE (2048)
+#define PN_AMPLITUDE (8*1024)
 
 #define ABS(x)  ( (x) < 0 ? -(x) : (x) )
 
@@ -260,30 +260,24 @@ uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t *
 		}
 
 
-		if (ABS(corr_result[corridx]) >= DETECTION_THRESHOLD && !found_peak) {
-
-			if (corridx < IMPULSE_LENGTH/2) {
-				continue;
-			}
+		if (ABS(corr_result[corridx]) >= DETECTION_THRESHOLD ) {
 
 			ndetect++;
 
-			if (ndetect >= NUM_DETECT) {
+			if (corridx < IMPULSE_LENGTH/2) {
+                                //skip ahead
+                                corridx = IMPULSE_LENGTH;
+                                corrnumber = CORR_SEARCH_START_IDX + IMPULSE_LENGTH;
+				continue;
+			}
+
+			if (ndetect >= NUM_DETECT && !found_peak) {
 				DISP("found above threshold at i=%d\r\n",corrnumber);
 				istart = corridx - 16;
 				ifoundrise = corridx;
 				found_peak = 1;
 			}
 		}
-		else {
-			ndetect = 0;
-		}
-
-		if (found_peak && corridx >= istart + 256) {
-			DISP("exiting correlation at c=%d\r\n",corridx);
-			break;
-		}
-
 
 		MAP_WatchdogIntClear(WDT_BASE);
 	}
@@ -291,10 +285,15 @@ uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t *
 	if (istart < 0) {
 		istart = 0;
 	}
+	DISP("{%d\r\n", ndetect);
 
 	//if no peaks were found, then quit
 	if (!found_peak) {
-		DISP("{CHANNEL=%d,TEST_STATUS : FAIL, REASON= NO_PEAK_FOUND}\r\n");
+		DISP("{CHANNEL=%d,TEST_STATUS : FAIL, REASON= NO_PEAK_FOUND}\r\n", channel);
+		return 0;
+	}
+	if( ndetect > 200 ) {
+		DISP("{CHANNEL=%d,TEST_STATUS : FAIL, REASON= TOO_MUCH_PEAK %d}\r\n", channel, ndetect);
 		return 0;
 	}
 
@@ -418,6 +417,8 @@ void pn_write_task( void * params ) {
 
 	}
 
+	uint32_t maxidx = 0;
+	uint32_t minidx = UINT32_MAX;
 	//take care of indices that came from something ahead one period
 	for (ichannel = 0; ichannel < NUM_CHANNELS; ichannel++) {
 		uint32_t channel_index =  results.peak_indices[ichannel];
@@ -426,17 +427,21 @@ void pn_write_task( void * params ) {
 			continue;
 		}
 
-
-
-		if (channel_index > PN_LEN_SAMPLES) {
-			channel_index -= PN_LEN_SAMPLES;
+		if( results.peak_indices[ichannel] > maxidx ) {
+			maxidx = results.peak_indices[ichannel];
 		}
+		if( results.peak_indices[ichannel] < minidx ) {
+			minidx = results.peak_indices[ichannel];
+		}
+
 
 		DISP("{CHANNEL=%d,FIRST_PEAK_ABS_MAGNITUDE : %d, FIRST_PEAK_INDEX : %d}\r\n",ichannel,results.peak_values[ichannel],channel_index);
 
 	}
 
-
+	if( (maxidx - minidx) % PN_LEN_SAMPLES > 50) {
+		DISP("FAIL FAIL FAIL %d\r\n", (maxidx - minidx) % PN_LEN_SAMPLES );
+	}
 
 	DISP("pn_write_task completed\r\n");
 
