@@ -263,6 +263,9 @@ uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t *
 		if (ABS(corr_result[corridx]) >= DETECTION_THRESHOLD && !found_peak) {
 
 			if (corridx < IMPULSE_LENGTH/2) {
+                                //skip ahead
+                                corridx = IMPULSE_LENGTH;
+                                corrnumber = CORR_SEARCH_START_IDX + IMPULSE_LENGTH;
 				continue;
 			}
 
