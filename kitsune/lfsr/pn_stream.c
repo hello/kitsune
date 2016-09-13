@@ -49,13 +49,14 @@
 #define READ_BYTES_MAX (PN_LEN_SAMPLES * NUM_READ_PERIODS * sizeof(int16_t))
 
 
-#define TIME_TO_COMPLETE_TASKS (10000)
+#define TIME_TO_COMPLETE_TASKS (4000)
 
 //2x the PN sequence length
 #define WRITE_LEN_SAMPLES (2 * PN_LEN_SAMPLES)
 
 //this takes a long time if you don't find a peak
-#define CORR_SEARCH_WINDOW    (PN_LEN_SAMPLES)
+#define IMPULSE_LENGTH         (50)
+#define CORR_SEARCH_WINDOW    (PN_LEN_SAMPLES + IMPULSE_LENGTH)
 #define CORR_SEARCH_START_IDX (0)
 #define DETECTION_THRESHOLD   (1e5)
 #define NUM_DETECT            (1)
@@ -226,7 +227,7 @@ hlo_stream_t * pn_write_stream_open(void){
 	return _p_write_stream;
 }
 
-uint8_t correlate(const int16_t * samples, const int16_t * pn_sequence,uint32_t print_correlation,uint32_t channel) {
+uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t * pn_sequence,uint32_t print_correlation,uint32_t channel) {
 	int32_t i;
 	int32_t corrnumber;
 
@@ -260,6 +261,10 @@ uint8_t correlate(const int16_t * samples, const int16_t * pn_sequence,uint32_t 
 
 
 		if (ABS(corr_result[corridx]) >= DETECTION_THRESHOLD && !found_peak) {
+
+			if (corridx < IMPULSE_LENGTH/2) {
+				continue;
+			}
 
 			ndetect++;
 
@@ -328,7 +333,8 @@ uint8_t correlate(const int16_t * samples, const int16_t * pn_sequence,uint32_t 
 
 	}
 
-	DISP("{CHANNEL=%d,FIRST_PEAK_ABS_MAGNITUDE : %d, FIRST_PEAK_INDEX : %d}\r\n",channel,max_value,istart);
+	result->peak_indices[channel] = istart;
+	result->peak_values[channel] = max_value;
 
 	return 1;
 }
@@ -344,6 +350,9 @@ void pn_write_task( void * params ) {
 	uint32_t ichannel;
 	hlo_stream_transfer_t * p = (hlo_stream_transfer_t *)params;
 	uint8_t ret = 1;
+	TestResult_t results;
+
+	memset(&results,0,sizeof(results));
 
 	ctx.idx = 0;
 	p->output->ctx = &ctx;
@@ -401,13 +410,32 @@ void pn_write_task( void * params ) {
 			samples[i] = ctx.samples[i*NUM_CHANNELS + ichannel];
 		}
 
-		ret = correlate(samples,pn_sequence,p->print_correlation,ichannel);
+		ret = correlate(&results,samples,pn_sequence,p->print_correlation,ichannel);
 
 		if (!ret) {
 			DISP("channel %d failed to correlate",ichannel);
 		}
 
 	}
+
+	//take care of indices that came from something ahead one period
+	for (ichannel = 0; ichannel < NUM_CHANNELS; ichannel++) {
+		uint32_t channel_index =  results.peak_indices[ichannel];
+
+		if (ichannel == AEC_CHANNEL) {
+			continue;
+		}
+
+
+
+		if (channel_index > PN_LEN_SAMPLES) {
+			channel_index -= PN_LEN_SAMPLES;
+		}
+
+		DISP("{CHANNEL=%d,FIRST_PEAK_ABS_MAGNITUDE : %d, FIRST_PEAK_INDEX : %d}\r\n",ichannel,results.peak_values[ichannel],channel_index);
+
+	}
+
 
 
 	DISP("pn_write_task completed\r\n");
