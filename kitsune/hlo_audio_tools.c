@@ -350,9 +350,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 #if( WW_WINDOWS < 1536/80 )
 #error "wakeword buffer too small"
 #endif
-			} else if( ww_idx == 1536/sizeof(wakeword[0]) ) {
-				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword, sizeof(wakeword[0])*(ww_idx), 4);
-				ww_idx = 0;
+			} else {
+				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)compressed, sizeof(compressed), 4);
 				if( ret < 0 ) {
 					break;
 				}
