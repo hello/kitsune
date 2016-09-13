@@ -693,7 +693,7 @@ int init_light_sensor()
 
 	//gain and power
 	b[0] = 0x8F;
-	b[1] = 0xD8;
+	b[1] = 0xD2;
 	(I2C_IF_Write(0x39, b, 2, 1));
 	xSemaphoreGiveRecursive(i2c_smphr);
 
