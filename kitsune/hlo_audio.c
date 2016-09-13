@@ -220,6 +220,7 @@ typedef struct{
 	uint32_t begin;
 	bool close_lights;
 }light_stream_t;
+uint8_t get_alpha_from_light();
 
 static void _do_lights(void * ctx, const void * buf, size_t size) {
 	light_stream_t * stream = (light_stream_t*)ctx;
@@ -242,7 +243,7 @@ static void _do_lights(void * ctx, const void * buf, size_t size) {
 
 			stream->last_eng = stream->eng;
 
-			uint32_t light = stream->lp * get_alpha_from_light() >> 8;
+			uint32_t light = stream->lp * get_alpha_from_light() >> 6;
 
 			if(light > 253){
 				light = 253;
@@ -308,6 +309,7 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base, bool start){
 		set_modulation_intensity( 0 );
 		play_modulation(140,29,237,30,0);
 		stream->close_lights = false;
+		stream->lp = 2000;
 		stream->begin = xTaskGetTickCount();
 	}
 
