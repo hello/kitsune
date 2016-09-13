@@ -136,7 +136,7 @@ volatile int _pcm_ping_pong_incoming_stream_mode = PCM_PING_PONG_MODE_SINGLE_CHA
 static volatile unsigned long qqbufsz=0;
 
 static volatile bool can_playback;
-volatile int ch = 2;
+volatile int ch = 0;
 
 bool is_playback_active(void){
 	return can_playback;

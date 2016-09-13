@@ -260,7 +260,9 @@ uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t *
 		}
 
 
-		if (ABS(corr_result[corridx]) >= DETECTION_THRESHOLD && !found_peak) {
+		if (ABS(corr_result[corridx]) >= DETECTION_THRESHOLD ) {
+
+			ndetect++;
 
 			if (corridx < IMPULSE_LENGTH/2) {
                                 //skip ahead
@@ -269,24 +271,13 @@ uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t *
 				continue;
 			}
 
-			ndetect++;
-
-			if (ndetect >= NUM_DETECT) {
+			if (ndetect >= NUM_DETECT && !found_peak) {
 				DISP("found above threshold at i=%d\r\n",corrnumber);
 				istart = corridx - 16;
 				ifoundrise = corridx;
 				found_peak = 1;
 			}
 		}
-		else {
-			ndetect = 0;
-		}
-
-		if (found_peak && corridx >= istart + 256) {
-			DISP("exiting correlation at c=%d\r\n",corridx);
-			break;
-		}
-
 
 		MAP_WatchdogIntClear(WDT_BASE);
 	}
@@ -294,10 +285,15 @@ uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t *
 	if (istart < 0) {
 		istart = 0;
 	}
+	DISP("{%d\r\n", ndetect);
 
 	//if no peaks were found, then quit
 	if (!found_peak) {
-		DISP("{CHANNEL=%d,TEST_STATUS : FAIL, REASON= NO_PEAK_FOUND}\r\n");
+		DISP("{CHANNEL=%d,TEST_STATUS : FAIL, REASON= NO_PEAK_FOUND}\r\n", channel);
+		return 0;
+	}
+	if( ndetect > 50 ) {
+		DISP("{CHANNEL=%d,TEST_STATUS : FAIL, REASON= TOO_MUCH_PEAK %d}\r\n", channel, ndetect);
 		return 0;
 	}
 
@@ -430,10 +426,6 @@ void pn_write_task( void * params ) {
 		}
 
 
-
-		if (channel_index > PN_LEN_SAMPLES) {
-			channel_index -= PN_LEN_SAMPLES;
-		}
 
 		DISP("{CHANNEL=%d,FIRST_PEAK_ABS_MAGNITUDE : %d, FIRST_PEAK_INDEX : %d}\r\n",ichannel,results.peak_values[ichannel],channel_index);
 
