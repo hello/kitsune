@@ -146,11 +146,11 @@ int hlo_filter_throughput_test(hlo_stream_t * input, hlo_stream_t * output, void
 //octogram sample app
 #include "octogram.h"
 #define PROCESSOR_BUFFER_SIZE ((AUDIO_FFT_SIZE)*3*2)
-#define OCTOGRAM_DURATION 500
+#define OCTOGRAM_DURATION 10
 int hlo_filter_octogram(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	Octogram_t octogramdata = {0};
 	int ret,i;
-	int32_t duration = 500;
+	int32_t duration = OCTOGRAM_DURATION;
 	Octogram_Init(&octogramdata);
 	OctogramResult_t result;
 	int16_t * samples = pvPortMalloc(PROCESSOR_BUFFER_SIZE);
@@ -161,7 +161,6 @@ int hlo_filter_octogram(hlo_stream_t * input, hlo_stream_t * output, void * ctx,
 			samples[i] = (int16_t)(sum / 3);
 		}
 		Octogram_Update(&octogramdata,samples);
-		DISP(".");
 		if(duration-- < 0){
 			DISP("\r\n");
 			Octogram_GetResult(&octogramdata, &result);
