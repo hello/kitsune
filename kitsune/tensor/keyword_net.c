@@ -4,7 +4,7 @@
 #include "tinytensor_memory.h"
 #include "tinytensor_math_defs.h"
 #include "uart_logger.h"
-#include "net_stats.h"
+
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -37,6 +37,7 @@ typedef struct {
     tinytensor_speech_detector_callback_t speech_callback;
     void * speech_callback_context;
 
+    xSemaphoreHandle stats_mutex;
     NetStats_t stats;
 
 } KeywordNetContext_t;
@@ -52,6 +53,18 @@ static void speech_detect_callback(void * context, SpeechTransition_t transition
 }
 
 extern volatile int idlecnt;
+
+uint8_t keyword_net_get_and_reset_stats(NetStats_t * stats) {
+    //copy out stats, and zero it out
+    if( xSemaphoreTake(_context.stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
+        memcpy(stats,_context.stats,sizeof(NetStats_t));
+        net_stats_reset(&_context.stats);
+        xSemaphoreGive(_context.stats_mutex);
+        return 1;
+    }
+
+    return 0;
+}
 
 __attribute__((section(".ramcode")))
 static void feats_callback(void * p, Weight_t * feats) {
@@ -118,8 +131,8 @@ static void feats_callback(void * p, Weight_t * feats) {
 			}
 
 
+			//activating
 
-			//active
 			if (val >= callback_item->activation_threshold) {
 
 				//just started
@@ -128,14 +141,14 @@ static void feats_callback(void * p, Weight_t * feats) {
 				}
 
 				callback_item->active_count++;
+			//deactivating
 
-				//reached threshold for activation, do callback
+				//report max value
 				if (callback_item->active_count == callback_item->min_duration && callback_item->on_end) {
-					callback_item->on_end(callback_item->context,(Keyword_t)i, callback_item->max_value);
+					callback_item->on_end(callback_item->context,(Keyword_t)i,callback_item->max_value);
 				}
 			}
 
-			//deactivating
 			if (val < callback_item->activation_threshold && callback_item->active_count) {
 				//reset
 				callback_item->active_count = 0;
@@ -165,6 +178,10 @@ void keyword_net_initialize(void) {
     tinytensor_allocate_states(&_context.state, &_context.net);
 
 	tinytensor_features_initialize(&_context,feats_callback, speech_detect_callback);
+
+    context.stats_mutex = xSemaphoreCreateMutex();
+
+    net_stats_init(&_context.stats);
 }
 
 __attribute__((section(".ramcode")))
@@ -172,6 +189,7 @@ void keyword_net_deinitialize(void) {
 	tinytensor_features_deinitialize();
 
 	tinytensor_free_states(&_context.state,&_context.net);
+    vSemaphoreDelete(_context.stats_mutex);
 }
 
 __attribute__((section(".ramcode")))
@@ -298,5 +316,4 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 }
 
 void keyword_net_reset_states(void) {
-
 }

@@ -16,6 +16,8 @@ typedef struct {
 
 void net_stats_init(NetStats_t * stats);
 
+void net_stats_reset(NetStats_t * stats);
+
 static inline net_stats_update_counts(NetStats_t * stats,const Weight_t * output, const uint32_t len) {
     uint32_t i;
     uint32_t idx;
