@@ -14,6 +14,10 @@
 #include "crypto.h"
 #include "wifi_cmd.h"
 
+#include "wifi_cmd.h"
+#include "protobuf/state.pb.h"
+AudioState get_audio_state();
+
 #include "speech.pb.h"
 ////-------------------------------------------
 //The feature/extractor processor we used in sense 1.0
@@ -220,36 +224,27 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 		p->speech_pb.word = keyword_OK_SENSE;
 		break;
 	case snooze:
-		LOGI("SNOOZE\r\n");
 		p->speech_pb.word = keyword_SNOOZE;
-		stop_led_animation( 0, 33 );
-		cancel_alarm();
 		break;
 	case stop:
-		LOGI("STOP\r\n");
 		p->speech_pb.word = keyword_STOP;
-		stop_led_animation( 0, 33 );
-		cancel_alarm();
 		break;
 	}
 }
-static void _ok_sense_start(void * ctx, Keyword_t keyword, int8_t value){
-	_voice_begin_keyword(ctx, keyword, value);
-}
-static void _ok_sense_stop(void * ctx, Keyword_t keyword, int8_t value){
-	_voice_finish_keyword(ctx, keyword, value);
-}
-static void _snooze_start(void * ctx, Keyword_t keyword, int8_t value){
-	_voice_begin_keyword(ctx, keyword, value);
-}
 static void _snooze_stop(void * ctx, Keyword_t keyword, int8_t value){
-	_voice_finish_keyword(ctx, keyword, value);
-}
-static void _stop_start(void * ctx, Keyword_t keyword, int8_t value){
-	_voice_begin_keyword(ctx, keyword, value);
+	LOGI("SNOOZE\r\n");
+	if( cancel_alarm() ) {
+		LOGI("SNOOZING\r\n");
+		_voice_finish_keyword(ctx, keyword, value);
+	}
 }
 static void _stop_stop(void * ctx, Keyword_t keyword, int8_t value){
-	_voice_finish_keyword(ctx, keyword, value);
+	LOGI("STOP\r\n");
+	if( get_audio_state().playing_audio  ) {
+		LOGI("STOPPING\r\n");
+		cancel_alarm();
+		_voice_finish_keyword(ctx, keyword, value);
+	}
 }
 
 static void _speech_detect_callback(void * context, SpeechTransition_t transition) {
@@ -299,9 +294,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	memset(&nn_ctx, 0, sizeof(nn_ctx));
 
 	keyword_net_initialize();
-	keyword_net_register_callback(&nn_ctx,okay_sense,80,_ok_sense_start,_ok_sense_stop);
-	keyword_net_register_callback(&nn_ctx,snooze,80,_snooze_start,_snooze_stop);
-	keyword_net_register_callback(&nn_ctx,stop,80,_stop_start,_stop_stop);
+	keyword_net_register_callback(&nn_ctx,okay_sense,80,_voice_begin_keyword,_voice_finish_keyword);
+	keyword_net_register_callback(&nn_ctx,snooze,80,_voice_begin_keyword,_snooze_stop);
+	keyword_net_register_callback(&nn_ctx,stop,80,_voice_begin_keyword,_stop_stop);
 	keyword_net_register_speech_callback(&nn_ctx,_speech_detect_callback);
 
 	//wrap output in hmac stream
@@ -349,8 +344,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 #if( WW_WINDOWS < 1536/80 )
 #error "wakeword buffer too small"
 #endif
-			} else {
-				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)compressed, sizeof(compressed), 4);
+			} else if( ww_idx == 1536/sizeof(wakeword[0]) ) {
+				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword, sizeof(wakeword[0])*(ww_idx), 4);
+				ww_idx = 0;
 				if( ret < 0 ) {
 					break;
 				}
@@ -752,9 +748,6 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 	return 0;
 }
 
-#include "wifi_cmd.h"
-#include "protobuf/state.pb.h"
-AudioState get_audio_state();
 
 
 static volatile int confidence = 70;
