@@ -950,7 +950,7 @@ void thread_fast_i2c_poll(void * unused)  {
 	}
 }
 
-#define MAX_PERIODIC_DATA 1
+#define MAX_PERIODIC_DATA 10
 #define MAX_PILL_DATA 1
 #define MAX_BATCH_PILL_DATA 1
 #define PILL_BATCH_WATERMARK 0
@@ -1356,7 +1356,9 @@ void thread_sensor_poll(void* unused) {
 			}
 
 			if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
-				xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue
+				if( uxQueueMessagesWaiting(data_queue) == MAX_PERIODIC_DATA) {
+					xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue
+				}
 				LOGE("Failed to post data\n");
 			}
 		}

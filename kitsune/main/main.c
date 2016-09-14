@@ -313,7 +313,7 @@ void watchdog_thread(void* unused) {
 #endif
 	int button_cnt=0;
 	while (1) {
-		if (xTaskGetTickCount() - last_upload_time > 3*ONE_HOUR) {
+		if (xTaskGetTickCount() - last_upload_time > FIFTEEN_MINUTES) {
 			LOGE("NET TIMEOUT\n");
 			mcu_reset();
 		}
