@@ -4,7 +4,7 @@
 #include "tinytensor_memory.h"
 #include "tinytensor_math_defs.h"
 #include "uart_logger.h"
-
+#include "net_stats.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -36,6 +36,8 @@ typedef struct {
 
     tinytensor_speech_detector_callback_t speech_callback;
     void * speech_callback_context;
+
+    NetStats_t stats;
 
 } KeywordNetContext_t;
 
@@ -77,10 +79,13 @@ static void feats_callback(void * p, Weight_t * feats) {
 	out = tinytensor_eval_stateful_net(&context->net, &context->state, &temp_tensor,NET_FLAG_LSTM_DAMPING);
 	CHKCYC("evalnet");
 
+        //startup transient suppression
 	if (context->counter++ < 20) {
 		out->delete_me(out);
 		return;
 	}
+
+        //display of network output 
 	if(context->counter % 50 ==0){
 		Weight_t max = out->x[1];
 		for (j = 2; j < out->dims[3]; j++) {
@@ -98,6 +103,8 @@ static void feats_callback(void * p, Weight_t * feats) {
 		idlecnt = 0;
 	}
 
+        //update stats
+        net_stats_update_counts(&context->stats,out->x,NUM_KEYWORDS);
 
 	//evaluate output
 	for (i = 0; i < NUM_KEYWORDS; i++) {
