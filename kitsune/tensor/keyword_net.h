@@ -32,6 +32,8 @@ void keyword_net_pause_net_operation(void);
 
 void keyword_net_reset_states(void);
 
+uint8_t keyword_net_get_and_reset_stats(NetStats_t * stats);
+
 int cmd_test_neural_net(int argc, char * argv[]);
 
 #endif //_KEYWORD_NET_H_

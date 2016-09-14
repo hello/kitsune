@@ -4,7 +4,6 @@
 #include "tinytensor_memory.h"
 #include "tinytensor_math_defs.h"
 #include "uart_logger.h"
-#include "net_stats.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -37,6 +36,7 @@ typedef struct {
     tinytensor_speech_detector_callback_t speech_callback;
     void * speech_callback_context;
 
+    xSemaphoreHandle stats_mutex;
     NetStats_t stats;
 
 } KeywordNetContext_t;
@@ -49,6 +49,20 @@ static void speech_detect_callback(void * context, SpeechTransition_t transition
 	if (p->speech_callback) {
 		p->speech_callback(p->speech_callback_context,transition);
 	}
+}
+
+
+
+uint8_t keyword_net_get_and_reset_stats(NetStats_t * stats) {
+    //copy out stats, and zero it out
+    if( xSemaphoreTake(_context.stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
+        memcpy(stats,_context.stats,sizeof(NetStats_t));
+        net_stats_reset(&_context.stats);
+        xSemaphoreGive(_context.stats_mutex);
+        return 1;
+    }
+
+    return 0;
 }
 
 extern volatile int idlecnt;
@@ -104,7 +118,10 @@ static void feats_callback(void * p, Weight_t * feats) {
 	}
 
         //update stats
-        net_stats_update_counts(&context->stats,out->x,NUM_KEYWORDS);
+        if( xSemaphoreTake(context->stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
+            net_stats_update_counts(&context->stats,out->x,NUM_KEYWORDS);
+            xSemaphoreGive(context->stats_mutex);
+        }
 
 	//evaluate output
 	for (i = 0; i < NUM_KEYWORDS; i++) {
@@ -118,8 +135,8 @@ static void feats_callback(void * p, Weight_t * feats) {
 			}
 
 
+			//activating
 
-			//active
 			if (val >= callback_item->activation_threshold) {
 
 				//just started
@@ -128,14 +145,14 @@ static void feats_callback(void * p, Weight_t * feats) {
 				}
 
 				callback_item->active_count++;
+			//deactivating
 
-				//reached threshold for activation, do callback
+				//report max value
 				if (callback_item->active_count == callback_item->min_duration && callback_item->on_end) {
-					callback_item->on_end(callback_item->context,(Keyword_t)i, callback_item->max_value);
+					callback_item->on_end(callback_item->context,(Keyword_t)i,callback_item->max_value);
 				}
 			}
 
-			//deactivating
 			if (val < callback_item->activation_threshold && callback_item->active_count) {
 				//reset
 				callback_item->active_count = 0;
@@ -298,5 +315,4 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 }
 
 void keyword_net_reset_states(void) {
-
 }
