@@ -1951,10 +1951,8 @@ int cmd_pwr_speaker(int argc, char * argv[]);
 
 
 int cmd_button(int argc, char *argv[]) {
-	while(1) {
-		LOGF("%d\r", check_button());
-		vTaskDelay(100);
-	}
+	LOGF("%d\n", check_button());
+	return 0;
 }
 int Cmd_readlight(int argc, char *argv[]);
 // ==============================================================================

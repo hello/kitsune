@@ -561,7 +561,7 @@ int init_tvoc(int measmode) {
 	(I2C_IF_Write(0x5a, b, 1, 1));
 	(I2C_IF_Read(0x5a, b, 2));
 
-	LOGE("TVOC FW %d.%d.%d\n",(b[0]>>4) & 0xff,b[0] & 0xff, b[1]);
+	LOGE("TVOC FW %d.%d.%d\n",(b[0]>>4) & 0xf,b[0] & 0xf, b[1]);
 	if (b[0] == 0x02 && b[1] == 0x4) {
 		LOGE("apply TVOC FW 0.2.4 workaround\n");
 		tvoc_wa = true;
