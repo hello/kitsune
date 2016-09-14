@@ -5,7 +5,6 @@
 #include "tinytensor_math_defs.h"
 #include "uart_logger.h"
 
-
 #include "FreeRTOS.h"
 #include "task.h"
 #include "stdlib.h"
@@ -15,6 +14,8 @@
 #include "fft.h"
 
 static volatile int _is_net_running = 1;
+
+const char * k_net_id = "model_aug30_lstm_med_dist_okay_sense_stop_snooze_tiny_912_ep216_q12";
 
 typedef struct {
 	KeywordCallback_t on_start;
@@ -37,6 +38,9 @@ typedef struct {
     tinytensor_speech_detector_callback_t speech_callback;
     void * speech_callback_context;
 
+    xSemaphoreHandle stats_mutex;
+    NetStats_t stats;
+
 } KeywordNetContext_t;
 
 static KeywordNetContext_t _context;
@@ -47,6 +51,20 @@ static void speech_detect_callback(void * context, SpeechTransition_t transition
 	if (p->speech_callback) {
 		p->speech_callback(p->speech_callback_context,transition);
 	}
+}
+
+
+
+uint8_t keyword_net_get_and_reset_stats(NetStats_t * stats) {
+    //copy out stats, and zero it out
+    if( xSemaphoreTake(_context.stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
+        memcpy(stats,&_context.stats,sizeof(NetStats_t));
+        net_stats_reset(&_context.stats);
+        xSemaphoreGive(_context.stats_mutex);
+        return 1;
+    }
+
+    return 0;
 }
 
 extern volatile int idlecnt;
@@ -77,10 +95,13 @@ static void feats_callback(void * p, Weight_t * feats) {
 	out = tinytensor_eval_stateful_net(&context->net, &context->state, &temp_tensor,NET_FLAG_LSTM_DAMPING);
 	CHKCYC("evalnet");
 
+        //startup transient suppression
 	if (context->counter++ < 20) {
 		out->delete_me(out);
 		return;
 	}
+
+        //display of network output 
 	if(context->counter % 50 ==0){
 		Weight_t max = out->x[1];
 		for (j = 2; j < out->dims[3]; j++) {
@@ -99,6 +120,11 @@ static void feats_callback(void * p, Weight_t * feats) {
 		idlecnt = 0;
 	}
 
+        //update stats
+        if( xSemaphoreTake(context->stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
+            net_stats_update_counts(&context->stats,out->x,NUM_KEYWORDS);
+            xSemaphoreGive(context->stats_mutex);
+        }
 
 	//evaluate output
 	for (i = 0; i < NUM_KEYWORDS; i++) {
@@ -112,24 +138,28 @@ static void feats_callback(void * p, Weight_t * feats) {
 			}
 
 
-
-			//active
+			//activating?
 			if (val >= callback_item->activation_threshold) {
 
-				//just started
+				//did we just start?
 				if (callback_item->active_count == 0 && callback_item->on_start) {
 					callback_item->on_start(callback_item->context,(Keyword_t)i, val);
 				}
 
 				callback_item->active_count++;
 
-				//reached threshold for activation, do callback
+				//did we reach the desired number of counts?
 				if (callback_item->active_count == callback_item->min_duration && callback_item->on_end) {
-					callback_item->on_end(callback_item->context,(Keyword_t)i, callback_item->max_value);
+
+					//log activation
+					net_stats_record_activation(&context->stats,(Keyword_t)i,context->counter);
+
+					//do callback
+					callback_item->on_end(callback_item->context,(Keyword_t)i,callback_item->max_value);
 				}
 			}
 
-			//deactivating
+			//check if we went below threshold, if so, then reset
 			if (val < callback_item->activation_threshold && callback_item->active_count) {
 				//reset
 				callback_item->active_count = 0;
@@ -155,6 +185,8 @@ void keyword_net_initialize(void) {
 	MEMSET(&_context,0,sizeof(_context));
 
 	_context.net = initialize_network();
+
+	net_stats_init(&_context.stats,NUM_KEYWORDS,k_net_id);
 
     tinytensor_allocate_states(&_context.state, &_context.net);
 
@@ -292,5 +324,4 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 }
 
 void keyword_net_reset_states(void) {
-
 }

@@ -5,11 +5,14 @@
 
 #include <stdint.h>
 #include "tinytensor_features.h" //this is a hack.  put definitions in another header
+#include "net_stats.h"
+
 typedef enum {
 	none = 0,
 	okay_sense,
 	stop,
 	snooze,
+    okay,
 	NUM_KEYWORDS
 
 } Keyword_t;
@@ -31,6 +34,8 @@ void keyword_net_resume_net_operation(void);
 void keyword_net_pause_net_operation(void);
 
 void keyword_net_reset_states(void);
+
+uint8_t keyword_net_get_and_reset_stats(NetStats_t * stats);
 
 int cmd_test_neural_net(int argc, char * argv[]);
 
