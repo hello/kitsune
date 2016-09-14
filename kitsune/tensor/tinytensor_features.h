@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 #include "tinytensor_types.h"
-#define NUM_SAMPLES_TO_RUN_FFT (240)
+#define NUM_SAMPLES_TO_RUN_FFT (160)
 #define FFT_UNPADDED_SIZE (400)
 #define BUF_SIZE_IN_SAMPLES (600)
 #define NUM_MEL_BINS (40)
@@ -37,5 +37,6 @@ void tinytensor_features_force_voice_activity_detection(void);
 }
 #endif
 
+#define OLD_NET
 
 #endif //_TINYTENSOR_FEATURES_H_

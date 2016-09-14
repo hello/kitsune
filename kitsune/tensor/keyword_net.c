@@ -1,5 +1,7 @@
 #include "keyword_net.h"
-#include "model_aug15_lstm_small_dist_okay_sense_stop_snooze_tiny_830_ep275.c"
+
+//if updating this one please revert 53b8c407b9392c4e62bee5c6de33354a0fce3d85
+#include "model_aug15_lstm_small_dist_okay_sense_tiny_825.c"
 #include "tinytensor_features.h"
 #include "tinytensor_memory.h"
 #include "uart_logger.h"

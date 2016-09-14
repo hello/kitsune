@@ -69,7 +69,7 @@ typedef struct {
     uint8_t passed_first;
     int16_t max_mel_lpf;
     
-    int16_t bins[2][NUM_SAMPLES_TO_RUN_FFT];
+    int16_t bins[3][160];
     uint32_t binidx;
     uint32_t bintot;
     
@@ -263,19 +263,25 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
     }
      */
 
-    //num_samples must be NUM_SAMPLES_TO_RUN_FFT...
+    //num_samples must be 160...
     memcpy( (void*)_this.bins[_this.binidx], (void*)samples, num_samples*sizeof(int16_t) );
-    _this.binidx = (_this.binidx+1)% 2;
-    if( ++_this.bintot < 2 ) return 0;
-    _this.bintot = 2;
+    _this.binidx = (_this.binidx+1)% 3;
+    if( ++_this.bintot < 3 ) return 0;
+    _this.bintot = 3;
     if( _this.binidx == 0 ) {
     	memcpy( fr, _this.bins, 400*2);
         CHKCYC("copy 0");
     } else if( _this.binidx == 1 )  {
-		memcpy( fr+320, _this.bins[0], 160*2);
-		memcpy( fr, _this.bins[1], 240*2);
+		memcpy( fr+320, _this.bins[0], 80*2);
+		memcpy( fr, _this.bins[1], 320*2);
         CHKCYC("copy 1");
-    }//tiny_tensor_features_get_latest_samples(fr,FFT_UNPADDED_SIZE);
+    } else if( _this.binidx == 2 ) {
+		memcpy( fr+160, _this.bins[0], 160*2);
+		memcpy( fr+320, _this.bins[1], 80*2);
+    	memcpy( fr, _this.bins[2], 160*2);
+        CHKCYC("copy 2");
+    }
+    //tiny_tensor_features_get_latest_samples(fr,FFT_UNPADDED_SIZE);
 
     last = 0;
     max = 0;

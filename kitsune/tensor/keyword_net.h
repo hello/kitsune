@@ -8,8 +8,12 @@
 typedef enum {
 	none = 0,
 	okay_sense,
+	ok,
+
+#if 0
 	stop,
 	snooze,
+#endif
 	NUM_KEYWORDS
 
 } Keyword_t;
