@@ -775,7 +775,7 @@ void AudioControlTask(void * unused) {
 		in = hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_RECORD);
 
 		hlo_stream_t * out;
-		out = hlo_http_post("https://dev-speech.hello.is/v2/upload/audio?r=16000&response=mp3", NULL);
+		out = hlo_http_post("https://speech.hello.is/v2/upload/", NULL);
 
 		if(in && out){
 			ret = hlo_filter_voice_command(in,out,NULL, NULL);
