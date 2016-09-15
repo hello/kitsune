@@ -58,8 +58,8 @@
 #define IMPULSE_LENGTH         (50)
 #define CORR_SEARCH_WINDOW    (PN_LEN_SAMPLES + IMPULSE_LENGTH)
 #define CORR_SEARCH_START_IDX (0)
-#define DETECTION_THRESHOLD   (3e5)
-#define INDEX_DIFFERENCE_FAIL_CRITERIA  (4)
+#define DETECTION_THRESHOLD   (2e5)
+#define INDEX_DIFFERENCE_FAIL_CRITERIA  (6)
 #define NUM_DETECT            (1)
 
 #define WRITE_BUF_SKIP_BYTES (1 * TX_BUFFER_SIZE)
@@ -102,6 +102,8 @@ static hlo_stream_vftbl_t _write_tbl;
 static uint32_t _read_bytes_count = 0;
 static uint32_t _write_bytes_count = 0;
 
+static int32_t _index_fail_threshold = 0;
+static int32_t _threshold_for_starting_peak_detection = 0;
 
 #define REQUIRED_WRITE_STACK_SIZE       (sizeof(write_buf_context_t) + CORR_SEARCH_WINDOW * sizeof(int32_t) + PN_LEN_SAMPLES * sizeof(int16_t) + 10000)
 
@@ -241,6 +243,8 @@ uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t *
 	int32_t max_value;
 	uint32_t corridx;
 	uint32_t ifoundrise = 0;
+	uint8_t last_sign;
+	uint8_t sign;
 
 	int32_t corr_result[CORR_SEARCH_WINDOW];
 
@@ -261,7 +265,7 @@ uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t *
 		}
 
 
-		if (ABS(corr_result[corridx]) >= DETECTION_THRESHOLD ) {
+		if (ABS(corr_result[corridx]) >= _threshold_for_starting_peak_detection ) {
 
 			ndetect++;
 
@@ -320,16 +324,22 @@ uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t *
 
 	//find peak magnitude and index
 	max_value = ABS(corr_result[ifoundrise]);
+	sign = corr_result[ifoundrise] >= 0;
+	last_sign = sign;
 	istart = ifoundrise;
+
 	for (i = istart + 1; i < iend; i++) {
 		current_value = ABS(corr_result[i]);
+		sign = corr_result[i] >= 0;
 		if (current_value > max_value) {
 			max_value = current_value;
 			istart = i;
 		}
-		else {
+		else if (last_sign != sign) {
 			break;
 		}
+
+		last_sign = sign;
 
 	}
 
@@ -440,7 +450,7 @@ void pn_write_task( void * params ) {
 
 	}
 
-	if( (maxidx - minidx) % PN_LEN_SAMPLES > INDEX_DIFFERENCE_FAIL_CRITERIA) {
+	if( (maxidx - minidx) % PN_LEN_SAMPLES >= _index_fail_threshold) {
 		DISP("FAIL FAIL FAIL %d\r\n", (maxidx - minidx) % PN_LEN_SAMPLES );
 	}
 
@@ -476,6 +486,9 @@ int cmd_audio_self_test(int argc, char* argv[]) {
 
 	pcm_set_ping_pong_incoming_stream_mode(PCM_PING_PONG_MODE_ALL_CHANNELS_FULL_RATE);
 
+	_index_fail_threshold = INDEX_DIFFERENCE_FAIL_CRITERIA;
+	_threshold_for_starting_peak_detection = DETECTION_THRESHOLD;
+
 	if (argc > 1)  {
 		if (strcmp(argv[1],"d") == 0) {
 			debug = 1;
@@ -498,11 +511,22 @@ int cmd_audio_self_test(int argc, char* argv[]) {
 			DISP("printing correlation\r\n");
 		}
 
+
 		// so if I do "pn d p" I will print my correlation from an external source
 		if (argc > 2) {
 			if (strcmp(argv[2],"p") == 0) {
 				print_correlation = 1;
 				DISP("printing correlation\r\n");
+			}
+
+			if (strcmp(argv[1],"t") == 0) {
+				_threshold_for_starting_peak_detection = atoi(argv[2]);
+				DISP("setting detection threshold set to %d\r\n",_threshold_for_starting_peak_detection);
+
+				if (argc > 3) {
+					_index_fail_threshold = atoi(argv[3]);
+					DISP("index fail threshold set to %d\r\n",_index_fail_threshold);
+				}
 			}
 		}
 	}
