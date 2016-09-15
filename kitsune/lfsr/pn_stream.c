@@ -59,6 +59,7 @@
 #define CORR_SEARCH_WINDOW    (PN_LEN_SAMPLES + IMPULSE_LENGTH)
 #define CORR_SEARCH_START_IDX (0)
 #define DETECTION_THRESHOLD   (3e5)
+#define INDEX_DIFFERENCE_FAIL_CRITERIA  (4)
 #define NUM_DETECT            (1)
 
 #define WRITE_BUF_SKIP_BYTES (1 * TX_BUFFER_SIZE)
@@ -439,7 +440,7 @@ void pn_write_task( void * params ) {
 
 	}
 
-	if( (maxidx - minidx) % PN_LEN_SAMPLES > 50) {
+	if( (maxidx - minidx) % PN_LEN_SAMPLES > INDEX_DIFFERENCE_FAIL_CRITERIA) {
 		DISP("FAIL FAIL FAIL %d\r\n", (maxidx - minidx) % PN_LEN_SAMPLES );
 	}
 
