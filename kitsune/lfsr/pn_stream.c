@@ -451,7 +451,7 @@ void pn_write_task( void * params ) {
 	}
 
 	if( (maxidx - minidx) % PN_LEN_SAMPLES >= _index_fail_threshold) {
-		DISP("FAIL FAIL FAIL %d\r\n", (maxidx - minidx) % PN_LEN_SAMPLES );
+		DISP("FAIL: range of peak indices too large.  Range is %d, fail threshold is %d\r\n", (maxidx - minidx) % PN_LEN_SAMPLES, _index_fail_threshold);
 	}
 
 	DISP("pn_write_task completed\r\n");
