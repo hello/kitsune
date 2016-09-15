@@ -5,6 +5,7 @@ char * get_server(void);
 char * get_messeji_server(void);
 
 char * get_ws_server(void);
+char * get_speech_server(void);
 
 #define DEV_WS_SERVER "dev-ws.hello.is"
 #define PROD_WS_SERVER "ws.hello.is"
@@ -19,6 +20,11 @@ char * get_ws_server(void);
 #define PROD_MESSEJI_SERVER "messeji.hello.is"
 #define DEV_MESSEJI_SERVER "messeji-dev.hello.is"
 #endif
+
+#define PROD_SPEECH_SERVER "speech.hello.is"
+#define DEV_SPEECH_SERVER "dev-speech.hello.is"
+
+#define SPEECH_ENDPOINT "/v2/upload/audio"
 
 #define MESSEJI_ENDPOINT "/receive"
 

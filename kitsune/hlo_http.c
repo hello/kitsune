@@ -60,7 +60,7 @@ static sockaddr _get_addr(unsigned long ip, uint16_t port){
 }
 static int _start_connection(hlo_sock_ctx_t * ctx) {
 	int rv = 0;
-	if( !wifi_status_get(HAS_IP) ) {
+	if( !wifi_status_get(HAS_IP) || (ctx->sec == SOCKET_SEC_SSL && !has_good_time())) {
 		return false;
 	}
 	if( !ctx->ip ) {
@@ -70,10 +70,10 @@ static int _start_connection(hlo_sock_ctx_t * ctx) {
 	if (ctx->ip && !ctx->setup) {
 		DISP("setting up\n");
 		sockaddr sAddr = {0};
-		if (ctx->sec == SOCKET_SEC_SSL && has_good_time()) {
-			sAddr = _get_addr(ctx->ip, 443);
-			DISP("got addr\n");
+		sAddr = _get_addr(ctx->ip, 443);
+		DISP("got addr\n");
 
+		if( ctx->sec == SOCKET_SEC_SSL ) {
 			ctx->sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
 			if (ctx->sock <= 0) {
 				DISP("sock fail\n");

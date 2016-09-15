@@ -1919,6 +1919,12 @@ char * get_ws_server(void){
 	}
 	return PROD_WS_SERVER;
 }
+char * get_speech_server(void){
+	if(use_dev_server){
+		return DEV_SPEECH_SERVER;
+	}
+	return PROD_SPEECH_SERVER;
+}
 void on_key(uint8_t * key) {
 	save_aes(key);
 	load_aes();
