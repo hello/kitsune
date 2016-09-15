@@ -14,6 +14,8 @@
 #include "crypto.h"
 #include "wifi_cmd.h"
 
+#include "endpoints.h"
+
 #include "speech.pb.h"
 ////-------------------------------------------
 //The feature/extractor processor we used in sense 1.0
@@ -775,7 +777,9 @@ void AudioControlTask(void * unused) {
 		in = hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_RECORD);
 
 		hlo_stream_t * out;
-		out = hlo_http_post("https://speech.hello.is/v2/upload/", NULL);
+		char speech_url[64];
+		usnprintf(speech_url, sizeof(speech_url), "https://%s%s", get_speech_server(), SPEECH_ENDPOINT );
+		out = hlo_http_post(speech_url, NULL);
 
 		if(in && out){
 			ret = hlo_filter_voice_command(in,out,NULL, NULL);
