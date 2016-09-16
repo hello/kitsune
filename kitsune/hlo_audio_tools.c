@@ -25,6 +25,12 @@ AudioState get_audio_state();
 //The feature/extractor processor we used in sense 1.0
 //
 #include "audiofeatures.h"
+#include "tensor/tinytensor_math_defs.h"
+
+#define OKAY_SENSE_THRESHOLD  TOFIX(0.625)
+#define SNOOZE_THRESHOLD      TOFIX(0.40)
+#define STOP_THRESHOLD        TOFIX(0.40)
+
 static xSemaphoreHandle _statsMutex = NULL;
 static AudioOncePerMinuteData_t _stats;
 
@@ -296,9 +302,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	memset(&nn_ctx, 0, sizeof(nn_ctx));
 
 	keyword_net_initialize();
-	keyword_net_register_callback(&nn_ctx,okay_sense,80,_voice_begin_keyword,_voice_finish_keyword);
-	keyword_net_register_callback(&nn_ctx,snooze,80,_voice_begin_keyword,_snooze_stop);
-	keyword_net_register_callback(&nn_ctx,stop,80,_voice_begin_keyword,_stop_stop);
+	keyword_net_register_callback(&nn_ctx,okay_sense,OKAY_SENSE_THRESHOLD,_voice_begin_keyword,_voice_finish_keyword);
+	keyword_net_register_callback(&nn_ctx,snooze,SNOOZE_THRESHOLD,_voice_begin_keyword,_snooze_stop);
+	keyword_net_register_callback(&nn_ctx,stop,STOP_THRESHOLD,_voice_begin_keyword,_stop_stop);
 	keyword_net_register_speech_callback(&nn_ctx,_speech_detect_callback);
 
 	//wrap output in hmac stream
@@ -463,7 +469,7 @@ int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * outpu
 	int ret;
 	keyword_net_initialize();
 
-	keyword_net_register_callback(0,okay_sense,80,_begin_keyword,_finish_keyword);
+	keyword_net_register_callback(0,okay_sense,OKAY_SENSE_THRESHOLD,_begin_keyword,_finish_keyword);
 	//keyword_net_register_callback(0,alexa,80,_begin_keyword,_finish_keyword);
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) >= 0 ){
