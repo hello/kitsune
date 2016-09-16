@@ -3,7 +3,7 @@
 #include "tinytensor_features.h"
 #include "tinytensor_memory.h"
 #include "uart_logger.h"
-
+#include "net_stats.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -35,6 +35,9 @@ typedef struct {
     tinytensor_speech_detector_callback_t speech_callback;
     void * speech_callback_context;
 
+    xSemaphoreHandle stats_mutex;
+    NetStats_t stats;
+
 } KeywordNetContext_t;
 
 static KeywordNetContext_t _context;
@@ -45,6 +48,18 @@ static void speech_detect_callback(void * context, SpeechTransition_t transition
 	if (p->speech_callback) {
 		p->speech_callback(p->speech_callback_context,transition);
 	}
+}
+
+uint8_t keyword_net_get_and_reset_stats(NetStats_t * stats) {
+    //copy out stats, and zero it out
+    if( xSemaphoreTake(_context.stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
+        memcpy(stats,_context.stats,sizeof(NetStats_t));
+        net_stats_reset(&_context.stats);
+        xSemaphoreGive(_context.stats_mutex);
+        return 1;
+    }
+
+    return 0;
 }
 
 __attribute__((section(".ramcode")))
@@ -73,10 +88,13 @@ static void feats_callback(void * p, Weight_t * feats) {
 	out = tinytensor_eval_stateful_net(&context->net, &context->state, &temp_tensor,NET_FLAG_LSTM_DAMPING);
 	CHKCYC("evalnet");
 
+        //startup transient suppression
 	if (context->counter++ < 20) {
 		out->delete_me(out);
 		return;
 	}
+
+        //display of network output 
 	if(context->counter % 50 ==0){
 		Weight_t max = out->x[1];
 		for (j = 2; j < out->dims[3]; j++) {
@@ -93,6 +111,11 @@ static void feats_callback(void * p, Weight_t * feats) {
 		DISP("%03d\r", out->x[1]);
 	}
 
+        //update stats
+        if( xSemaphoreTake(context->stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
+            net_stats_update_counts(&context->stats,out->x,NUM_KEYWORDS);
+            xSemaphoreGive(context->stats_mutex);
+        }
 
 	//evaluate output
 	for (i = 0; i < NUM_KEYWORDS; i++) {
@@ -145,20 +168,26 @@ void keyword_net_pause_net_operation(void) {
 
 __attribute__((section(".ramcode")))
 void keyword_net_initialize(void) {
-	MEMSET(&_context,0,sizeof(_context));
+    MEMSET(&_context,0,sizeof(_context));
 
-	_context.net = initialize_network();
+    _context.net = initialize_network();
 
     tinytensor_allocate_states(&_context.state, &_context.net);
 
-	tinytensor_features_initialize(&_context,feats_callback, speech_detect_callback);
+    tinytensor_features_initialize(&_context,feats_callback, speech_detect_callback);
+
+    _context.stats_mutex = xSemaphoreCreateMutex();
+
+    net_stats_init(&_context.stats);
 }
 
 __attribute__((section(".ramcode")))
 void keyword_net_deinitialize(void) {
-	tinytensor_features_deinitialize();
+    tinytensor_features_deinitialize();
 
-	tinytensor_free_states(&_context.state,&_context.net);
+    tinytensor_free_states(&_context.state,&_context.net);
+
+    vSemaphoreDelete(_context.stats_mutex);
 }
 
 __attribute__((section(".ramcode")))
