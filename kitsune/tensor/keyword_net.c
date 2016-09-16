@@ -2,6 +2,7 @@
 #include "model_aug30_lstm_med_dist_okay_sense_stop_snooze_tiny_912_ep174_q12.c"
 #include "tinytensor_features.h"
 #include "tinytensor_memory.h"
+#include "tinytensor_math_defs.h"
 #include "uart_logger.h"
 
 
@@ -19,7 +20,7 @@ typedef struct {
 	KeywordCallback_t on_start;
 	KeywordCallback_t on_end;
 	void * context;
-	int8_t activation_threshold;
+	int32_t activation_threshold;
 	uint8_t is_active;
 	int8_t max_value;
 } CallbackItem_t;
@@ -84,7 +85,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 		}
 
 		for(j = 0 ; j < 10; j++){
-			if(max >= j * 12 ){
+			if(max >= j * TOFIX(0.1) ){
 				DISP("X");
 			}else{
 				DISP("_");
@@ -151,7 +152,7 @@ void keyword_net_initialize(void) {
 
     tinytensor_allocate_states(&_context.state, &_context.net);
 
-	tinytensor_features_initialize(&_context,feats_callback, speech_detect_callback);
+	tinytensor_features_initialize(&_context,feats_callback, speech_detect_callback);
 }
 
 __attribute__((section(".ramcode")))
