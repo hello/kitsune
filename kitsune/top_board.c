@@ -470,6 +470,9 @@ int verify_top_update(void){
 }
 
 void start_top_boot_watcher(void){
+	if( is_test_boot() ) {
+		return;
+	}
 	boot_timer = xTimerCreate("Boot timer",10000,pdTRUE, 0, boot_check);
 	if( boot_timer ) {
 		xTimerStart( boot_timer, portMAX_DELAY );

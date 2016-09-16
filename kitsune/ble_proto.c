@@ -686,7 +686,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 
 	if(command->has_ble_bond_count) {
 		static bool played = false;
-		if( !played && booted && !is_test_boot() && xTaskGetTickCount() < 30000 ) {
+		if( !played && booted && !is_test_boot() && xTaskGetTickCount() < 5000 ) {
 			if(command->has_ble_bond_count)
 			{
 				LOGI("BOND COUNT %d\n", command->ble_bond_count);
