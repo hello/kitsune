@@ -248,8 +248,8 @@ static void _do_lights(void * ctx, const void * buf, size_t size) {
 			if(light > 253){
 				light = 253;
 			}
-			if( light < 20 ){
-				light = 20;
+			if( light < 100 ){
+				light = 100;
 			}
 
 			uint32_t d =  xTaskGetTickCount() - stream->begin;
