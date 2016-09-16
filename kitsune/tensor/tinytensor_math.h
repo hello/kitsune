@@ -7,11 +7,14 @@
 extern "C" {
 #endif
 
-#define QFIXEDPOINT (7)
+#define QFIXEDPOINT (12)
 #define QFIXEDPOINT_INT16 (15)
 #define TOFIX(x)\
         (Weight_t)(x * (1 << QFIXEDPOINT))
     
+#define TOFIXQ(x,q)\
+        ((int32_t) ((x) * (float)(1 << (q))))
+
 #define TOFLT(x)\
         ( ((float)x) / (float)(1 << QFIXEDPOINT))
     
