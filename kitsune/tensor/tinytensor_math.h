@@ -2,24 +2,11 @@
 #define _TINYTENSOR_MATH_H_
 
 #include "tinytensor_types.h"
+#include "tinytensor_math_defs.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define QFIXEDPOINT (12)
-#define QFIXEDPOINT_INT16 (15)
-#define TOFIX(x)\
-        (Weight_t)(x * (1 << QFIXEDPOINT))
-    
-#define TOFIXQ(x,q)\
-        ((int32_t) ((x) * (float)(1 << (q))))
-
-#define TOFLT(x)\
-        ( ((float)x) / (float)(1 << QFIXEDPOINT))
-    
-#define MUL16(a,b)\
-    ((int16_t)(((int32_t)(a * b)) >> QFIXEDPOINT_INT16))
 
 /* INPUTS ARE EXPECTED TO BE IN Q7, JUST POTENTIALLY VERY LARGE IN MAGNITUDE */
 __attribute__((section(".ramcode")))
