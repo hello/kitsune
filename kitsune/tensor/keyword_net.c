@@ -152,7 +152,7 @@ void keyword_net_initialize(void) {
 
     tinytensor_allocate_states(&_context.state, &_context.net);
 
-	tinytensor_features_initialize(&_context,feats_callback, speech_detect_callback);
+	tinytensor_features_initialize(&_context,feats_callback, speech_detect_callback);
 }
 
 __attribute__((section(".ramcode")))
@@ -163,7 +163,7 @@ void keyword_net_deinitialize(void) {
 }
 
 __attribute__((section(".ramcode")))
-void keyword_net_register_callback(void * target_context, Keyword_t keyword, int8_t threshold,KeywordCallback_t on_start, KeywordCallback_t on_end) {
+void keyword_net_register_callback(void * target_context, Keyword_t keyword, int16_t threshold,KeywordCallback_t on_start, KeywordCallback_t on_end) {
 
 	_context.callbacks[keyword].on_start = on_start;
 	_context.callbacks[keyword].on_end = on_end;

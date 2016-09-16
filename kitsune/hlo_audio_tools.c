@@ -212,12 +212,12 @@ typedef struct{
 	uint8_t is_speaking;
 }nn_keyword_ctx_t;
 
-static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
+static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	LOGI("KEYWORD BEGIN\n");
 }
 
 bool cancel_alarm();
-static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
+static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)ctx;
 
 	p->speech_pb.has_confidence = true;
@@ -239,14 +239,14 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 		break;
 	}
 }
-static void _snooze_stop(void * ctx, Keyword_t keyword, int8_t value){
+static void _snooze_stop(void * ctx, Keyword_t keyword, int16_t value){
 	LOGI("SNOOZE\r\n");
 	if( cancel_alarm() ) {
 		LOGI("SNOOZING\r\n");
 		_voice_finish_keyword(ctx, keyword, value);
 	}
 }
-static void _stop_stop(void * ctx, Keyword_t keyword, int8_t value){
+static void _stop_stop(void * ctx, Keyword_t keyword, int16_t value){
 	LOGI("STOP\r\n");
 	if( get_audio_state().playing_audio  ) {
 		LOGI("STOPPING\r\n");
@@ -458,10 +458,10 @@ int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * outp
 	stop_led_animation( 0, 33 );
 	return ret;
 }
-static void _begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
+static void _begin_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	DISP("OKAY SENSE\r\n");
 }
-static void _finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
+static void _finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 }
 //note that filter and the stream version can not run concurrently
 int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){

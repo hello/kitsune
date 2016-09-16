@@ -14,11 +14,11 @@ typedef enum {
 
 } Keyword_t;
 
-typedef void (*KeywordCallback_t)(void * context, Keyword_t keyword, int8_t value);
+typedef void (*KeywordCallback_t)(void * context, Keyword_t keyword, int16_t value);
 
 void keyword_net_initialize(void);
 
-void keyword_net_register_callback(void * target_context, Keyword_t keyword, int8_t threshold,KeywordCallback_t on_start, KeywordCallback_t on_end);
+void keyword_net_register_callback(void * target_context, Keyword_t keyword, int16_t threshold,KeywordCallback_t on_start, KeywordCallback_t on_end);
 
 void keyword_net_register_speech_callback(void * context, tinytensor_speech_detector_callback_t callback);
 
