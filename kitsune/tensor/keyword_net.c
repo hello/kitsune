@@ -49,6 +49,8 @@ static void speech_detect_callback(void * context, SpeechTransition_t transition
 	}
 }
 
+extern volatile int idlecnt;
+
 __attribute__((section(".ramcode")))
 static void feats_callback(void * p, Weight_t * feats) {
 	KeywordNetContext_t * context = (KeywordNetContext_t *)p;
@@ -92,7 +94,8 @@ static void feats_callback(void * p, Weight_t * feats) {
 				DISP("_");
 			}
 		}
-		DISP("%03d\r", out->x[1]);
+		DISP("%03d %d\r", out->x[1], idlecnt);
+		idlecnt = 0;
 	}
 
 
