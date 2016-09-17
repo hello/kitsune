@@ -20,9 +20,9 @@ typedef struct {
 	KeywordCallback_t on_start;
 	KeywordCallback_t on_end;
 	void * context;
-	int32_t activation_threshold;
+	int16_t activation_threshold;
 	uint8_t is_active;
-	int8_t max_value;
+	int16_t max_value;
 } CallbackItem_t;
 
 typedef struct {
@@ -108,8 +108,8 @@ static void feats_callback(void * p, Weight_t * feats) {
 			if (callback_item->is_active && val > callback_item->max_value) {
 				callback_item->max_value = val;
 			}
-			else {
-				callback_item->max_value = INT8_MIN;
+			else if (!callback_item->is_active) {
+				callback_item->max_value = INT16_MIN;
 			}
 
 
