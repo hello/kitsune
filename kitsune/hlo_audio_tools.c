@@ -232,9 +232,11 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 		p->speech_pb.word = keyword_OK_SENSE;
 		break;
 	case snooze:
+		LOGI("SNOOZE\r\n");
 		p->speech_pb.word = keyword_SNOOZE;
 		break;
 	case stop:
+		LOGI("STOP\r\n");
 		p->speech_pb.word = keyword_STOP;
 		break;
 	}
@@ -458,8 +460,25 @@ int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * outp
 	stop_led_animation( 0, 33 );
 	return ret;
 }
+
 static void _begin_keyword(void * ctx, Keyword_t keyword, int16_t value){
-	DISP("OKAY SENSE\r\n");
+	switch (keyword) {
+
+	case okay_sense:
+		DISP("OKAY SENSE\r\n");
+		break;
+
+	case snooze:
+		DISP("SNOOZE\r\n");
+		break;
+
+	case stop:
+		DISP("STOP\r\n");
+		break;
+
+	default:
+		break;
+	}
 }
 static void _finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 }
