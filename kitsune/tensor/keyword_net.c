@@ -99,7 +99,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 	for (i = 0; i < NUM_KEYWORDS; i++) {
 		CallbackItem_t * callback_item = &context->callbacks[i];
 		if (callback_item) {
-			const int8_t val = (int8_t)out->x[i];
+			const int16_t val = (int16_t)out->x[i];
 
 			//track max value of net output for this keyword
 			if (callback_item->is_active && val > callback_item->max_value) {
