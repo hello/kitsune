@@ -1,7 +1,8 @@
 #include "keyword_net.h"
-#include "model_aug30_lstm_med_dist_okay_sense_stop_snooze_tiny_912_ep174.c"
+#include "model_aug30_lstm_med_dist_okay_sense_stop_snooze_tiny_912_ep174_q12.c"
 #include "tinytensor_features.h"
 #include "tinytensor_memory.h"
+#include "tinytensor_math_defs.h"
 #include "uart_logger.h"
 
 
@@ -19,9 +20,10 @@ typedef struct {
 	KeywordCallback_t on_start;
 	KeywordCallback_t on_end;
 	void * context;
-	int8_t activation_threshold;
-	uint8_t is_active;
-	int8_t max_value;
+	int16_t activation_threshold;
+	uint32_t active_count;
+	int16_t max_value;
+	uint32_t min_duration;
 } CallbackItem_t;
 
 typedef struct {
@@ -84,7 +86,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 		}
 
 		for(j = 0 ; j < 10; j++){
-			if(max >= j * 12 ){
+			if(max >= j * TOFIX(0.1) ){
 				DISP("X");
 			}else{
 				DISP("_");
@@ -98,35 +100,36 @@ static void feats_callback(void * p, Weight_t * feats) {
 	for (i = 0; i < NUM_KEYWORDS; i++) {
 		CallbackItem_t * callback_item = &context->callbacks[i];
 		if (callback_item) {
-			const int8_t val = (int8_t)out->x[i];
+			const int16_t val = (int16_t)out->x[i];
 
 			//track max value of net output for this keyword
-			if (callback_item->is_active && val > callback_item->max_value) {
+			if (callback_item->active_count && val > callback_item->max_value) {
 				callback_item->max_value = val;
 			}
-			else {
-				callback_item->max_value = INT8_MIN;
-			}
 
 
-			//activating
-			if (val >= callback_item->activation_threshold && !callback_item->is_active) {
-				callback_item->is_active = 1;
 
-				if (callback_item->on_start) {
+			//active
+			if (val >= callback_item->activation_threshold) {
+
+				//just started
+				if (callback_item->active_count == 0 && callback_item->on_start) {
 					callback_item->on_start(callback_item->context,(Keyword_t)i, val);
+				}
+
+				callback_item->active_count++;
+
+				//reached threshold for activation, do callback
+				if (callback_item->active_count == callback_item->min_duration && callback_item->on_end) {
+					callback_item->on_end(callback_item->context,(Keyword_t)i, callback_item->max_value);
 				}
 			}
 
 			//deactivating
-			if (val < callback_item->activation_threshold && callback_item->is_active) {
-				callback_item->is_active = 0;
-
-				//report max value
-				if (callback_item->on_end) {
-					callback_item->on_end(callback_item->context,(Keyword_t)i,callback_item->max_value);
-				}
-
+			if (val < callback_item->activation_threshold && callback_item->active_count) {
+				//reset
+				callback_item->active_count = 0;
+				callback_item->max_value = 0;
 			}
 		}
 	}
@@ -162,12 +165,13 @@ void keyword_net_deinitialize(void) {
 }
 
 __attribute__((section(".ramcode")))
-void keyword_net_register_callback(void * target_context, Keyword_t keyword, int8_t threshold,KeywordCallback_t on_start, KeywordCallback_t on_end) {
+void keyword_net_register_callback(void * target_context, Keyword_t keyword, int16_t threshold,uint32_t min_duration,KeywordCallback_t on_start, KeywordCallback_t on_end) {
 
 	_context.callbacks[keyword].on_start = on_start;
 	_context.callbacks[keyword].on_end = on_end;
 	_context.callbacks[keyword].context = target_context;
 	_context.callbacks[keyword].activation_threshold = threshold;
+	_context.callbacks[keyword].min_duration = min_duration;
 
 }
 
@@ -265,7 +269,7 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 	}
 	keyword_net_initialize();
 
-	keyword_net_register_callback(0,okay_sense,70,0,0);
+	keyword_net_register_callback(0,okay_sense,70,1,0,0);
 
 	DISP("start test\n\n");
 
@@ -281,4 +285,8 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 	keyword_net_deinitialize();
 	return 0;
 #endif
+}
+
+void keyword_net_reset_states(void) {
+
 }
