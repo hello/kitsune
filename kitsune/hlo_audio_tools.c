@@ -28,8 +28,8 @@ AudioState get_audio_state();
 #include "tensor/tinytensor_math_defs.h"
 
 #define OKAY_SENSE_THRESHOLD  TOFIX(0.625)
-#define SNOOZE_THRESHOLD      TOFIX(0.4)
-#define STOP_THRESHOLD        TOFIX(0.4)
+#define SNOOZE_THRESHOLD      TOFIX(0.40)
+#define STOP_THRESHOLD        TOFIX(0.40)
 
 static xSemaphoreHandle _statsMutex = NULL;
 static AudioOncePerMinuteData_t _stats;
@@ -232,9 +232,11 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 		p->speech_pb.word = keyword_OK_SENSE;
 		break;
 	case snooze:
+		LOGI("SNOOZE\r\n");
 		p->speech_pb.word = keyword_SNOOZE;
 		break;
 	case stop:
+		LOGI("STOP\r\n");
 		p->speech_pb.word = keyword_STOP;
 		break;
 	}
@@ -463,25 +465,6 @@ static void _begin_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	switch (keyword) {
 
 	case okay_sense:
-		DISP("BEGIN OKAY SENSE\r\n");
-		break;
-
-	case snooze:
-		DISP("BEGIN SNOOZE\r\n");
-		break;
-
-	case stop:
-		DISP("BEGIN STOP\r\n");
-		break;
-
-	default:
-		break;
-	}
-}
-static void _finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
-	switch (keyword) {
-
-	case okay_sense:
 		DISP("OKAY SENSE\r\n");
 		break;
 
@@ -497,6 +480,8 @@ static void _finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 		break;
 	}
 }
+static void _finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
+}
 //note that filter and the stream version can not run concurrently
 int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	int16_t samples[NUM_SAMPLES_TO_RUN_FFT];
@@ -504,8 +489,7 @@ int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * outpu
 	keyword_net_initialize();
 
 	keyword_net_register_callback(0,okay_sense,OKAY_SENSE_THRESHOLD,_begin_keyword,_finish_keyword);
-	keyword_net_register_callback(0,stop,STOP_THRESHOLD,_begin_keyword,_finish_keyword);
-	keyword_net_register_callback(0,snooze,SNOOZE_THRESHOLD,_begin_keyword,_finish_keyword);
+	//keyword_net_register_callback(0,alexa,80,_begin_keyword,_finish_keyword);
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) >= 0 ){
 		keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
@@ -773,7 +757,7 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 	if(argc >= 4){
 		f = _filter_from_string(argv[3]);
 	}
-#if 1
+#if 0
 	hlo_stream_t * in = open_stream_from_path(argv[1],1);
 #else
 	hlo_stream_t * in = open_stream_from_path(argv[1],2); // TODO DKH

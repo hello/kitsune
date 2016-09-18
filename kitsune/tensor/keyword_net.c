@@ -23,7 +23,6 @@ typedef struct {
 	int16_t activation_threshold;
 	uint8_t is_active;
 	int16_t max_value;
-	TickType_t begin;
 } CallbackItem_t;
 
 typedef struct {
@@ -114,7 +113,6 @@ static void feats_callback(void * p, Weight_t * feats) {
 			//activating
 			if (val >= callback_item->activation_threshold && !callback_item->is_active) {
 				callback_item->is_active = 1;
-				callback_item->begin = xTaskGetTickCount();
 
 				if (callback_item->on_start) {
 					callback_item->on_start(callback_item->context,(Keyword_t)i, val);
@@ -124,13 +122,12 @@ static void feats_callback(void * p, Weight_t * feats) {
 			//deactivating
 			if (val < callback_item->activation_threshold && callback_item->is_active) {
 				callback_item->is_active = 0;
-				DISP("duration %d\n\n", xTaskGetTickCount() - callback_item->begin);
-				if( xTaskGetTickCount() - callback_item->begin > 100 ) {
-					//report max value
-					if (callback_item->on_end) {
-						callback_item->on_end(callback_item->context,(Keyword_t)i,callback_item->max_value);
-					}
+
+				//report max value
+				if (callback_item->on_end) {
+					callback_item->on_end(callback_item->context,(Keyword_t)i,callback_item->max_value);
 				}
+
 			}
 		}
 	}
