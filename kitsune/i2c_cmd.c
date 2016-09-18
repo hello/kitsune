@@ -688,7 +688,7 @@ int init_light_sensor()
 
 	//max pulse length, number of pluses
 	b[0] = 0x8E;
-	b[1] = 0xC3;
+	b[1] = 0xC0;
 	(I2C_IF_Write(0x39, b, 2, 1));
 
 	//gain and power
