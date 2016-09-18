@@ -237,11 +237,9 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 		p->speech_pb.word = keyword_OK_SENSE;
 		break;
 	case snooze:
-		LOGI("SNOOZE\r\n");
 		p->speech_pb.word = keyword_SNOOZE;
 		break;
 	case stop:
-		LOGI("STOP\r\n");
 		p->speech_pb.word = keyword_STOP;
 		break;
 	}
