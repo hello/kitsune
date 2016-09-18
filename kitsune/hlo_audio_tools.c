@@ -27,9 +27,14 @@ AudioState get_audio_state();
 #include "audiofeatures.h"
 #include "tensor/tinytensor_math_defs.h"
 
-#define OKAY_SENSE_THRESHOLD  TOFIX(0.625)
-#define SNOOZE_THRESHOLD      TOFIX(0.4)
-#define STOP_THRESHOLD        TOFIX(0.4)
+#define OKAY_SENSE_THRESHOLD     TOFIX(0.80)
+#define OKAY_SENSE_MIN_DURATION  20
+
+#define SNOOZE_THRESHOLD      TOFIX(0.60)
+#define SNOOZE_MIN_DURATION   1
+
+#define STOP_THRESHOLD        TOFIX(0.40)
+#define STOP_MIN_DURATION     1
 
 static xSemaphoreHandle _statsMutex = NULL;
 static AudioOncePerMinuteData_t _stats;
@@ -221,7 +226,7 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)ctx;
 
 	p->speech_pb.has_confidence = true;
-	p->speech_pb.confidence = value;
+	p->speech_pb.confidence = value >> 5; // I think server is expecting q7
 	tinytensor_features_force_voice_activity_detection();
 	p->is_speaking = true;
 	p->speech_pb.has_word = true;
@@ -232,9 +237,11 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 		p->speech_pb.word = keyword_OK_SENSE;
 		break;
 	case snooze:
+		LOGI("SNOOZE\r\n");
 		p->speech_pb.word = keyword_SNOOZE;
 		break;
 	case stop:
+		LOGI("STOP\r\n");
 		p->speech_pb.word = keyword_STOP;
 		break;
 	}
@@ -302,9 +309,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	memset(&nn_ctx, 0, sizeof(nn_ctx));
 
 	keyword_net_initialize();
-	keyword_net_register_callback(&nn_ctx,okay_sense,OKAY_SENSE_THRESHOLD,_voice_begin_keyword,_voice_finish_keyword);
-	keyword_net_register_callback(&nn_ctx,snooze,SNOOZE_THRESHOLD,_voice_begin_keyword,_snooze_stop);
-	keyword_net_register_callback(&nn_ctx,stop,STOP_THRESHOLD,_voice_begin_keyword,_stop_stop);
+	keyword_net_register_callback(&nn_ctx,okay_sense,OKAY_SENSE_THRESHOLD,OKAY_SENSE_MIN_DURATION,_voice_begin_keyword,_voice_finish_keyword);
+	keyword_net_register_callback(&nn_ctx,snooze,SNOOZE_THRESHOLD,SNOOZE_MIN_DURATION,_voice_begin_keyword,_snooze_stop);
+	keyword_net_register_callback(&nn_ctx,stop,STOP_THRESHOLD,STOP_MIN_DURATION,_voice_begin_keyword,_stop_stop);
 	keyword_net_register_speech_callback(&nn_ctx,_speech_detect_callback);
 
 	//wrap output in hmac stream
@@ -460,42 +467,27 @@ int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * outp
 }
 
 static void _begin_keyword(void * ctx, Keyword_t keyword, int16_t value){
-	switch (keyword) {
 
-	case okay_sense:
-		DISP("BEGIN OKAY SENSE\r\n");
-		break;
-
-	case snooze:
-		DISP("BEGIN SNOOZE\r\n");
-		break;
-
-	case stop:
-		DISP("BEGIN STOP\r\n");
-		break;
-
-	default:
-		break;
-	}
 }
 static void _finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	switch (keyword) {
 
-	case okay_sense:
-		DISP("OKAY SENSE\r\n");
-		break;
+		case okay_sense:
+			DISP("OKAY SENSE\r\n");
+			break;
 
-	case snooze:
-		DISP("SNOOZE\r\n");
-		break;
+		case snooze:
+			DISP("SNOOZE\r\n");
+			break;
 
-	case stop:
-		DISP("STOP\r\n");
-		break;
+		case stop:
+			DISP("STOP\r\n");
+			break;
 
-	default:
-		break;
-	}
+		default:
+			break;
+		}
+
 }
 //note that filter and the stream version can not run concurrently
 int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
@@ -503,9 +495,8 @@ int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * outpu
 	int ret;
 	keyword_net_initialize();
 
-	keyword_net_register_callback(0,okay_sense,OKAY_SENSE_THRESHOLD,_begin_keyword,_finish_keyword);
-	keyword_net_register_callback(0,stop,STOP_THRESHOLD,_begin_keyword,_finish_keyword);
-	keyword_net_register_callback(0,snooze,SNOOZE_THRESHOLD,_begin_keyword,_finish_keyword);
+	keyword_net_register_callback(0,okay_sense,OKAY_SENSE_THRESHOLD,OKAY_SENSE_MIN_DURATION, _begin_keyword,_finish_keyword);
+	//keyword_net_register_callback(0,alexa,80,_begin_keyword,_finish_keyword);
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) >= 0 ){
 		keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
@@ -773,7 +764,7 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 	if(argc >= 4){
 		f = _filter_from_string(argv[3]);
 	}
-#if 1
+#if 0
 	hlo_stream_t * in = open_stream_from_path(argv[1],1);
 #else
 	hlo_stream_t * in = open_stream_from_path(argv[1],2); // TODO DKH
