@@ -244,9 +244,11 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 		break;
 	}
 }
+
+bool is_alarm_ringing();
 static void _snooze_stop(void * ctx, Keyword_t keyword, int16_t value){
 	LOGI("SNOOZE\r\n");
-	if( cancel_alarm() ) {
+	if( is_alarm_ringing() && cancel_alarm() ) {
 		LOGI("SNOOZING\r\n");
 		_voice_finish_keyword(ctx, keyword, value);
 	}

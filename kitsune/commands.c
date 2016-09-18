@@ -399,7 +399,14 @@ static bool alarm_is_ringing = false;
 void delete_alarms() {
 	sl_FsDel((unsigned char*)ALARM_LOC, 0);
 }
-
+bool is_alarm_ringing() {
+	bool r = false;
+	if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
+		r = alarm_is_ringing;
+		xSemaphoreGiveRecursive(alarm_smphr);
+	}
+	return r;
+}
 void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size ) {
     if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
     	if( alarm_is_ringing ) {
