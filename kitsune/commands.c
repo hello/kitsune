@@ -1753,7 +1753,7 @@ void launch_tasks() {
 	// Create audio tasks for playback and record
 	xTaskCreate(AudioPlaybackTask,"playbackTask",10*1024/4,NULL,4,NULL);
 
-	xTaskCreate(AudioControlTask, "AudioControl",  16*1024 / 4, NULL, 2, NULL);
+	xTaskCreate(AudioControlTask, "AudioControl",  17*1024 / 4, NULL, 2, NULL);
 }
 
 
