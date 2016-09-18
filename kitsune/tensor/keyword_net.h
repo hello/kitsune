@@ -18,7 +18,7 @@ typedef void (*KeywordCallback_t)(void * context, Keyword_t keyword, int16_t val
 
 void keyword_net_initialize(void);
 
-void keyword_net_register_callback(void * target_context, Keyword_t keyword, int16_t threshold,KeywordCallback_t on_start, KeywordCallback_t on_end);
+void keyword_net_register_callback(void * target_context, Keyword_t keyword, int16_t threshold,uint32_t min_duration,KeywordCallback_t on_start, KeywordCallback_t on_end);
 
 void keyword_net_register_speech_callback(void * context, tinytensor_speech_detector_callback_t callback);
 
@@ -30,6 +30,7 @@ void keyword_net_resume_net_operation(void);
 
 void keyword_net_pause_net_operation(void);
 
+void keyword_net_reset_states(void);
 
 int cmd_test_neural_net(int argc, char * argv[]);
 
