@@ -25,6 +25,17 @@ AudioState get_audio_state();
 //The feature/extractor processor we used in sense 1.0
 //
 #include "audiofeatures.h"
+#include "tensor/tinytensor_math_defs.h"
+
+#define OKAY_SENSE_THRESHOLD     TOFIX(0.80)
+#define OKAY_SENSE_MIN_DURATION  20
+
+#define SNOOZE_THRESHOLD      TOFIX(0.60)
+#define SNOOZE_MIN_DURATION   1
+
+#define STOP_THRESHOLD        TOFIX(0.40)
+#define STOP_MIN_DURATION     1
+
 static xSemaphoreHandle _statsMutex = NULL;
 static AudioOncePerMinuteData_t _stats;
 
@@ -206,16 +217,16 @@ typedef struct{
 	uint8_t is_speaking;
 }nn_keyword_ctx_t;
 
-static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
+static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	LOGI("KEYWORD BEGIN\n");
 }
 
 bool cancel_alarm();
-static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
+static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)ctx;
 
 	p->speech_pb.has_confidence = true;
-	p->speech_pb.confidence = value;
+	p->speech_pb.confidence = value >> 5; // I think server is expecting q7
 	tinytensor_features_force_voice_activity_detection();
 	p->is_speaking = true;
 	p->speech_pb.has_word = true;
@@ -233,14 +244,16 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 		break;
 	}
 }
-static void _snooze_stop(void * ctx, Keyword_t keyword, int8_t value){
+
+bool is_alarm_ringing();
+static void _snooze_stop(void * ctx, Keyword_t keyword, int16_t value){
 	LOGI("SNOOZE\r\n");
-	if( cancel_alarm() ) {
+	if( is_alarm_ringing() && cancel_alarm() ) {
 		LOGI("SNOOZING\r\n");
 		_voice_finish_keyword(ctx, keyword, value);
 	}
 }
-static void _stop_stop(void * ctx, Keyword_t keyword, int8_t value){
+static void _stop_stop(void * ctx, Keyword_t keyword, int16_t value){
 	LOGI("STOP\r\n");
 	if( get_audio_state().playing_audio  ) {
 		LOGI("STOPPING\r\n");
@@ -296,9 +309,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	memset(&nn_ctx, 0, sizeof(nn_ctx));
 
 	keyword_net_initialize();
-	keyword_net_register_callback(&nn_ctx,okay_sense,80,_voice_begin_keyword,_voice_finish_keyword);
-	keyword_net_register_callback(&nn_ctx,snooze,80,_voice_begin_keyword,_snooze_stop);
-	keyword_net_register_callback(&nn_ctx,stop,80,_voice_begin_keyword,_stop_stop);
+	keyword_net_register_callback(&nn_ctx,okay_sense,OKAY_SENSE_THRESHOLD,OKAY_SENSE_MIN_DURATION,_voice_begin_keyword,_voice_finish_keyword);
+	keyword_net_register_callback(&nn_ctx,snooze,SNOOZE_THRESHOLD,SNOOZE_MIN_DURATION,_voice_begin_keyword,_snooze_stop);
+	keyword_net_register_callback(&nn_ctx,stop,STOP_THRESHOLD,STOP_MIN_DURATION,_voice_begin_keyword,_stop_stop);
 	keyword_net_register_speech_callback(&nn_ctx,_speech_detect_callback);
 
 	//wrap output in hmac stream
@@ -451,10 +464,29 @@ int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * outp
 	stop_led_animation( 0, 33 );
 	return ret;
 }
-static void _begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
-	DISP("OKAY SENSE\r\n");
+
+static void _begin_keyword(void * ctx, Keyword_t keyword, int16_t value){
+
 }
-static void _finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
+static void _finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
+	switch (keyword) {
+
+		case okay_sense:
+			DISP("OKAY SENSE\r\n");
+			break;
+
+		case snooze:
+			DISP("SNOOZE\r\n");
+			break;
+
+		case stop:
+			DISP("STOP\r\n");
+			break;
+
+		default:
+			break;
+		}
+
 }
 //note that filter and the stream version can not run concurrently
 int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
@@ -462,7 +494,7 @@ int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * outpu
 	int ret;
 	keyword_net_initialize();
 
-	keyword_net_register_callback(0,okay_sense,80,_begin_keyword,_finish_keyword);
+	keyword_net_register_callback(0,okay_sense,OKAY_SENSE_THRESHOLD,OKAY_SENSE_MIN_DURATION, _begin_keyword,_finish_keyword);
 	//keyword_net_register_callback(0,alexa,80,_begin_keyword,_finish_keyword);
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) >= 0 ){
@@ -585,8 +617,8 @@ signed int scale(mad_fixed_t sample)
 static void _upsample( int16_t * s, int n) {
     int i;
     for(i=n-1;i!=-1;--i) {
-        s[i*2]   = s[i];// i == 0 ? s[i] : (s[i-1]+s[i])/2;
-        s[i*2+1] = s[i];//(s[i]+s[i+1])/2;;
+        s[i*2]   = i == 0 ? s[i] : (s[i-1]+s[i])/2;
+        s[i*2+1] = i == n-1 ? s[i] : (s[i]+s[i+1])/2;;
     }
 }
 static

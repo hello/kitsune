@@ -12,6 +12,9 @@
 #include "uart_logger.h"
 #endif
 
+#define TOFIX(x,q)\
+        ((int32_t) ((x) * (float)(1 << (q))))
+
 /*
    How is this all going to work? 
    -Extract features, one of which is total energy

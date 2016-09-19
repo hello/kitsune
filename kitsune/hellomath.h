@@ -20,9 +20,6 @@ extern "C" {
 #define MUL_PRECISE_RESULT(a,b,q)\
 ((int32_t)((((int32_t)(a)) * ((int32_t)(b))) >> q))
     
-#define TOFIX(x,q)\
-((int32_t) ((x) * (float)(1 << (q))))
-    
 uint32_t fxd_sqrt (uint32_t n);
     
 uint32_t fxd_sqrt_q10(uint32_t x);
