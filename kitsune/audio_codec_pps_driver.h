@@ -24,8 +24,8 @@ typedef struct{
 #define MDAC 22
 #define NADC 2
 #define MADC 22
-#define DOSR 96UL
-#define AOSR 96UL
+#define DOSR 64UL
+#define AOSR 64UL
 
 
 #if (DOSR != AOSR)
