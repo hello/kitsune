@@ -620,7 +620,8 @@ static void _upsample( int16_t * s, int n) {
     int i;
     for(i=n-1;i!=-1;--i) {
         s[i*2]   = i == 0 ? s[i] : (s[i-1]+s[i])/2;
-        s[i*2+1] = i == n-1 ? s[i] : (s[i]+s[i+1])/2;;
+        s[i*2+1]   = s[i];
+        s[i*2+2] = i == n-1 ? s[i] : (s[i]+s[i+1])/2;;
     }
 }
 static
@@ -645,7 +646,7 @@ enum mad_flow _mp3_output(void *data,
 		if(header->samplerate == 16000)
 		{
 			_upsample(i16_samples, pcm->length);
-			buf_size <<= 1;
+			buf_size *= 3;
 		}
 		else if(header->samplerate == 32000)
 		{
