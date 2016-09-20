@@ -495,8 +495,8 @@ int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * outpu
 	keyword_net_initialize();
 
 	keyword_net_register_callback(0,okay_sense,OKAY_SENSE_THRESHOLD,OKAY_SENSE_MIN_DURATION, _begin_keyword,_finish_keyword);
-	keyword_net_register_callback(0,snooze,SNOOZE_THRESHOLD,OKAY_SENSE_MIN_DURATION, _begin_keyword,_finish_keyword);
-	keyword_net_register_callback(0,stop,STOP_THRESHOLD,OKAY_SENSE_MIN_DURATION, _begin_keyword,_finish_keyword);
+	keyword_net_register_callback(0,snooze,SNOOZE_THRESHOLD,SNOOZE_MIN_DURATION, _begin_keyword,_finish_keyword);
+	keyword_net_register_callback(0,stop,STOP_THRESHOLD,STOP_MIN_DURATION, _begin_keyword,_finish_keyword);
 	//keyword_net_register_callback(0,alexa,80,_begin_keyword,_finish_keyword);
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) >= 0 ){
