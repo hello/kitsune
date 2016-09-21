@@ -33,6 +33,7 @@
 #include "hlo_net_tools.h"
 
 volatile static bool wifi_state_requested = false;
+volatile static int bond_cnt = 0;
 
 void delete_alarms();
 
@@ -623,12 +624,17 @@ void ble_proto_start_hold()
 {
 	switch (get_ble_mode()) {
 	case BLE_PAIRING: {
-		MorpheusCommand response = { 0 };
-		// hold to cancel the pairing mode
-		LOGI("pairing cancelled\n");
-		response.type =
-				MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
-		ble_send_protobuf(&response);
+		if( bond_cnt > 0 ) {
+			MorpheusCommand response = { 0 };
+			// hold to cancel the pairing mode
+			LOGI("pairing cancelled\n");
+			response.type =
+					MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
+			ble_send_protobuf(&response);
+		} else {
+			LOGE("pairing cancelled but bond cnt %d", bond_cnt);
+			Cmd_SyncID(0,0);
+		}
 		break;
 	}
 	case BLE_CONNECTED:
@@ -686,6 +692,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 
 	if(command->has_ble_bond_count) {
 		static bool played = false;
+		bond_cnt = command->ble_bond_count;
+
 		if( !played && booted && !is_test_boot() && xTaskGetTickCount() < 5000 ) {
 			if(command->has_ble_bond_count)
 			{
