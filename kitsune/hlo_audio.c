@@ -243,7 +243,7 @@ static void _do_lights(void * ctx, const void * buf, size_t size) {
 
 			stream->last_eng = stream->eng;
 
-			uint32_t light = stream->lp * get_alpha_from_light() >> 6;
+			uint32_t light = stream->lp /* todo i2c hangs here sometimes * get_alpha_from_light()*/ >> 6;
 
 			if(light > 253){
 				light = 253;
