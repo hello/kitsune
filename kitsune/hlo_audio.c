@@ -307,7 +307,7 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base, bool start){
 	{
 		DISP("open light\n") ;
 		set_modulation_intensity( 0 );
-		play_modulation(140,29,237,30,0);
+		play_modulation(140,29,237,1000,0);
 		stream->close_lights = false;
 		stream->lp = 2000;
 		stream->begin = xTaskGetTickCount();
