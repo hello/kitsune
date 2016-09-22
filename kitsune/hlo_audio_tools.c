@@ -368,8 +368,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 			if (!nn_ctx.is_speaking) {
 				analytics_event("{speech_length:%d}", xTaskGetTickCount() - speech_detected_time);
-				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword, sizeof(wakeword[0])*(ww_idx), 4);
-				ww_idx = 0;
 				break;
 			}
 
