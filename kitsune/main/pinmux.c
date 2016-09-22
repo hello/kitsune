@@ -169,6 +169,7 @@ PinMuxConfig(void)
     MAP_PRCMPeripheralClkEnable(PRCM_GPIOA1, PRCM_RUN_MODE_CLK);
     MAP_PRCMPeripheralClkEnable(PRCM_GSPI, PRCM_RUN_MODE_CLK);
     MAP_PRCMPeripheralClkEnable(PRCM_SDHOST, PRCM_RUN_MODE_CLK);
+    MAP_PRCMPeripheralClkEnable(PRCM_CAMERA, PRCM_RUN_MODE_CLK);
 
     //
     // Configure PIN_50 for MCASP0 McAXR1
@@ -195,6 +196,7 @@ PinMuxConfig(void)
     //
     MAP_PinTypeUART(PIN_59, PIN_MODE_6);
 
+
     //
     // Configure PIN_61 for GPIOInput
     //
@@ -218,8 +220,8 @@ PinMuxConfig(void)
     //
     // Configure PIN_64 for GPIOOutput
     //
-    MAP_PinTypeGPIO(PIN_64, PIN_MODE_0, false);
-    MAP_GPIODirModeSet(GPIOA1_BASE, 0x2, GPIO_DIR_MODE_OUT);
+    MAP_PinTypeI2S(PIN_64, PIN_MODE_7);
+    //MAP_GPIODirModeSet(GPIOA1_BASE, 0x2, GPIO_DIR_MODE_OUT);
 #if 0
     {
         (*((unsigned volatile int*)0x4402E0C4)) = 0; //see page 498 of the cc3200 trm section 16.8.1.1.1
@@ -234,7 +236,7 @@ PinMuxConfig(void)
     MAP_PinTypeI2C(PIN_04, PIN_MODE_5);
 
 	//DVT uses camera clock for codec's master clock
-	MAP_PRCMPeripheralClkEnable(PRCM_CAMERA, PRCM_RUN_MODE_CLK);
+
 	HWREG(0x44025000) = 0x0000;
 	MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,15000000ul); // 12MHz
 
