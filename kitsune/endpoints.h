@@ -24,7 +24,8 @@ char * get_speech_server(void);
 #define PROD_SPEECH_SERVER "speech.hello.is"
 #define DEV_SPEECH_SERVER "dev-speech.hello.is"
 
-#define SPEECH_ENDPOINT "/v2/upload/audio"
+//todo undo
+#define SPEECH_ENDPOINT "/demo/upload/audio"
 
 #define MESSEJI_ENDPOINT "/receive"
 
