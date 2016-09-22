@@ -96,7 +96,7 @@ unsigned int get_dust() {
 		return DUST_SENSOR_NOT_READY;
 	}
 
-	// init_dust();
+	init_dust();
 
 	MAP_GPIOPinWrite(GPIOA1_BASE, 0x2, 0);
 	ADCEnable(ADC_BASE);

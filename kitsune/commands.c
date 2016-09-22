@@ -1744,9 +1744,9 @@ void launch_tasks() {
 #if !ONLY_MID
 	UARTprintf("*");
 
-	// xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	// xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
@@ -2030,7 +2030,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "tasks", Cmd_tasks, "" },
 #endif
 
-		//{ "dust", Cmd_dusttest, "" },
+		{ "dust", Cmd_dusttest, "" },
 #if 0
 		{ "dig", Cmd_dig, "" },
 		{ "fswr", Cmd_fs_write, "" }, //serial flash commands
@@ -2083,7 +2083,7 @@ tCmdLineEntry g_sCmdTable[] = {
 #ifdef BUILD_TESTS
 		{ "test_network",Cmd_test_network,""},
 #endif
-		// { "genkey",Cmd_generate_factory_data,""},
+		{ "genkey",Cmd_generate_factory_data,""},
 		{ "testkey", Cmd_test_key, ""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
 		{ "country",Cmd_country,""},
@@ -2267,7 +2267,7 @@ void vUARTTask(void *pvParameters) {
 	pill_settings_init();
 	check_provision();
 
-	// init_dust();
+	init_dust();
 
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1680 / 4, NULL, 3, NULL);

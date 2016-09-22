@@ -196,7 +196,6 @@ PinMuxConfig(void)
     //
     MAP_PinTypeUART(PIN_59, PIN_MODE_6);
 
-
     //
     // Configure PIN_61 for GPIOInput
     //
@@ -220,8 +219,8 @@ PinMuxConfig(void)
     //
     // Configure PIN_64 for GPIOOutput
     //
-    MAP_PinTypeI2S(PIN_64, PIN_MODE_7);
-    //MAP_GPIODirModeSet(GPIOA1_BASE, 0x2, GPIO_DIR_MODE_OUT);
+    MAP_PinTypeGPIO(PIN_64, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA1_BASE, 0x2, GPIO_DIR_MODE_OUT);
 #if 0
     {
         (*((unsigned volatile int*)0x4402E0C4)) = 0; //see page 498 of the cc3200 trm section 16.8.1.1.1
