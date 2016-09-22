@@ -16,6 +16,8 @@
 
 #include "endpoints.h"
 
+#include "kitsune_version.h"
+
 #include "wifi_cmd.h"
 #include "protobuf/state.pb.h"
 AudioState get_audio_state();
@@ -225,6 +227,9 @@ bool cancel_alarm();
 static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)ctx;
 
+	p->speech_pb.has_version = true;
+	p->speech_pb.version = KIT_VER;
+
 	p->speech_pb.has_confidence = true;
 	p->speech_pb.confidence = value >> 5; // I think server is expecting q7
 	tinytensor_features_force_voice_activity_detection();
@@ -291,10 +296,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	uint8_t hmac[SHA1_SIZE] = {0};
 
 	char compressed[NUM_SAMPLES_TO_RUN_FFT/2];
-#define WW_WINDOWS 100
-	char wakeword[WW_WINDOWS][sizeof(compressed)];
-	memset(wakeword, 0, sizeof(wakeword));
-	int ww_idx = WW_WINDOWS;
 
 	adpcm_state state = (adpcm_state){0};
 	bool light_open = false;
@@ -329,12 +330,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		//net always gets samples
 		keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 
-		adpcm_coder((short*)samples, (char*)compressed, ret / 2, &state);
-		if( ww_idx == WW_WINDOWS ) {
-			ww_idx = 0;
-		}
-		memcpy( wakeword[ww_idx++], compressed, sizeof(compressed) );
-
 		if( nn_ctx.speech_pb.has_word ) {
 			if( !light_open ) {
 				keyword_net_pause_net_operation();
@@ -344,22 +339,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 				hlo_pb_encode(send_str, speech_data_fields, &nn_ctx.speech_pb);
 				speech_detected_time = xTaskGetTickCount();
-
-				if( ww_idx != WW_WINDOWS ) {
-					ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword[ww_idx], sizeof(wakeword[0])*(WW_WINDOWS - ww_idx), 4);
-					if( ret < 0 ) {
-						break;
-					}
-				}
-				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)wakeword, sizeof(wakeword[0])*(ww_idx), 4);
-				if( ret < 0 ) {
-					break;
-				}
-				ww_idx = 0;
-#if( WW_WINDOWS < 1536/80 )
-#error "wakeword buffer too small"
-#endif
 			} else {
+				adpcm_coder((short*)samples, (char*)compressed, ret / 2, &state);
 				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)compressed, sizeof(compressed), 4);
 				if( ret < 0 ) {
 					break;
