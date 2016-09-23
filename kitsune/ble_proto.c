@@ -164,7 +164,7 @@ static TimerHandle_t pm_timer;
 
 void pm_cancel( TimerHandle_t pxTimer ) {
 	MorpheusCommand response = { 0 };
-	if(get_ble_mode() == BLE_PAIRING) {
+	if(get_ble_mode() == BLE_PAIRING && !needs_startup_sound && !needs_pairing_animation) {
 		response.type =
 				MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
 		ble_send_protobuf(&response);
