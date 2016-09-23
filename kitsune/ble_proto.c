@@ -56,6 +56,7 @@ static SlWlanNetworkEntry_t _wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
 static xSemaphoreHandle _wifi_smphr;
 static hlo_future_t * scan_results;
 bool needs_startup_sound = false;
+bool needs_pairing_animation = false;
 ble_mode_t get_ble_mode() {
 	ble_mode_t status;
 	xSemaphoreTake( _self.smphr, portMAX_DELAY );
@@ -668,6 +669,12 @@ void play_startup_sound() {
 		needs_startup_sound = false;
 	}
 	vTaskDelay(175);
+	ble_proto_led_init();
+	if(needs_pairing_animation){
+		ble_proto_led_fade_in_trippy();
+		needs_pairing_animation = false;
+	}
+
 }
 
 #include "crypto.h"
@@ -698,16 +705,11 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				if(!command->ble_bond_count){
 					// If we had ble_bond_count field, boot LED animation can start from here. Visual
 					// delay of device boot can be greatly reduced.
-					//play_startup_sound();
 					needs_startup_sound = true;
-					ble_proto_led_init();
-				}else{
-					ble_proto_led_init();
 				}
 			} else {
 				LOGI("NO BOND COUNT\n");
 				needs_startup_sound = true;
-				ble_proto_led_init();
 			}
 			played = true;
 		}
@@ -807,7 +809,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         {
     		if (get_ble_mode() != BLE_PAIRING) {
 				// Light up LEDs?
-				ble_proto_led_fade_in_trippy();
+    			needs_pairing_animation = true;
 				set_ble_mode(BLE_PAIRING);
 				LOGI( "PAIRING MODE \n");
 #if 0
