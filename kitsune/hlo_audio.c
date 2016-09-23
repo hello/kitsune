@@ -306,7 +306,7 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base, bool start){
 	if( start )
 	{
 		DISP("open light\n") ;
-		set_modulation_intensity( 0 );
+		set_modulation_intensity( 253 );
 		play_modulation(140,29,237,1000,0);
 		stream->close_lights = false;
 		stream->lp = 2000;
