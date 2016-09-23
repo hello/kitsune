@@ -1,5 +1,5 @@
 #include "keyword_net.h"
-#include "model_aug30_lstm_med_dist_okay_sense_stop_snooze_tiny_912_ep174_q12.c"
+#include "model_aug30_lstm_med_dist_okay_sense_stop_snooze_tiny_912_ep216_q12.c"
 #include "tinytensor_features.h"
 #include "tinytensor_memory.h"
 #include "tinytensor_math_defs.h"
