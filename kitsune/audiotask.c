@@ -243,7 +243,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 
 	ret = transfer_function(fs, spkr, desc->context, sig_stop);
 
-	if( vol_ramp ) {
+	if( vol_ramp && ret > 0 ) {
 		//join async worker
 		vol.target = 0;
 		ret = transfer_function(fs, spkr, vol_task, fadeout_sig);

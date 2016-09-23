@@ -401,6 +401,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		hlo_stream_close(output);
 	}
 	hlo_stream_close(send_str);
+	stop_led_animation(0, 33);
 
 	keyword_net_deinitialize();
 	return ret;
@@ -639,6 +640,7 @@ enum mad_flow _mp3_output(void *data,
 		ctx->t_start = 0;
 	}
 	if( ret < 0){
+		LOGE("Decode tr err %d\n", ret);
 		return MAD_FLOW_BREAK;
 	}
 	//vTaskDelay(100);
@@ -656,7 +658,7 @@ enum mad_flow _mp3_error(void *data,
 		    struct mad_stream *stream,
 		    struct mad_frame *frame){
 	if(!MAD_RECOVERABLE(stream->error)){
-		DISP("MP3Error: %s\r\n", mad_stream_errorstr(stream));
+		LOGE("MP3Error: %s\r\n", mad_stream_errorstr(stream));
 		vTaskDelay(100);
 		return MAD_FLOW_BREAK;
 	}else{
@@ -696,7 +698,7 @@ int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * c
 	/* release the decoder */
 
 	mad_decoder_finish(&decoder);
-	return result;
+	return (result == MAD_ERROR_NONE ? 0 : -1 );
 }
 ////-----------------------------------------
 //commands
