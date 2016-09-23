@@ -1723,7 +1723,7 @@ static void checkFaults() {
 }
 
 void init_download_task( int stack );
-
+void play_startup_sound();
 void launch_tasks() {
 	checkFaults();
 
@@ -1761,6 +1761,7 @@ void launch_tasks() {
 	xTaskCreate(AudioPlaybackTask,"playbackTask",10*1024/4,NULL,4,NULL);
 
 	xTaskCreate(AudioControlTask, "AudioControl",  17*1024 / 4, NULL, 2, NULL);
+	play_startup_sound();
 }
 
 

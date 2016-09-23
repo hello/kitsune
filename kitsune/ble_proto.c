@@ -55,7 +55,8 @@ static volatile struct {
 static SlWlanNetworkEntry_t _wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
 static xSemaphoreHandle _wifi_smphr;
 static hlo_future_t * scan_results;
-
+bool needs_startup_sound = false;
+bool needs_pairing_animation = false;
 ble_mode_t get_ble_mode() {
 	ble_mode_t status;
 	xSemaphoreTake( _self.smphr, portMAX_DELAY );
@@ -163,7 +164,7 @@ static TimerHandle_t pm_timer;
 
 void pm_cancel( TimerHandle_t pxTimer ) {
 	MorpheusCommand response = { 0 };
-	if(get_ble_mode() == BLE_PAIRING) {
+	if(get_ble_mode() == BLE_PAIRING && !needs_startup_sound && !needs_pairing_animation) {
 		response.type =
 				MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
 		ble_send_protobuf(&response);
@@ -645,14 +646,15 @@ void ble_proto_end_hold()
 }
 #include "hellofilesystem.h"
 #define STARTUP_SOUND_NAME "/ringtone/star003.raw"
-static void play_startup_sound() {
+
+void play_startup_sound() {
 	// TODO: Play startup sound. You will only reach here once.
 	// Now the hand hover-to-pairing mode will not delete all the bonds
 	// when the bond db is full, so you will never get zero after a phone bonds
 	// to Sense, unless user do factory reset and power cycle the device.
 
 	vTaskDelay(10);
-	{
+	if(needs_startup_sound){
 		AudioPlaybackDesc_t desc;
 		memset(&desc, 0, sizeof(desc));
 		desc.stream = fs_stream_open(STARTUP_SOUND_NAME, HLO_STREAM_READ);
@@ -664,8 +666,15 @@ static void play_startup_sound() {
 		desc.fade_out_ms = 0;
 		desc.to_fade_out_ms = 0;
 		AudioTask_StartPlayback(&desc);
+		needs_startup_sound = false;
 	}
 	vTaskDelay(175);
+	ble_proto_led_init();
+	if(needs_pairing_animation){
+		ble_proto_led_fade_in_trippy();
+		needs_pairing_animation = false;
+	}
+
 }
 
 #include "crypto.h"
@@ -676,6 +685,7 @@ int save_device_id( uint8_t * device_id );
 int save_aes( uint8_t * key ) ;
 uint8_t get_alpha_from_light();
 bool is_test_boot();
+
 char top_version[16] = {0};
 const char * get_top_version(void){
 	return top_version;
@@ -695,15 +705,11 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				if(!command->ble_bond_count){
 					// If we had ble_bond_count field, boot LED animation can start from here. Visual
 					// delay of device boot can be greatly reduced.
-					play_startup_sound();
-					ble_proto_led_init();
-				}else{
-					ble_proto_led_init();
+					needs_startup_sound = true;
 				}
 			} else {
 				LOGI("NO BOND COUNT\n");
-				play_startup_sound();
-				ble_proto_led_init();
+				needs_startup_sound = true;
 			}
 			played = true;
 		}
@@ -803,7 +809,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         {
     		if (get_ble_mode() != BLE_PAIRING) {
 				// Light up LEDs?
-				ble_proto_led_fade_in_trippy();
+    			needs_pairing_animation = true;
 				set_ble_mode(BLE_PAIRING);
 				LOGI( "PAIRING MODE \n");
 #if 0
