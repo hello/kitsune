@@ -401,7 +401,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		hlo_stream_close(output);
 	}
 	hlo_stream_close(send_str);
-	stop_led_animation(0, 33);
 
 	keyword_net_deinitialize();
 	return ret;
