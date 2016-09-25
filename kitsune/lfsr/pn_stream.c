@@ -33,7 +33,7 @@
 #define NUM_CHANNELS (4)
 #define PN_LEN_SAMPLES PN_LEN_10
 #define PN_INIT pn_init_with_mask_10
-#define PN_AMPLITUDE (3*1024)
+#define PN_AMPLITUDE (8*1024)
 
 #define ABS(x)  ( (x) < 0 ? -(x) : (x) )
 
@@ -59,7 +59,7 @@
 #define CORR_SEARCH_WINDOW    (PN_LEN_SAMPLES + IMPULSE_LENGTH)
 #define CORR_SEARCH_START_IDX (0)
 #define DETECTION_THRESHOLD   (2e5)
-#define INDEX_DIFFERENCE_FAIL_CRITERIA (AUDIO_SAMPLE_RATE / 3000)
+#define INDEX_DIFFERENCE_FAIL_CRITERIA  (6)
 #define NUM_DETECT            (1)
 
 #define WRITE_BUF_SKIP_BYTES (1 * TX_BUFFER_SIZE)
