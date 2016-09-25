@@ -744,7 +744,7 @@ static int _fetch_response_code(void * ctx){
 static int _close_post_session(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
 	int code = 0;
-#if 1
+#if 0
 	if( session->post_state != DONE_POST ){		//if no response has been parsed by a read call, we just finish here
 		session->post_state = DONE_POST;
 		if( _finish_post(ctx) < 0 ){
