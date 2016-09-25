@@ -201,8 +201,8 @@ void DMAPingPongCompleteAppCB_opt()
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
 			if (_pcm_ping_pong_incoming_stream_mode == PCM_PING_PONG_MODE_SINGLE_CHANNEL_HALF_RATE) {
 				int k=0;
-				for (i = 0; i< CB_TRANSFER_SZ/2-3 ; i+=3 ) {
-					pong[k++] = (pong[i*4+ch]+pong[(i+1)*4+ch]+pong[(i+2)*4+ch]);
+				for (i = 0; i< CB_TRANSFER_SZ/2-2 ; i+=2 ) {
+					pong[k++] = (pong[i*4+ch]+pong[(i+1)*4+ch]);
 				}
 
 				FillBuffer(pAudInBuf, (unsigned char*) pong, 2*k );
@@ -245,8 +245,8 @@ void DMAPingPongCompleteAppCB_opt()
 				if (_pcm_ping_pong_incoming_stream_mode == PCM_PING_PONG_MODE_SINGLE_CHANNEL_HALF_RATE) {
 					int k=0;
 					ping[CB_TRANSFER_SZ/2] = ping[CB_TRANSFER_SZ/2-1];
-					for (i = 0; i< CB_TRANSFER_SZ/2-3; i+=3 ) {
-						ping[k++] = (ping[i*4+ch]+ping[(i+1)*4+ch]+ping[(i+2)*4+ch]);
+					for (i = 0; i< CB_TRANSFER_SZ/2-2; i+=2 ) {
+						ping[k++] = (ping[i*4+ch]+ping[(i+1)*4+ch]);
 					}
 					FillBuffer(pAudInBuf, (unsigned char*) ping, 2*k );
 				}
