@@ -33,6 +33,7 @@
 #include "hlo_net_tools.h"
 
 volatile static bool wifi_state_requested = false;
+volatile static int bond_cnt = 0;
 
 void delete_alarms();
 
@@ -624,12 +625,17 @@ void ble_proto_start_hold()
 {
 	switch (get_ble_mode()) {
 	case BLE_PAIRING: {
-		MorpheusCommand response = { 0 };
-		// hold to cancel the pairing mode
-		LOGI("pairing cancelled\n");
-		response.type =
-				MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
-		ble_send_protobuf(&response);
+		if( bond_cnt > 0 ) {
+			MorpheusCommand response = { 0 };
+			// hold to cancel the pairing mode
+			LOGI("pairing cancelled\n");
+			response.type =
+					MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
+			ble_send_protobuf(&response);
+		} else {
+			LOGE("pairing cancelled but bond cnt %d", bond_cnt);
+			Cmd_SyncID(0,0);
+		}
 		break;
 	}
 	case BLE_CONNECTED:
@@ -696,6 +702,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 
 	if(command->has_ble_bond_count) {
 		static bool played = false;
+		bond_cnt = command->ble_bond_count;
+
 		if( !played && booted && !is_test_boot() && xTaskGetTickCount() < 5000 ) {
 			if(command->has_ble_bond_count)
 			{
@@ -921,31 +929,13 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_SHAKES:
         {
-			#define MIN_SHAKE_INTERVAL 3000
-            static portTickType last_shake = 0;
-            static uint32_t shake_count;
-            portTickType now = xTaskGetTickCount();
-
-            LOGI("PILL SHAKES\n");
-            if( now - last_shake < MIN_SHAKE_INTERVAL ) {
-                LOGI("PILL SHAKE THROTTLE\n");
-                if(++shake_count == 2){
-                	//only on the second shake
-                	uint32_t color = pill_settings_get_color((const char*)command->deviceId.arg);
-					uint8_t* argb = (uint8_t*)&color;
-					if(color) {
-						ble_proto_led_flash(get_alpha_from_light(), argb[1], argb[2], argb[3], 10);
-					} else /*if(pill_settings_pill_count() == 0)*/ {
-						ble_proto_led_flash(get_alpha_from_light(), 0x80, 0x00, 0x80, 10);
-					}
-                }
-            } else if(command->deviceId.arg){
-
-				last_shake = xTaskGetTickCount();
-				shake_count = 1;
-            }else{
-            	LOGI("Please update topboard, no pill id\n");
-            }
+			uint32_t color = pill_settings_get_color((const char*)command->deviceId.arg);
+			uint8_t* argb = (uint8_t*)&color;
+			if(color) {
+				ble_proto_led_flash(get_alpha_from_light(), argb[1], argb[2], argb[3], 10);
+			} else /*if(pill_settings_pill_count() == 0)*/ {
+				ble_proto_led_flash(get_alpha_from_light(), 0x80, 0x00, 0x80, 10);
+			}
         }
         break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_BUSY:

@@ -200,15 +200,16 @@ void DMAPingPongCompleteAppCB_opt()
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
 			if (_pcm_ping_pong_incoming_stream_mode == PCM_PING_PONG_MODE_SINGLE_CHANNEL_HALF_RATE) {
-				for (i = 0; i< CB_TRANSFER_SZ/4 ; ++i ) {
-					pong[i] = pong[i*8+ch]; //downsample by discarding...
+				int k=0;
+				for (i = 0; i< CB_TRANSFER_SZ/2-2 ; i+=2 ) {
+					pong[k++] = (pong[i*4+ch]+pong[(i+1)*4+ch]);
 				}
 
-				FillBuffer(pAudInBuf, (unsigned char*) pong, CB_TRANSFER_SZ/2 );
+				FillBuffer(pAudInBuf, (unsigned char*) pong, 2*k );
 			}
 			else if (_pcm_ping_pong_incoming_stream_mode == PCM_PING_PONG_MODE_SINGLE_CHANNEL_FULL_RATE) {
 				for (i = 0; i< CB_TRANSFER_SZ/2 ; ++i ) {
-					pong[i] = pong[i*4+ch]; //downsample by discarding...
+					pong[i] = pong[i*4+ch];
 				}
 
 				FillBuffer(pAudInBuf, (unsigned char*) pong, CB_TRANSFER_SZ );
@@ -242,15 +243,16 @@ void DMAPingPongCompleteAppCB_opt()
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
 				if (_pcm_ping_pong_incoming_stream_mode == PCM_PING_PONG_MODE_SINGLE_CHANNEL_HALF_RATE) {
-					for (i = 0; i< CB_TRANSFER_SZ/4 ; ++i ) {
-						ping[i] = ping[i*8+ch]; //downsample by discarding...
+					int k=0;
+					ping[CB_TRANSFER_SZ/2] = ping[CB_TRANSFER_SZ/2-1];
+					for (i = 0; i< CB_TRANSFER_SZ/2-2; i+=2 ) {
+						ping[k++] = (ping[i*4+ch]+ping[(i+1)*4+ch]);
 					}
-
-					FillBuffer(pAudInBuf, (unsigned char*) ping, CB_TRANSFER_SZ/2 );
+					FillBuffer(pAudInBuf, (unsigned char*) ping, 2*k );
 				}
 				else if (_pcm_ping_pong_incoming_stream_mode == PCM_PING_PONG_MODE_SINGLE_CHANNEL_FULL_RATE) {
 					for (i = 0; i< CB_TRANSFER_SZ/2 ; ++i ) {
-						ping[i] = ping[i*4+ch]; //downsample by discarding...
+						ping[i] = ping[i*4+ch];
 					}
 					FillBuffer(pAudInBuf, (unsigned char*) ping, CB_TRANSFER_SZ );
 				}

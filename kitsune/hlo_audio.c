@@ -243,7 +243,7 @@ static void _do_lights(void * ctx, const void * buf, size_t size) {
 
 			stream->last_eng = stream->eng;
 
-			uint32_t light = stream->lp * get_alpha_from_light() >> 6;
+			uint32_t light = stream->lp /* todo i2c hangs here sometimes * get_alpha_from_light()*/ >> 6;
 
 			if(light > 253){
 				light = 253;
@@ -306,8 +306,8 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base, bool start){
 	if( start )
 	{
 		DISP("open light\n") ;
-		set_modulation_intensity( 0 );
-		play_modulation(140,29,237,30,0);
+		set_modulation_intensity( 253 );
+		play_modulation(140,29,237,1000,0);
 		stream->close_lights = false;
 		stream->lp = 2000;
 		stream->begin = xTaskGetTickCount();

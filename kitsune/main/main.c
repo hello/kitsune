@@ -139,10 +139,11 @@ const char * sync_fnc = NULL;
 //! \return none
 //!
 //*****************************************************************************
+volatile unsigned int idlecnt = 0;
 void
 vApplicationIdleHook( void)
 {
-
+++idlecnt;
 }
 //*****************************************************************************
 //

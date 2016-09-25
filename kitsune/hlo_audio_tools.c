@@ -474,6 +474,8 @@ int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * outpu
 	keyword_net_initialize();
 
 	keyword_net_register_callback(0,okay_sense,OKAY_SENSE_THRESHOLD,OKAY_SENSE_MIN_DURATION, _begin_keyword,_finish_keyword);
+	keyword_net_register_callback(0,snooze,SNOOZE_THRESHOLD,SNOOZE_MIN_DURATION, _begin_keyword,_finish_keyword);
+	keyword_net_register_callback(0,stop,STOP_THRESHOLD,STOP_MIN_DURATION, _begin_keyword,_finish_keyword);
 	//keyword_net_register_callback(0,alexa,80,_begin_keyword,_finish_keyword);
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) >= 0 ){
@@ -597,7 +599,7 @@ static void _upsample( int16_t * s, int n) {
     int i;
     for(i=n-1;i!=-1;--i) {
         s[i*2]   = i == 0 ? s[i] : (s[i-1]+s[i])/2;
-        s[i*2+1] = i == n-1 ? s[i] : (s[i]+s[i+1])/2;;
+        s[i*2+1] = i == n-1 ? s[i] : (s[i]+s[i+1])/2;
     }
 }
 static
@@ -622,7 +624,7 @@ enum mad_flow _mp3_output(void *data,
 		if(header->samplerate == 16000)
 		{
 			_upsample(i16_samples, pcm->length);
-			buf_size <<= 1;
+			buf_size *= 2;
 		}
 		else if(header->samplerate == 32000)
 		{
@@ -636,6 +638,7 @@ enum mad_flow _mp3_output(void *data,
 		ctx->t_start = 0;
 	}
 	if( ret < 0){
+		LOGE("Decode tr err %d\n", ret);
 		return MAD_FLOW_BREAK;
 	}
 	//vTaskDelay(100);
@@ -653,7 +656,7 @@ enum mad_flow _mp3_error(void *data,
 		    struct mad_stream *stream,
 		    struct mad_frame *frame){
 	if(!MAD_RECOVERABLE(stream->error)){
-		DISP("MP3Error: %s\r\n", mad_stream_errorstr(stream));
+		LOGE("MP3Error: %s\r\n", mad_stream_errorstr(stream));
 		vTaskDelay(100);
 		return MAD_FLOW_BREAK;
 	}else{
@@ -693,7 +696,7 @@ int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * c
 	/* release the decoder */
 
 	mad_decoder_finish(&decoder);
-	return result;
+	return (result == MAD_ERROR_NONE ? 0 : -1 );
 }
 ////-----------------------------------------
 //commands
