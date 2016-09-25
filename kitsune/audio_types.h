@@ -7,11 +7,7 @@
 
 #include "codec_debug_config.h"
 
-#if (CODEC_ADC_32KHZ == 1)
-#define AUDIO_SAMPLE_RATE 48000
-#else
-#define AUDIO_SAMPLE_RATE 48000
-#endif
+#define AUDIO_SAMPLE_RATE 32000
 
 //magic number, in no particular units, just from observation
 #define MIN_CLASSIFICATION_ENERGY (100)
