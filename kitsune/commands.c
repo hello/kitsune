@@ -1730,7 +1730,7 @@ void launch_tasks() {
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  2*1024 / 4, NULL, 5, NULL);
+	//xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  2*1024 / 4, NULL, 5, NULL);
 
 
 #ifdef KIT_INCLUDE_FILE_UPLOAD
@@ -1744,9 +1744,9 @@ void launch_tasks() {
 #if !ONLY_MID
 	UARTprintf("*");
 
-	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
+	//xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 2, NULL);
+	//xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
@@ -1755,7 +1755,7 @@ void launch_tasks() {
 #endif
 
 	//#define DEMO
-	hlo_audio_init();
+	//hlo_audio_init();
 
 	// Create audio tasks for playback and record
 	xTaskCreate(AudioPlaybackTask,"playbackTask",10*1024/4,NULL,4,NULL);
@@ -2229,9 +2229,9 @@ void vUARTTask(void *pvParameters) {
 
 
 	// Init sensors
-	init_tvoc(0x30);
-	init_temp_sensor();
-	init_light_sensor();
+	// init_tvoc(0x30);
+	// init_temp_sensor();
+	// init_light_sensor();
 
 	init_led_animation();
 
@@ -2270,21 +2270,21 @@ void vUARTTask(void *pvParameters) {
 	init_dust();
 
 	ble_proto_init();
-	xTaskCreate(top_board_task, "top_board_task", 1680 / 4, NULL, 3, NULL);
-	xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
+	//xTaskCreate(top_board_task, "top_board_task", 1680 / 4, NULL, 3, NULL);
+	//xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
 
 
 #ifndef BUILD_SERVERS
 	uart_logger_init();
-	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
+	//xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
-	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
+	//xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
 
-	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
+	//xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	start_top_boot_watcher();
+	//start_top_boot_watcher();
 
 	/*******************************************************************************
 	*           AUDIO INIT END
@@ -2292,6 +2292,7 @@ void vUARTTask(void *pvParameters) {
 	*/
 	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 
+	hlo_audio_init();
 #ifndef DEMO
 	if( on_charger ) {
 		launch_tasks();
