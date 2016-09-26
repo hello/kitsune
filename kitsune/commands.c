@@ -850,6 +850,7 @@ bool check_button() {
 return 0 == MAP_GPIOPinRead(BUTTON_GPIO_BASE_DOUT, BUTTON_GPIO_BIT_DOUT);
 }
 void reset_to_factory_fw();
+void play_startup_sound();
 
 void thread_fast_i2c_poll(void * unused)  {
 	unsigned int filter_buf[3];
@@ -953,6 +954,8 @@ void thread_fast_i2c_poll(void * unused)  {
 			fail_fast_i2c:
 			LOGE("Thread fast i2c fail\n");
 		}
+
+		play_startup_sound();
 		vTaskDelayUntil(&now, delay);
 	}
 }
@@ -1723,7 +1726,6 @@ static void checkFaults() {
 }
 
 void init_download_task( int stack );
-void play_startup_sound();
 void launch_tasks() {
 	checkFaults();
 
@@ -1761,9 +1763,7 @@ void launch_tasks() {
 	xTaskCreate(AudioPlaybackTask,"playbackTask",10*1024/4,NULL,4,NULL);
 
 	xTaskCreate(AudioControlTask, "AudioControl",  17*1024 / 4, NULL, 2, NULL);
-	play_startup_sound();
 }
-
 
 int Cmd_boot(int argc, char *argv[]) {
 	if( !booted ) {
