@@ -33,6 +33,7 @@ typedef enum {
 } ble_mode_t;
 
 ble_mode_t get_ble_mode();
+bool ble_user_active();
 
 void ble_proto_start_hold();
 void ble_proto_end_hold();

@@ -65,6 +65,10 @@ ble_mode_t get_ble_mode() {
 	xSemaphoreGive( _self.smphr );
 	return status;
 }
+bool ble_user_active() {
+	return get_ble_mode() == BLE_PAIRING || get_ble_mode() == BLE_CONNECTED;
+}
+
 static void set_ble_mode(ble_mode_t status) {
 	xSemaphoreTake( _self.smphr, portMAX_DELAY );
 	analytics_event( "{ble_mode: %d}", status );
@@ -855,7 +859,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PHONE_BLE_BONDED:
         {
         	ble_proto_led_fade_out(0);
-        	set_ble_mode(BLE_NORMAL);
         	LOGI("PHONE BONDED\n");
         }
         break;
