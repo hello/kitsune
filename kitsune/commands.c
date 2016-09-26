@@ -1748,17 +1748,17 @@ void launch_tasks() {
 	UARTprintf("*");
 	//xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
+	// xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
-	long_poll_task_init( 2560 / 4 );
-	downloadmanagertask_init(3072 / 4);
+	// long_poll_task_init( 2560 / 4 );
+	// downloadmanagertask_init(3072 / 4);
 #endif
 
 	//#define DEMO
 	//hlo_audio_init();
 
 	// Create audio tasks for playback and record
-	xTaskCreate(AudioPlaybackTask,"playbackTask",10*1024/4,NULL,4,NULL);
+	// xTaskCreate(AudioPlaybackTask,"playbackTask",10*1024/4,NULL,4,NULL);
 
 	//xTaskCreate(AudioControlTask, "AudioControl",  17*1024 / 4, NULL, 2, NULL);
 }
@@ -2137,8 +2137,8 @@ void vUARTTask(void *pvParameters) {
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
 	}
-	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 3, NULL);
-	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 2, NULL);
+	// xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 3, NULL);
+	// xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 2, NULL);
 
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
     // Configure PIN_57 for GPIOInput
@@ -2255,10 +2255,10 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("*");
 
-	init_download_task( 3280 / 4 );
+	//init_download_task( 3280 / 4 );
 
 
-	networktask_init(3 * 1024 / 4);
+	// networktask_init(3 * 1024 / 4);
 
 	load_serial();
 	load_aes();
@@ -2267,7 +2267,7 @@ void vUARTTask(void *pvParameters) {
 	pill_settings_init();
 	check_provision();
 
-	init_dust();
+	// init_dust();
 
 	ble_proto_init();
 	//xTaskCreate(top_board_task, "top_board_task", 1680 / 4, NULL, 3, NULL);
@@ -2299,7 +2299,7 @@ void vUARTTask(void *pvParameters) {
 		vTaskDelete(NULL);
 		return;
 	} else {
-		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
+		// play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
 	}
 #else
 	/* remove anything we recieved before we were ready */
