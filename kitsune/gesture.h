@@ -26,6 +26,8 @@ int gesture_get_hold_count();
 void gesture_counter_reset();
 int Cmd_get_gesture_count(int argc, char * argv[]);
 
+void pause_gestures();
+void resume_gestures();
 #ifdef __cplusplus
 }
 #endif

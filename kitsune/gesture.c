@@ -37,6 +37,7 @@ static struct{
 	int wave_count;
 	int hold_count;
 	xSemaphoreHandle gesture_count_semaphore;
+	bool output_gesture;
 }self;
 
 static bool _hasWave(void){
@@ -139,10 +140,15 @@ static gesture_t _fsm(int in){
 
 void gesture_init(){
 	_fsm_reset();
+	self.output_gesture = true;
 	self.gesture_count_semaphore = xSemaphoreCreateMutex();
 }
 
 gesture_t gesture_input(int prox){
+	if( !self.output_gesture ) {
+		return GESTURE_NONE;
+	}
+
 	int prox_delta;
 	fsm_state state = self.fsm.state;
 
@@ -203,4 +209,14 @@ void gesture_counter_reset()
 		self.wave_count = 0;
 		xSemaphoreGive(self.gesture_count_semaphore);
 	}
+}
+
+void pause_gestures()
+{
+	self.output_gesture = false;
+}
+
+void resume_gestures()
+{
+	self.output_gesture = true;
 }
