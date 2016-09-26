@@ -15,6 +15,8 @@
 #include "wifi_cmd.h"
 #include "i2c_cmd.h"
 
+#include "ble_proto.h"
+
 #include "endpoints.h"
 
 #include "kitsune_version.h"
@@ -329,7 +331,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, NUM_SAMPLES_TO_RUN_FFT*2, 4)) > 0 ){
 		//net always gets samples
-		keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
+		if( !ble_user_active() ) {
+			keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
+		}
 
 		if( nn_ctx.speech_pb.has_word ) {
 			if( !light_open ) {

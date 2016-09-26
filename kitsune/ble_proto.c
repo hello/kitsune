@@ -65,6 +65,10 @@ ble_mode_t get_ble_mode() {
 	xSemaphoreGive( _self.smphr );
 	return status;
 }
+bool ble_user_active() {
+	return get_ble_mode() == BLE_PAIRING || get_ble_mode() == BLE_CONNECTED;
+}
+
 static void set_ble_mode(ble_mode_t status) {
 	xSemaphoreTake( _self.smphr, portMAX_DELAY );
 	analytics_event( "{ble_mode: %d}", status );
@@ -658,9 +662,10 @@ void play_startup_sound() {
 	// Now the hand hover-to-pairing mode will not delete all the bonds
 	// when the bond db is full, so you will never get zero after a phone bonds
 	// to Sense, unless user do factory reset and power cycle the device.
+	static bool need_init_lights = true;
 
-	vTaskDelay(10);
 	if(needs_startup_sound){
+		vTaskDelay(10);
 		AudioPlaybackDesc_t desc;
 		memset(&desc, 0, sizeof(desc));
 		desc.stream = fs_stream_open(STARTUP_SOUND_NAME, HLO_STREAM_READ);
@@ -673,9 +678,12 @@ void play_startup_sound() {
 		desc.to_fade_out_ms = 0;
 		AudioTask_StartPlayback(&desc);
 		needs_startup_sound = false;
+		vTaskDelay(175);
 	}
-	vTaskDelay(175);
-	ble_proto_led_init();
+	if( need_init_lights ) {
+		ble_proto_led_init();
+		need_init_lights = false;
+	}
 	if(needs_pairing_animation){
 		ble_proto_led_fade_in_trippy();
 		needs_pairing_animation = false;
@@ -855,7 +863,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PHONE_BLE_BONDED:
         {
         	ble_proto_led_fade_out(0);
-        	set_ble_mode(BLE_NORMAL);
         	LOGI("PHONE BONDED\n");
         }
         break;
