@@ -663,6 +663,28 @@ static bool haz_tmg4903() {
 	return true;
 }
 
+#include "gesture.h"
+int light_sensor_power(light_power_mode power_state) {
+	unsigned char b[2];
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+
+	//max pulse length, number of pluses
+	b[0] = 0x8E;
+	if( power_state == HIGH_POWER ) {
+		resume_gestures();
+		b[1] = 0xc0;
+	} else {
+		pause_gestures();
+		b[1] = 0;
+	}
+	(I2C_IF_Write(0x39, b, 2, 1));
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+
+	return SUCCESS;
+
+}
+
 int init_light_sensor()
 {
 	unsigned char b[5];

@@ -33,6 +33,13 @@ int Cmd_uvw(int argc, char *argv[]);
 
 int init_humid_sensor();
 int init_temp_sensor();
+
+
+typedef enum {
+	HIGH_POWER,
+	LOW_POWER,
+} light_power_mode;
+int light_sensor_power(light_power_mode power_state);
 int init_light_sensor();
 int init_tvoc(int measmode);
 

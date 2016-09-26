@@ -13,6 +13,7 @@
 #include "hlo_proto_tools.h"
 #include "crypto.h"
 #include "wifi_cmd.h"
+#include "i2c_cmd.h"
 
 #include "ble_proto.h"
 
@@ -336,6 +337,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 		if( nn_ctx.speech_pb.has_word ) {
 			if( !light_open ) {
+				light_sensor_power(LOW_POWER);
 				keyword_net_pause_net_operation();
 				input = hlo_light_stream( input,true );
 				send_str = hlo_stream_bw_limited( send_str, AUDIO_NET_RATE/8, 5000);
@@ -375,6 +377,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		}
 	}
 	hlo_stream_close(input);
+
+	light_sensor_power(HIGH_POWER);
 
 	if(ret >= 0 || ret == HLO_STREAM_EOF ){
 		LOGI("\r\n===========\r\n");
