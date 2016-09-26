@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "uartstdio.h"
 #include "FreeRTOS.h"
+#include "task.h"
 #include "semphr.h"
 #include "stdbool.h"
 
@@ -38,6 +39,7 @@ static struct{
 	int hold_count;
 	xSemaphoreHandle gesture_count_semaphore;
 	bool output_gesture;
+	TickType_t last_pause;
 }self;
 
 static bool _hasWave(void){
@@ -141,11 +143,17 @@ static gesture_t _fsm(int in){
 void gesture_init(){
 	_fsm_reset();
 	self.output_gesture = true;
+	self.last_pause = 0;
 	self.gesture_count_semaphore = xSemaphoreCreateMutex();
 }
 
 gesture_t gesture_input(int prox){
 	if( !self.output_gesture ) {
+		_fsm_reset();
+		self.last_pause = xTaskGetTickCount();
+		return GESTURE_NONE;
+	} else if( xTaskGetTickCount() - self.last_pause < 5000) {
+		_fsm_reset();
 		return GESTURE_NONE;
 	}
 
