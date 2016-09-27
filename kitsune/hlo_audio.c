@@ -135,6 +135,7 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 }
 // TODO might need two functions for close of capture and playback?
 static int _close(void * ctx){
+	set_isr_playback(false);
 	return HLO_STREAM_NO_IMPL;
 }
 
