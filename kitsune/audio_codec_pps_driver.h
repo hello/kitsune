@@ -3340,7 +3340,7 @@ const static reg_value miniDSP_A_reg_values[] = {
     { 71,0x00},
     { 72,0x10},
     { 73,0x00},
-    { 74,0x81},
+    { 74,0x41},
     { 75,0x59},
     { 76,0x5C},
     { 77,0x60},
