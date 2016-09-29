@@ -333,7 +333,7 @@ int Cmd_AudioPlayback(int argc, char * argv[]){
 		desc.fade_out_ms = 1000;
 		desc.onFinished = NULL;
 		desc.rate = AUDIO_SAMPLE_RATE;
-		desc.stream = fs_stream_open_media(argv[1], 0);
+		desc.stream = fs_stream_open_media(argv[1], 2);
 		desc.volume = 64;
 		desc.p = hlo_filter_data_transfer;
 		ustrncpy(desc.source_name, argv[1], sizeof(desc.source_name));

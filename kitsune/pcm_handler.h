@@ -49,13 +49,10 @@
 extern "C"
 {
 #endif
-#define MCASP_AUD_WFIFO_SZ      16
-#define CB_EVENT_CONFIG_SZ      8
-#define WORD_SIZE               4
-#define HALF_WORD_SIZE          2
+
 #define CB_TRANSFER_SZ	        256
-#define END_PTR                 (CB_TRANSFER_SZ*2)-1
-//#define END_PTR                 (4096)-1
+//#define END_PTR                 (CB_TRANSFER_SZ*2)-1
+
 #define CTRL_WRD                (3 | ((CB_TRANSFER_SZ - 1) << 4)) // 4083 =0xFF3
 
 #define PCM_PING_PONG_MODE_SINGLE_CHANNEL_HALF_RATE (0)

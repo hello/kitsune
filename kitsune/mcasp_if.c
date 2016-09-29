@@ -122,14 +122,9 @@ void McASPInit( unsigned int SAMPLING_FREQ)
     //(b) Reset the module using PRCMPeripheralReset
     MAP_PRCMPeripheralReset(PRCM_I2S);
 
-#if (CODEC_ENABLE_MULTI_CHANNEL == 1)
 	#define BIT_CLOCK (SAMPLING_FREQ*32*2UL)
 	#define I2S_SLOT_SIZE_32    0x00F000F0
 	#define I2S_SLOT_SIZE 		I2S_SLOT_SIZE_32
-#else
-	#define BIT_CLOCK (SAMPLING_FREQ*2*16UL)
-	#define I2S_SLOT_SIZE I2S_SLOT_SIZE_16
-#endif
 
 
     //previously - I2S_SLOT_SIZE_16

@@ -101,11 +101,8 @@
 
 #include "tensor/keyword_net.h"
 
-#define ONLY_AUDIO 0
-
-#if (AUDIO_FULL_DUPLEX==1)
 #include "audiohelper.h"
-#endif
+
 
 #define ONLY_MID 0
 
@@ -2137,8 +2134,8 @@ void vUARTTask(void *pvParameters) {
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
 	}
-	// xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 3, NULL);
-	// xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 2, NULL);
+	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 3, NULL);
+	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 2, NULL);
 
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
     // Configure PIN_57 for GPIOInput
@@ -2229,9 +2226,9 @@ void vUARTTask(void *pvParameters) {
 
 
 	// Init sensors
-	// init_tvoc(0x30);
-	// init_temp_sensor();
-	// init_light_sensor();
+	init_tvoc(0x30);
+	init_temp_sensor();
+	init_light_sensor();
 
 	init_led_animation();
 
@@ -2255,10 +2252,10 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("*");
 
-	//init_download_task( 3280 / 4 );
+	init_download_task( 3280 / 4 );
 
 
-	// networktask_init(3 * 1024 / 4);
+	networktask_init(3 * 1024 / 4);
 
 	load_serial();
 	load_aes();
@@ -2267,22 +2264,22 @@ void vUARTTask(void *pvParameters) {
 	pill_settings_init();
 	check_provision();
 
-	// init_dust();
+	init_dust();
 
 	ble_proto_init();
-	//xTaskCreate(top_board_task, "top_board_task", 1680 / 4, NULL, 3, NULL);
-	//xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
+	xTaskCreate(top_board_task, "top_board_task", 1680 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
 
 
 #ifndef BUILD_SERVERS
 	uart_logger_init();
-	//xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
+	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
-	//xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
+	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
 
-	//xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	//start_top_boot_watcher();
 
@@ -2293,6 +2290,8 @@ void vUARTTask(void *pvParameters) {
 	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 
 	hlo_audio_init();
+
+	 xTaskCreate(AudioPlaybackTask,"playbackTask",10*1024/4,NULL,4,NULL);
 #ifndef DEMO
 	if( on_charger ) {
 		launch_tasks();
