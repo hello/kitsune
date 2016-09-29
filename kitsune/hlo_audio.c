@@ -278,7 +278,7 @@ static int _read_light(void * ctx, void * buf, size_t size){
 static int _close_light(void * ctx){
 	light_stream_t * stream = (light_stream_t*)ctx;
 	if( stream->close_lights ) {
-		stop_led_animation( 0, 33 );
+		stop_led_animation( 10000, 33 );
 	}
 	DISP("close light\n") ;
 	hlo_stream_close(stream->base);
@@ -307,7 +307,7 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base, bool start){
 	{
 		DISP("open light\n") ;
 		set_modulation_intensity( 253 );
-		play_modulation(140,29,237,1000,0);
+		play_modulation(140,29,237,10,0);
 		stream->close_lights = false;
 		stream->lp = 2000;
 		stream->begin = xTaskGetTickCount();
