@@ -369,18 +369,18 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			break;
 		}
 	}
-
-	if (ret < 0) {
-		if (ret == HLO_STREAM_ERROR) {
-			stop_led_animation(0, 33);
-			play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1, 18, 1);
-		}
-	}
 	hlo_stream_close(input);
-
 	light_sensor_power(HIGH_POWER);
 
-	if(ret >= 0 || ret == HLO_STREAM_EOF ){
+	if (ret < 0) {
+		stop_led_animation(0, 33);
+		if (ret == HLO_STREAM_ERROR) {
+			play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1, 18, 1);
+		}
+		if(output) {
+			hlo_stream_close(output);
+		}
+	} else {
 		LOGI("\r\n===========\r\n");
 			LOGI("Playback Audio\r\n");
 			// grab the running hmac and drop it in the stream
@@ -404,9 +404,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 
 			LOGI("\r\n===========\r\n");
-	}
-	else if(output) {
-		hlo_stream_close(output);
 	}
 	hlo_stream_close(send_str);
 

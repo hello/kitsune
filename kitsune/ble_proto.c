@@ -56,6 +56,7 @@ static volatile struct {
 static SlWlanNetworkEntry_t _wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
 static xSemaphoreHandle _wifi_smphr;
 static hlo_future_t * scan_results;
+bool need_init_lights = false;
 bool needs_startup_sound = false;
 bool needs_pairing_animation = false;
 ble_mode_t get_ble_mode() {
@@ -662,7 +663,6 @@ void play_startup_sound() {
 	// Now the hand hover-to-pairing mode will not delete all the bonds
 	// when the bond db is full, so you will never get zero after a phone bonds
 	// to Sense, unless user do factory reset and power cycle the device.
-	static bool need_init_lights = true;
 
 	if(needs_startup_sound){
 		vTaskDelay(10);
@@ -727,6 +727,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				LOGI("NO BOND COUNT\n");
 				needs_startup_sound = true;
 			}
+			need_init_lights = true;
 			played = true;
 		}
 	}
