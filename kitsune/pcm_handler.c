@@ -305,12 +305,10 @@ void DMAPingPongCompleteAppCB_opt()
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
 				for (i = CB_TRANSFER_SZ/4-1; i!=-1 ; --i) {
-					//the odd ones do not matter
-					/*ping[(i<<1)+1] = */
-					ping_p[(i<<2) + 0] = (ping_p[i] & 0xFFFFUL) << 16;
-					ping_p[(i<<2) + 1] = 0;
-					ping_p[(i<<2) + 2] = (ping_p[i] & 0xFFFF0000);
 					ping_p[(i<<2) + 3] = 0;
+					ping_p[(i<<2) + 2] = (ping_p[i] & 0xFFFF0000);
+					ping_p[(i<<2) + 1] = 0;
+					ping_p[(i<<2) + 0] = (ping_p[i] & 0xFFFFUL) << 16;
 				}
 #else
 				for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
@@ -341,12 +339,10 @@ void DMAPingPongCompleteAppCB_opt()
 					UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
 				for (i = CB_TRANSFER_SZ/4-1; i!=-1 ; --i) {
-					//the odd ones do not matter
-					/*ping[(i<<1)+1] = */
-					pong_p[(i<<2) + 0] = (pong_p[i] & 0xFFFFUL) << 16;
-					pong_p[(i<<2) + 1] = 0;
-					pong_p[(i<<2) + 2] = (pong_p[i] & 0xFFFF0000);
 					pong_p[(i<<2) + 3] = 0;
+					pong_p[(i<<2) + 2] = (pong_p[i] & 0xFFFF0000);
+					pong_p[(i<<2) + 1] = 0;
+					pong_p[(i<<2) + 0] = (pong_p[i] & 0xFFFFUL) << 16;
 				}
 #else
 					for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
