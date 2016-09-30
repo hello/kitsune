@@ -66,6 +66,11 @@
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
+			<name>codec</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
 			<name>commands.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/commands.c</locationURI>
@@ -474,6 +479,26 @@
 			<name>cmsis-dsp/Source</name>
 			<type>2</type>
 			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>codec/lpc.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/codec/lpc.c</locationURI>
+		</link>
+		<link>
+			<name>codec/lpc.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/codec/lpc.h</locationURI>
+		</link>
+		<link>
+			<name>codec/rice.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/codec/rice.c</locationURI>
+		</link>
+		<link>
+			<name>codec/rice.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/codec/rice.h</locationURI>
 		</link>
 		<link>
 			<name>common/UART.c</name>
