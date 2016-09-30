@@ -481,6 +481,16 @@
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
+			<name>codec/hlo_lossless.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/codec/hlo_lossless.c</locationURI>
+		</link>
+		<link>
+			<name>codec/hlo_lossless.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/codec/hlo_lossless.h</locationURI>
+		</link>
+		<link>
 			<name>codec/lpc.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/codec/lpc.c</locationURI>
