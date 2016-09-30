@@ -48,34 +48,49 @@ void InitAudioTxRx(uint32_t rate)
 	// Initialize the Audio(I2S) Module
 	McASPInit(rate);
 
+	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
+
+
+	// Setup the DMA Mode
+	SetupPingPongDMATransferRx();
+
+	// Setup the Audio In/Out
+    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA);
+
 	MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
 
-	//codec_unmute_spkr();
+	MAP_I2STxFIFOEnable(I2S_BASE,16,1);
 
+    //MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX, I2S_INACT_LOW_LEVEL);
+    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX, I2S_INACT_LOW_LEVEL);
+
+    Audio_Start();
 }
 
 uint8_t InitAudioCapture(void) {
 
+	// Setup the Audio In/Out
+    //MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA | I2S_INT_XDMA );
+//	MAP_I2SRxFIFOEnable(I2S_BASE,16,1);
+//
 	if(pTxBuffer == NULL) {
 		pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE, audio_mem);
 	}
 	memset( audio_mem, 0, TX_BUFFER_SIZE);
-
-	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
-
-	// Setup the DMA Mode
-	SetupPingPongDMATransferTx();
-
-	// Setup the Audio In/Out
-    //MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA | I2S_INT_XDMA );
-	MAP_I2SRxFIFOEnable(I2S_BASE,16,1);
-
-	//MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
-
-    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX, I2S_INACT_LOW_LEVEL);
-
-	// Setup the Audio In/Out
-	MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA );
+//
+//	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
+//
+//	// Setup the DMA Mode
+//	SetupPingPongDMATransferTx();
+//
+//
+//
+//	//MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
+//
+//    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX, I2S_INACT_LOW_LEVEL);
+//
+//	// Setup the Audio In/Out
+//	//MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA );
 
 	return 0;
 }
@@ -107,26 +122,28 @@ void flush_audio_playback_buffer() {
 
 uint8_t InitAudioPlayback() {
 
+	// Setup the Audio In/Out
+    //MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA | I2S_INT_XDMA );
+//	MAP_I2STxFIFOEnable(I2S_BASE,16,1);
+//
 	//create circular buffer
 	if (!pRxBuffer) {
 		pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE, audio_mem_p);
 	}
 	memset( audio_mem_p, 0, RX_BUFFER_SIZE);
-
-	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
-
-	// Setup the DMA Mode
-	SetupPingPongDMATransferRx();
-
-	// Setup the Audio In/Out
-    //MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA | I2S_INT_XDMA );
-	MAP_I2STxFIFOEnable(I2S_BASE,16,1);
-
-    //MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX, I2S_INACT_LOW_LEVEL);
-    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX, I2S_INACT_LOW_LEVEL);
-
-	// Setup the Audio In/Out
-    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA);
+//
+//	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
+//
+//	// Setup the DMA Mode
+//	SetupPingPongDMATransferRx();
+//
+//
+//
+//    //MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX, I2S_INACT_LOW_LEVEL);
+//    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX, I2S_INACT_LOW_LEVEL);
+//
+//	// Setup the Audio In/Out
+//    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA);
 
 	return 0;
 

@@ -551,8 +551,13 @@ void I2STxFIFOEnable(unsigned long ulBase, unsigned long ulTxLevel,
   // Set transmit FIFO configuration and
   // enable it
   //
-  HWREG(ulBase + MCASP_0_WFIFOCTL) = ((1 <<16) | ((ulTxLevel & 0xFF) << 8)
+//  HWREG(ulBase + MCASP_0_WFIFOCTL) = ((1 <<16) | ((ulTxLevel & 0xFF) << 8)
+//					| (ulWordsPerTransfer & 0x1F));
+
+	HWREG(ulBase + MCASP_0_WFIFOCTL) = (((ulTxLevel & 0xFF) << 8)
 					| (ulWordsPerTransfer & 0x1F));
+
+	HWREG(ulBase + MCASP_0_WFIFOCTL) |= ((1 <<16));
 
 }
 
@@ -602,8 +607,12 @@ void I2SRxFIFOEnable(unsigned long ulBase, unsigned long ulRxLevel,
   //
   // Set FIFO configuration
   //
-  HWREG(ulBase + MCASP_0_RFIFOCTL) = ( (1 <<16) | ((ulRxLevel & 0xFF) << 8)
-					| (ulWordsPerTransfer & 0x1F));
+//  HWREG(ulBase + MCASP_0_RFIFOCTL) = ( (1 <<16) | ((ulRxLevel & 0xFF) << 8)
+//					| (ulWordsPerTransfer & 0x1F));
+
+	  HWREG(ulBase + MCASP_0_RFIFOCTL) = (((ulRxLevel & 0xFF) << 8)
+						| (ulWordsPerTransfer & 0x1F));
+	  HWREG(ulBase + MCASP_0_RFIFOCTL) |= ( (1 <<16));
 
 }
 

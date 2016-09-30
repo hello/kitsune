@@ -266,6 +266,7 @@ void DMAPingPongCompleteAppCB_opt()
 		//pControlTable = MAP_uDMAControlBaseGet();
 		if ((pControlTable[ulPrimaryIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
+			MAP_GPIOPinWrite(GPIOA1_BASE, 0x2, 0);
 
 			if ( qqbufsz >= (CB_TRANSFER_SZ) && can_playback) {
 				guiDMATransferCountRx += CB_TRANSFER_SZ*4;
@@ -273,14 +274,20 @@ void DMAPingPongCompleteAppCB_opt()
 				//UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
 				ReadBuffer(pAudOutBuf,(unsigned char*)ping_p,CB_TRANSFER_SZ);
 
+				UARTprintf("Ping%x\n",ping_p[0]);
 				for (i = CB_TRANSFER_SZ/4-1; i!=-1 ; --i) {
 					//the odd ones do not matter
 					/*ping[(i<<1)+1] = */
-					ping_p[(i<<2) + 0] = (ping_p[i] & 0xFFFFUL) << 16;
-					ping_p[(i<<2) + 1] = 0;
-					ping_p[(i<<2) + 2] = (ping_p[i] & 0xFFFF0000);
+
+
+
 					ping_p[(i<<2) + 3] = 0;
+					ping_p[(i<<2) + 2] = (ping_p[i] & 0xFFFF0000);
+					ping_p[(i<<2) + 1] = 0;
+					ping_p[(i<<2) + 0] = (ping_p[i] & 0xFFFFUL) << 16;
 				}
+				UARTprintf("PingAfter %x %x\n",ping_p[0],ping_p[2]);
+
 
 			} else {
 				memset( ping_p, 0, sizeof(ping_p));
@@ -297,6 +304,7 @@ void DMAPingPongCompleteAppCB_opt()
 		} else {
 			if ((pControlTable[ulAltIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 					== 0) {
+				MAP_GPIOPinWrite(GPIOA1_BASE, 0x2, 0x02);
 				if ( qqbufsz >= (CB_TRANSFER_SZ) && can_playback) {
 					guiDMATransferCountRx += CB_TRANSFER_SZ*4;
 
@@ -304,14 +312,18 @@ void DMAPingPongCompleteAppCB_opt()
 					//UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
 					ReadBuffer(pAudOutBuf,(unsigned char*)pong_p,CB_TRANSFER_SZ);
 
+					UARTprintf("Pong%x\n",pong_p[0]);
 					for (i = CB_TRANSFER_SZ/4-1; i!=-1 ; --i) {
 						//the odd ones do not matter
 						/*ping[(i<<1)+1] = */
-						pong_p[(i<<2) + 0] = (pong_p[i] & 0xFFFFUL) << 16;
-						pong_p[(i<<2) + 1] = 0;
-						pong_p[(i<<2) + 2] = (pong_p[i] & 0xFFFF0000);
+
 						pong_p[(i<<2) + 3] = 0;
+						pong_p[(i<<2) + 2] = (pong_p[i] & 0xFFFF0000);
+						pong_p[(i<<2) + 1] = 0;
+						pong_p[(i<<2) + 0] = (pong_p[i] & 0xFFFFUL) << 16;
 					}
+					UARTprintf("PongAfter %x %x\n",pong_p[0],pong_p[2]);
+
 				} else {
 					memset( pong_p, 0, sizeof(pong_p));
 					guiDMATransferCountRx += CB_TRANSFER_SZ*4;

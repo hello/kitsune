@@ -2264,7 +2264,7 @@ void vUARTTask(void *pvParameters) {
 	pill_settings_init();
 	check_provision();
 
-	init_dust();
+	// init_dust();
 
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1680 / 4, NULL, 3, NULL);

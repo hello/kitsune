@@ -180,7 +180,7 @@ void hlo_audio_init(void){
 		_open_record();
 
 		set_volume(0, portMAX_DELAY);
-		Audio_Start();
+		//Audio_Start();
 
 		vTaskDelay(1);
 		_reset_codec();
