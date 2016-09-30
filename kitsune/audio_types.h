@@ -13,11 +13,7 @@
 #define MIN_CLASSIFICATION_ENERGY (100)
 
 
-#define AUDIO_FFT_SIZE_2N (8)
-#define AUDIO_FFT_SIZE (1 << AUDIO_FFT_SIZE_2N)
-#define EXPECTED_AUDIO_SAMPLE_RATE_HZ (AUDIO_SAMPLE_RATE)
-
-#define SAMPLE_RATE_IN_HZ (EXPECTED_AUDIO_SAMPLE_RATE_HZ / AUDIO_FFT_SIZE)
+#define SAMPLE_RATE_IN_HZ (66)
 #define SAMPLE_PERIOD_IN_MILLISECONDS  (1000 / SAMPLE_RATE_IN_HZ)
 
 #define NUM_AUDIO_FEATURES (16)
@@ -37,38 +33,12 @@
 extern "C" {
 #endif
 
-typedef struct {
-    uint16_t psd_min_energy;
-    
-} AudioFeaturesOptions_t;
-    
-typedef struct {
-    uint16_t min_energy_classification;
-} AudioClassifierOptions_t;
-
-typedef enum {
-    segmentCoherent
-} ESegmentType_t;
 
 typedef struct {
-    int64_t t1;
-    int64_t t2;
-    int32_t duration;
-    ESegmentType_t type;
-    
-} Segment_t;
-
-typedef struct {
-	int64_t samplecount;
+    int64_t samplecount;
     int16_t logenergy;
-    int8_t feats4bit[NUM_AUDIO_FEATURES];
 } AudioFeatures_t;
     
-
-/* FOR SAVING AUDIO / UPLOADING AUDIO
- *
- * Yes, some of these flags are mutually exclusive.  Others aren ot.
- */
 
 #define AUDIO_TRANSFER_FLAG_AUTO_CLOSE_OUTPUT     (1 << 0) /* automatically close output stream when done */
 

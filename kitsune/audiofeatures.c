@@ -1,10 +1,12 @@
 #include "audiofeatures.h"
 #include "fft.h"
+#include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>     /* abs */
 #include "debugutils/debuglog.h"
 #include <stdio.h>
 #include "hellomath.h"
+#include "tensor/features_types.h"
 
 #ifdef USED_ON_DESKTOP
 #define LOGA(...)
@@ -15,26 +17,6 @@
 #define TOFIX(x,q)\
         ((int32_t) ((x) * (float)(1 << (q))))
 
-/*
-   How is this all going to work? 
-   -Extract features, one of which is total energy
-   -If average energy over some period is stable, then
-    
-    1) See if this frame of features is similar to others.
-    2) If not similar, store feature vector in memory
-    3) Report this frame as being 
-       a. interesting, 
-       b. interesting but already observed (i.e. similar)
-       c. totally fucking uninteresting (ah, blissful silence)
-    4) Some other piece of code will later
- 
- 
-    -Potential pitfalls as is:
-     
-       impulse noises may not register at all, but will certainly be noticed by a human
-       well we'll deal with that later, I can already think of a processing scheme to incorporate this.
- */
- 
 
 /*--------------------------------
  *   Memory sizes, constants, macros, and related items
@@ -45,7 +27,7 @@
 #define PSD_SIZE_2N (5)
 #define PSD_SIZE (1 << PSD_SIZE_2N)
 
-#define SAMPLE_RATE_IN_HZ (EXPECTED_AUDIO_SAMPLE_RATE_HZ / AUDIO_FFT_SIZE)
+#define SAMPLE_RATE_IN_HZ (66)
 #define SAMPLE_PERIOD_IN_MILLISECONDS  (1000 / SAMPLE_RATE_IN_HZ)
 
 #define ENERGY_BUF_SIZE_2N (4)
@@ -56,18 +38,6 @@
 #define CHANGE_SIGNAL_BUF_SIZE (1 << CHANGE_SIGNAL_BUF_SIZE_2N)
 #define CHANGE_SIGNAL_BUF_MASK (CHANGE_SIGNAL_BUF_SIZE - 1)
 
-#define STEADY_STATE_AVERAGING_PERIOD_2N (6)
-#define STEADY_STATE_AVERAGING_PERIOD (1 << STEADY_STATE_AVERAGING_PERIOD_2N)
-
-#ifdef NO_EQUALIZATION
-    #define STARTUP_PERIOD_IN_MS (0)
-#else
-    //default
-    #define STARTUP_PERIOD_IN_MS (10000)
-#endif
-
-#define STARTUP_EQUALIZATION_COUNTS (STARTUP_PERIOD_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS)
-
 #define QFIXEDPOINT (12)
 
 #define TRUE (1)
@@ -75,10 +45,6 @@
 
 #define MICROPHONE_NOISE_FLOOR_DB (0.0f)
 
-
-/* Have fun tuning these magic numbers!
- Perhaps eventually we will have some pre-canned
- data to show you how?  */
 
 //the higher this gets, the less likely you are to be stable
 static const int16_t k_stable_likelihood_coefficient = TOFIX(1.0,QFIXEDPOINT);
@@ -95,11 +61,6 @@ static const int32_t k_min_log_prob = TOFIX(-0.25f,QFIXEDPOINT);
 static const uint32_t k_stable_counts_to_be_considered_stable =  STABLE_TIME_TO_BE_CONSIDERED_STABLE_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
 
 
-/*--------------------------------
- *   forward declarations
- *--------------------------------*/
-void fix_window(int16_t fr[], int32_t n);
-
 
 /*--------------------------------
  *   Types
@@ -110,12 +71,6 @@ typedef enum {
     decreasing,
     numChangeModes
 } EChangeModes_t;
-
-typedef enum {
-    incoherent,
-    coherent,
-    numCoherencyModes
-} ECoherencyModes_t;
 
 typedef struct {
     int16_t energybuf[ENERGY_BUF_SIZE];//32 bytes
@@ -133,29 +88,20 @@ typedef struct {
     int16_t energyStable;
     uint32_t stableCount;
     uint32_t stablePeriodCounter;
-    EChangeModes_t lastModes[3];
-    int64_t modechangeTimes[3];
-    uint8_t isValidSteadyStateSegment;
-    uint16_t psd_min_energy;
+    uint16_t min_energy;
     uint8_t statsLastIsStable;
     int16_t maxenergy;
 
     AudioFeatureCallback_t fpCallback;
     AudioOncePerMinuteDataCallback_t fpOncePerMinuteDataCallback;
     
-} MelFeatures_t;
+} AudioFeatures_t;
 
-
-typedef enum {
-    eAudioSignalIsNotInteresting,
-    eAudioSignalIsDiverse,
-    eAudioSignalIsSimilar
-} EAudioSignalSimilarity_t;
 
 /*--------------------------------
  *   Static Memory Declarations
  *--------------------------------*/
-static MelFeatures_t _data;
+static AudioFeatures_t _data;
 
 
 
@@ -169,7 +115,7 @@ void init_background_energy(AudioOncePerMinuteDataCallback_t fpOncePerMinuteCall
     
     _data.fpOncePerMinuteDataCallback = fpOncePerMinuteCallback;
 
-    _data.psd_min_energy = MIN_ENERGY;
+    _data.min_energy = MIN_ENERGY;
 
 }
 
@@ -218,7 +164,7 @@ static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t
 
 	//leaving stable mode -- therefore starting a disturbance
 	if (!isStable && _data.statsLastIsStable) {
-		//LOGI("S->US\r\n");
+		DISP("S->US\r\n");
 		_data.maxenergy = logTotalEnergy;
 	}
 
@@ -230,7 +176,7 @@ static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t
 
 	//entering stable mode --ending a disturbance
 	if (isStable && !_data.statsLastIsStable ) {
-		//LOGI("US->S\r\n");
+		DISP("US->S\r\n");
 		data.num_disturbances = 1;
 	}
 
@@ -440,24 +386,68 @@ static void UpdateChangeSignals(EChangeModes_t * pCurrentMode, const int16_t new
     
 }
 
-void set_background_energy(const int16_t fr[], const int16_t fi[]) {
-    //enjoy this nice large stack.
-    //this can all go away if we get fftr to work, and do the
-    int16_t psd[PSD_SIZE];
+__attribute__((section(".ramcode"))) static void getvolume(int16_t * logTotalEnergy,int16_t * const int16_t fr[],const int16_t fi[],uint16_t min_energy, const int16_t log2scale) {
+    uint16_t i;
+    uint16_t ufr;
+    uint16_t ufi;
+    uint64_t utemp64;
+    uint64_t non_weighted_energy = 0;
+    uint64_t a_weighted_energy = 0;
+    int32_t temp32;
+    
+    const static uint16_t a_weight_q10[128] = { 0, 0, 100, 150, 263, 379, 489,
+                        510, 725, 763, 823, 859, 896, 934, 963, 994, 1024, 1054, 1085, 1093,
+                        1101, 1110, 1123, 1136, 1149, 1152, 1156, 1159, 1162, 1166, 1169,
+                        1172, 1176, 1166, 1170, 1174, 1178, 1182, 1184, 1185, 1187, 1188,
+                        1189, 1185, 1180, 1176, 1171, 1167, 1162, 1162, 1162, 1162, 1162,
+                        1162, 1162, 1162, 1161, 1159, 1157, 1156, 1154, 1152, 1151, 1149,
+                        1146, 1142, 1139, 1136, 1133, 1129, 1126, 1123, 1120, 1116, 1112,
+                        1107, 1103, 1098, 1094, 1089, 1085, 1081, 1076, 1072, 1067, 1063,
+                        1059, 1054, 1050, 1046, 1042, 1037, 1033, 1029, 1025, 1021, 1016,
+                        1012, 1012, 1009, 1005, 1002, 998, 995, 991, 987, 984, 981, 977,
+                        974, 970, 967, 963, 959, 956, 952, 948, 945, 941, 937, 934, 930,
+                        927, 923, 920, 916, 913, 913 };
 
-    uint8_t log2scaleOfRawSignal;
-    int16_t logTotalEnergy;
-    int16_t logTotalEnergyAvg;
+    uint16_t idx, ifft, iend;
 
+    int16_t idx_shift = FEATURES_FFT_SIZE_2N - 7;
+
+    for (ifft = 1; ifft < FEATURES_FFT_SIZE/2; ifft++) {
+        utemp64 = 0;
+	utemp64 += (int32_t)fr[ifft]*(int32_t)fr[ifft];
+	utemp64 += (int32_t)fi[ifft]*(int32_t)fi[ifft];
+
+        idx = ifft >> idx_shift;
+        kit_assert(idx < 128);
+  
+	a_weighted_energy += (utemp64 * a_weight_q10[idx]) >> 10;
+	non_weighted_energy += utemp64;
+    }
+
+
+    temp32 =  FixedPointLog2Q10(a_weighted_energy + min_energy) - 2 * log2scale*1024;
+
+    if (temp32 > INT16_MAX) {
+        temp32 = INT16_MAX;
+    }
+
+    if (temp32 < INT16_MIN) {
+        temp32 = INT16_MIN;
+    }
+
+    *logTotalEnergy = (int16_t)temp32;
+
+}
+
+
+void set_background_energy(const int16_t fr[], const int16_t fi[], int16_t log2scale) {
+    int16_t logTotalEnergy = 0;
+    int16_t logTotalEnergyAvg = 0;
     EChangeModes_t currentMode;
     uint8_t isStable;
 
-    /* Normalize time series signal  */
-    //ScaleInt16Vector(fr,&log2scaleOfRawSignal,AUDIO_FFT_SIZE,RAW_SAMPLES_SCALE);
-    log2scaleOfRawSignal = 0;
-
-    /* Get PSD of variously spaced non-overlapping frequency windows*/
-    logpsdmel(&logTotalEnergy,psd,fr,fi,log2scaleOfRawSignal,_data.psd_min_energy); //psd is now 64, and on a logarithmic scale after 1khz
+    /* compute volume */
+    getvolume(&logTotalEnergy,fr,fi,_data.min_energy,log2scale);
 
     /* Determine stability of signal energy order to figure out when to estimate background spectrum */
     logTotalEnergyAvg = MovingAverage16(_data.callcounter, logTotalEnergy, _data.energybuf, &_data.energyaccumulator,ENERGY_BUF_MASK,ENERGY_BUF_SIZE_2N);
@@ -470,9 +460,9 @@ void set_background_energy(const int16_t fr[], const int16_t fi[]) {
 
     isStable = IsStable(currentMode,logTotalEnergyAvg);
 
-    //if (c++ == 255) {
-    	LOGA("%d\n",GetAudioEnergyAsDBA(logTotalEnergyAvg));
-    //}
+    if (c++ == 255) {
+    	DISP("vol_energy=%d\r\n",GetAudioEnergyAsDBA(logTotalEnergyAvg));
+    }
 
 
     UpdateEnergyStats(isStable,logTotalEnergyAvg,logTotalEnergy);
@@ -481,6 +471,5 @@ void set_background_energy(const int16_t fr[], const int16_t fi[]) {
 
     /* Update counter.  It's okay if this one rolls over*/
     _data.callcounter++;
-
 
 }
