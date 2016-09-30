@@ -327,10 +327,26 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
     _this.speech_detector_counter++;
     //GET MEL FEATURES (one time slice in the mel spectrogram)
     tinytensor_features_get_mel_bank(melbank,fr,fi,temp16);
+ 
 
-    if( (_this.speech_detector_counter & 0x3)==0 ) {
-    	set_background_energy(fr, fi);
-    }
+    /*--------VOLUME CALCULATION CALL --------
+     in theory, we are arrive at this point in this function @ 66.6666 Hz
+     currently:
+        Fs = 16000Hz, 400 samples per FFT (last 400 samples), @ 66.666 Hz 
+        FFT_SIZE = 512
+    
+    originally 
+        Fs = 16000Hz, 256 samples per FFT (last 256 samples), @ 62.5Hz
+        FFT_SIZE = 256
+   
+    I think we just normalize based on the number of samples, since Fs is the same
+    256 / 400 = 0.64 = -3.87 dBenergy
+  
+    and for the purposes of disturbance calculations, let's just say that 62.5 Hz ~ 66.66 Hz and call it good.
+    ----------------------------------*/
+    /***********/
+    set_background_energy(fr, fi);
+    /***********/
 
     //GET MAX
     temp16 = MIN_INT_16;
