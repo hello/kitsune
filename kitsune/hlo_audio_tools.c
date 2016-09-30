@@ -32,8 +32,8 @@ AudioState get_audio_state();
 #include "audiofeatures.h"
 #include "tensor/tinytensor_math_defs.h"
 
-#define OKAY_SENSE_THRESHOLD     TOFIX(0.80)
-#define OKAY_SENSE_MIN_DURATION  20
+#define OKAY_SENSE_THRESHOLD     TOFIX(0.95)
+#define OKAY_SENSE_MIN_DURATION  5
 
 #define SNOOZE_THRESHOLD      TOFIX(0.60)
 #define SNOOZE_MIN_DURATION   1
