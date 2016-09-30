@@ -164,13 +164,14 @@ void DMAPingPongCompleteAppCB_opt()
     traceISR_ENTER();
 
 	i2s_status = MAP_I2SIntStatus(I2S_BASE);
-	dma_status = MAP_uDMAIntStatus();
+	//MAP_uDMAIntClear(dma_status);
+	//dma_status = MAP_uDMAIntStatus();
 	pControlTable = MAP_uDMAControlBaseGet();
 
 	// I2S RX
-	if (dma_status & 0x00000010) {
+	if (i2s_status & 0x40000000) {
 		qqbufsz = GetBufferSize(pAudInBuf);
-		HWREG(0x4402609c) = (1 << 10);
+		//HWREG(0x4402609c) = (1 << 10);// DMA_ICR
 		//
 		// Get the base address of the control table.
 		//
@@ -259,9 +260,9 @@ void DMAPingPongCompleteAppCB_opt()
 	}
 
 	// I2S TX
-	if (dma_status & 0x00000020) {
+	if (i2s_status & 0x80000000) {
 		qqbufsz = GetBufferSize(pAudOutBuf);
-		HWREG(0x4402609c) = (1 << 11);
+		//HWREG(0x4402609c) = (1 << 11); // DMA ICR - Miscellaneous Register
 		//pControlTable = MAP_uDMAControlBaseGet();
 		if ((pControlTable[ulPrimaryIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
@@ -336,7 +337,7 @@ void DMAPingPongCompleteAppCB_opt()
 			}
 		}
 	}
-	MAP_uDMAIntClear(dma_status);
+
 	MAP_I2SIntClear(I2S_BASE, i2s_status );
 
 	traceISR_EXIT();

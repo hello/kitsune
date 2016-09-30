@@ -167,15 +167,27 @@ void hlo_audio_init(void){
 	playback_isr_sem = xSemaphoreCreateBinary();
 	assert(playback_isr_sem);
 
-	_reset_codec();
-
-	get_system_volume();
+	Audio_Stop();
 
 	// McASP and DMA init
 	InitAudioTxRx(AUDIO_SAMPLE_RATE);
 
 	InitAudioHelper_p();
 	InitAudioHelper();
+
+	if(!audio_started){
+		_open_playback();
+		_open_record();
+
+		set_volume(0, portMAX_DELAY);
+		Audio_Start();
+
+		vTaskDelay(1);
+		_reset_codec();
+
+		get_system_volume();
+		audio_started = 1;
+	}
 
 }
 
@@ -193,14 +205,7 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint32_t direction){
 		LOGW("Unsupported Audio Mode, returning default stream\r\n");
 	}
 
-	if(!audio_started){
-		_open_record();
-		_open_playback();
 
-		set_volume(0, portMAX_DELAY);
-		Audio_Start();
-		audio_started = 1;
-	}
 	UNLOCK();
 
 	return ret;

@@ -190,7 +190,7 @@ void UDMAChannelSelect(unsigned int uiChannel, tAppCallbackHndl pfpAppCb)
         return;
     }
     MAP_uDMAChannelAssign(uiChannel);
-    MAP_uDMAChannelAttributeDisable(uiChannel,UDMA_ATTR_ALTSELECT);
+   // MAP_uDMAChannelAttributeDisable(uiChannel,UDMA_ATTR_ALTSELECT);
 
     gfpAppCallbackHndl[(uiChannel & 0xFF)] = pfpAppCb;
 }
