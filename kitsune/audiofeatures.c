@@ -7,11 +7,12 @@
 #include <stdio.h>
 #include "hellomath.h"
 #include "tensor/features_types.h"
-
 #ifdef USED_ON_DESKTOP
 #define LOGA(...)
+#include <assert.h>
 #else
 #include "uart_logger.h"
+#include "kit_assert.h"
 #endif
 
 #define TOFIX(x,q)\
@@ -83,7 +84,6 @@ typedef struct {
     
     int16_t changebuf[CHANGE_SIGNAL_BUF_SIZE];
     int32_t logProbOfModes[numChangeModes];
-    int32_t logProbOfCoherencyModes[numCoherencyModes];
     uint8_t isStable;
     int16_t energyStable;
     uint32_t stableCount;
@@ -95,13 +95,13 @@ typedef struct {
     AudioFeatureCallback_t fpCallback;
     AudioOncePerMinuteDataCallback_t fpOncePerMinuteDataCallback;
     
-} AudioFeatures_t;
+} SimpleAudioFeatures_t;
 
 
 /*--------------------------------
  *   Static Memory Declarations
  *--------------------------------*/
-static AudioFeatures_t _data;
+static SimpleAudioFeatures_t _data;
 
 
 
@@ -386,10 +386,9 @@ static void UpdateChangeSignals(EChangeModes_t * pCurrentMode, const int16_t new
     
 }
 
-__attribute__((section(".ramcode"))) static void getvolume(int16_t * logTotalEnergy,int16_t * const int16_t fr[],const int16_t fi[],uint16_t min_energy, const int16_t log2scale) {
-    uint16_t i;
-    uint16_t ufr;
-    uint16_t ufi;
+
+__attribute__((section(".ramcode")))
+static void getvolume(int16_t * logTotalEnergy, const int16_t * fr,const int16_t * fi,uint16_t min_energy, const int16_t log2scale) {
     uint64_t utemp64;
     uint64_t non_weighted_energy = 0;
     uint64_t a_weighted_energy = 0;
@@ -408,20 +407,20 @@ __attribute__((section(".ramcode"))) static void getvolume(int16_t * logTotalEne
                         974, 970, 967, 963, 959, 956, 952, 948, 945, 941, 937, 934, 930,
                         927, 923, 920, 916, 913, 913 };
 
-    uint16_t idx, ifft, iend;
+    uint16_t idx, ifft;
 
-    int16_t idx_shift = FEATURES_FFT_SIZE_2N - 7;
+    const int16_t idx_shift = FEATURES_FFT_SIZE_2N - 7;
 
     for (ifft = 1; ifft < FEATURES_FFT_SIZE/2; ifft++) {
-        utemp64 = 0;
-	utemp64 += (int32_t)fr[ifft]*(int32_t)fr[ifft];
-	utemp64 += (int32_t)fi[ifft]*(int32_t)fi[ifft];
+    	utemp64 = 0;
+    	utemp64 += (int32_t)fr[ifft]*(int32_t)fr[ifft];
+    	utemp64 += (int32_t)fi[ifft]*(int32_t)fi[ifft];
 
-        idx = ifft >> idx_shift;
-        kit_assert(idx < 128);
-  
-	a_weighted_energy += (utemp64 * a_weight_q10[idx]) >> 10;
-	non_weighted_energy += utemp64;
+    	idx = ifft >> idx_shift;
+    	assert(idx < 128);
+
+    	a_weighted_energy += (utemp64 * a_weight_q10[idx]) >> 10;
+    	non_weighted_energy += utemp64;
     }
 
 
@@ -460,7 +459,7 @@ void set_background_energy(const int16_t fr[], const int16_t fi[], int16_t log2s
 
     isStable = IsStable(currentMode,logTotalEnergyAvg);
 
-    if (c++ == 255) {
+    if (_data.callcounter & 0xFF == 0) {
     	DISP("vol_energy=%d\r\n",GetAudioEnergyAsDBA(logTotalEnergyAvg));
     }
 

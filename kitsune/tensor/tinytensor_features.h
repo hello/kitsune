@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 #include "tinytensor_types.h"
-#include "feautures_types.h"    
+#include "features_types.h"
     
     
 void tinytensor_features_initialize(void * results_context, tinytensor_audio_feat_callback_t results_callback,tinytensor_speech_detector_callback_t speech_detector_callback);

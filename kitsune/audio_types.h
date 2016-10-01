@@ -18,7 +18,9 @@
 
 #define NUM_AUDIO_FEATURES (16)
 
-#define OCTOGRAM_SIZE (AUDIO_FFT_SIZE_2N - 1)
+#define OCTOGRAM_SIZE (7)
+#define AUDIO_FFT_SIZE_2N (OCTOGRAM_SIZE + 1)
+#define AUDIO_FFT_SIZE (1 << AUDIO_FFT_SIZE_2N)
 
 /*
  // use simplelink.h instead
@@ -71,7 +73,6 @@ typedef struct {
 	uint8_t isValid;
 } AudioOncePerMinuteData_t;
 
-typedef void (*SegmentAndFeatureCallback_t)(const int16_t * feats, const Segment_t * pSegment);
 typedef void (*AudioFeatureCallback_t)(const AudioFeatures_t * pfeats);
 typedef void (*AudioOncePerMinuteDataCallback_t) (const AudioOncePerMinuteData_t * pdata);
 typedef void (*NotificationCallback_t)(void * context);
