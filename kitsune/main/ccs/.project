@@ -491,16 +491,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/codec/hlo_lossless.h</locationURI>
 		</link>
 		<link>
-			<name>codec/lpc.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/codec/lpc.c</locationURI>
-		</link>
-		<link>
-			<name>codec/lpc.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/codec/lpc.h</locationURI>
-		</link>
-		<link>
 			<name>codec/rice.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/codec/rice.c</locationURI>

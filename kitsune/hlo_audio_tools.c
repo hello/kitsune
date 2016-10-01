@@ -344,7 +344,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				send_str = hlo_stream_bw_limited( send_str, AUDIO_NET_RATE/8, 5000);
 				light_open = true;
 
-				hlo_pb_encode(send_str, speech_data_fields, &nn_ctx.speech_pb);
+			//	hlo_pb_encode(send_str, speech_data_fields, &nn_ctx.speech_pb);
 				speech_detected_time = xTaskGetTickCount();
 
 				ret = hlo_lossless_start_stream(send_str);
@@ -754,7 +754,7 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 	if(argc >= 4){
 		f = _filter_from_string(argv[3]);
 	}
-#if 0
+#if 1
 	hlo_stream_t * in = open_stream_from_path(argv[1],1);
 #else
 	hlo_stream_t * in = open_stream_from_path(argv[1],2); // TODO DKH
