@@ -119,8 +119,6 @@ int hlo_filter_lossless_encoder(hlo_stream_t * input, hlo_stream_t * output, voi
 		ret = hlo_lossless_write_frame( output, short_samples /*, (ret/(bps/8))/channels*/ );
 		if (ret < 0 ) break;
 		sent += ret;
-		ret = hlo_lossless_write_frame( output, short_samples /*, (ret/(bps/8))/channels*/ );
-		if (ret < 0 ) break;
 		BREAK_ON_SIG(signal);
 	}
 	DISP("%d idle, got %d, sent %d, ratio %d\n", idlecnt, got, sent, sent*100/got);
