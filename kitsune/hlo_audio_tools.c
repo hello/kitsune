@@ -215,7 +215,7 @@ extern bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, 
 #include "tensor/keyword_net.h"
 typedef struct{
 	hlo_stream_t * base;
-	speech_data speech_pb;
+	SpeechRequest speech_pb;
 	uint8_t threshold;
 	uint16_t reserved;
 	uint32_t timeout;
@@ -232,6 +232,12 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 
 	p->speech_pb.has_version = true;
 	p->speech_pb.version = KIT_VER;
+	p->speech_pb.has_eq = true;
+	p->speech_pb.eq = Equalizer_NONE;
+	p->speech_pb.has_response = true;
+	p->speech_pb.response = AudioFormat_ADPCM;
+	p->speech_pb.has_sampling_rate = true;
+	p->speech_pb.sampling_rate = AUDIO_SAMPLE_RATE/2;
 
 	p->speech_pb.has_confidence = true;
 	p->speech_pb.confidence = value >> 5; // I think server is expecting q7
@@ -242,13 +248,13 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	switch (keyword ) {
 	case okay_sense:
 		LOGI("OKAY SENSE\r\n");
-		p->speech_pb.word = keyword_OK_SENSE;
+		p->speech_pb.word = Keyword_OK_SENSE;
 		break;
 	case snooze:
-		p->speech_pb.word = keyword_SNOOZE;
+		p->speech_pb.word = Keyword_SNOOZE;
 		break;
 	case stop:
-		p->speech_pb.word = keyword_STOP;
+		p->speech_pb.word = Keyword_STOP;
 		break;
 	}
 }
@@ -343,7 +349,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				send_str = hlo_stream_bw_limited( send_str, AUDIO_NET_RATE/8, 5000);
 				light_open = true;
 
-				hlo_pb_encode(send_str, speech_data_fields, &nn_ctx.speech_pb);
+				hlo_pb_encode(send_str, SpeechRequest_fields, &nn_ctx.speech_pb);
+
 				speech_detected_time = xTaskGetTickCount();
 			} else {
 				adpcm_coder((short*)samples, (char*)compressed, ret / 2, &state);
