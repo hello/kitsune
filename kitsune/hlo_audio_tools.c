@@ -235,6 +235,12 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 
 	p->speech_pb.has_version = true;
 	p->speech_pb.version = KIT_VER;
+	p->speech_pb.has_eq = true;
+	p->speech_pb.eq = Equalizer_NONE;
+	p->speech_pb.has_response = true;
+	p->speech_pb.response = AudioFormat_LOSSLESS;
+	p->speech_pb.has_sampling_rate = true;
+	p->speech_pb.sampling_rate = AUDIO_SAMPLE_RATE/2;
 
 	p->speech_pb.has_confidence = true;
 	p->speech_pb.confidence = value >> 5; // I think server is expecting q7
@@ -344,7 +350,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				send_str = hlo_stream_bw_limited( send_str, AUDIO_NET_RATE/8, 5000);
 				light_open = true;
 
-			//	hlo_pb_encode(send_str, speech_data_fields, &nn_ctx.speech_pb);
+				hlo_pb_encode(send_str, speech_data_fields, &nn_ctx.speech_pb);
 				speech_detected_time = xTaskGetTickCount();
 
 				ret = hlo_lossless_start_stream(send_str);
