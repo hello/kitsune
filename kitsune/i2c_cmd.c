@@ -917,7 +917,7 @@ volatile int sys_volume = 64;
 #define VOL_LOC "/hello/vol"
 int get_system_volume() {
 	 if( fs_get(VOL_LOC, &sys_volume, sizeof(sys_volume), NULL) < 0 ) {
-		 sys_volume = 64;
+		 sys_volume = 60;
 	 }
 }
 int32_t set_system_volume(int new_volume) {
