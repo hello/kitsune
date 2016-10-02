@@ -199,7 +199,7 @@ static int circ_write(void * ctx, const void * buf, size_t size){
 	uint8_t dummy;
 
 	while(circ->filled > circ->capacity - size - 1){
-		circ_read_byte(circ, dummy);
+		circ_read_byte(circ, &dummy);
 	}
 	int written = 0;
 	while(size && circ->filled < circ->capacity){

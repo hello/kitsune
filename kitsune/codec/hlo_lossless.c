@@ -13,6 +13,7 @@ static const uint32_t frame_sync = 0xAA55FF00;
 static const int samples_per_channel = BLOCK_SIZE;
 
 
+#include "uart_logger.h"
 hlo_stream_t * hlo_lossless_init_chunkbuf( int size ) {
 	return circ_stream_open(size);
 }
@@ -20,22 +21,26 @@ int hlo_lossless_write_chunkbuf( hlo_stream_t * s, int16_t short_samples[] ) {
 	return hlo_lossless_write_frame(s, short_samples);
 }
 int hlo_lossless_dump_chunkbuf( hlo_stream_t * s, hlo_stream_t * output ) {
-	uint32_t word;
+	uint32_t word,w=0;
 	int ret = 1;
 	uint8_t buf[512];
 
 	//scan for frame sync
-	while( ret ) {
+	while( ret >= 0 ) {
 		ret = hlo_stream_transfer_all(FROM_STREAM, s, (uint8_t*)&word,sizeof(int32_t), 4);
 		if (ret < 0 ) break;
+		w++;
 		//since we are guaranteed writes work on the circ stream there much be a whole number
 		//of frames after the first sync. It's possible frames of different sizes come in, in which case
 		//an incoming frame could eat the header off the eldest frame to make room
 		if( word == frame_sync ) {
+			DISP("got sync at %d\n", 4*w);
 			hlo_lossless_start_stream(output);
 			ret = hlo_stream_transfer_all(INTO_STREAM, output, (uint8_t*)&frame_sync,sizeof(int32_t), 4);
 			if (ret < 0 ) break;
-			ret = hlo_stream_transfer_between(s,output,buf,sizeof(buf),4);
+			while( ret >= 0 ) {
+				ret = hlo_stream_transfer_between(s,output,buf,sizeof(buf),4);
+			}
 			if (ret < 0 ) break;
 		}
 	}
@@ -101,8 +106,9 @@ int hlo_lossless_write_frame(hlo_stream_t * output, int16_t short_samples[] ) {
 	}
 	return ret;
 }
-#include "uart_logger.h"
 extern volatile unsigned int idlecnt;
+#include "FreeRTOS.h"
+#include "task.h"
 int hlo_filter_lossless_encoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	int16_t short_samples[BLOCK_SIZE];
 	int ret = hlo_lossless_start_stream(output);
@@ -111,6 +117,7 @@ int hlo_filter_lossless_encoder(hlo_stream_t * input, hlo_stream_t * output, voi
 	//x $a $i192.168.7.24 x
 	uint32_t got=0, sent=0;
 	idlecnt = 0;
+	TickType_t begin = xTaskGetTickCount();
 
 	while(1){
 		ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)short_samples, sizeof(short_samples) /*read_size*bps/8*/, 4);
@@ -121,7 +128,9 @@ int hlo_filter_lossless_encoder(hlo_stream_t * input, hlo_stream_t * output, voi
 		sent += ret;
 		BREAK_ON_SIG(signal);
 	}
-	DISP("%d idle, got %d, sent %d, ratio %d\n", idlecnt, got, sent, sent*100/got);
+	DISP("%d idle\n", idlecnt);
+    DISP("%d kbps\n", (1000 * sent / (xTaskGetTickCount()-begin))/1024);
+    DISP("got %d, sent %d, ratio %d\n", got, sent, sent*100/got);
 
 	return ret;
 }

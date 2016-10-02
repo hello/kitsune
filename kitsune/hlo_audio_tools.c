@@ -355,7 +355,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				//hlo_pb_encode(send_str, speech_data_fields, &nn_ctx.speech_pb);
 				speech_detected_time = xTaskGetTickCount();
 
-				ret = hlo_lossless_dump_chunkbuf( wwbuf, send_str );
+				hlo_lossless_dump_chunkbuf( wwbuf, send_str );
 			}
 			if( ret < 0 ) {
 				break;
