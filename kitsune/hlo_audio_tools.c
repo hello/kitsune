@@ -352,7 +352,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				send_str = hlo_stream_bw_limited( send_str, AUDIO_NET_RATE/8, 5000);
 				light_open = true;
 
-				//hlo_pb_encode(send_str, speech_data_fields, &nn_ctx.speech_pb);
+				hlo_pb_encode(send_str, speech_data_fields, &nn_ctx.speech_pb);
 				speech_detected_time = xTaskGetTickCount();
 
 				hlo_lossless_dump_chunkbuf( wwbuf, send_str );
