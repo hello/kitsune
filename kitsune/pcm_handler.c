@@ -87,7 +87,8 @@
 //*****************************************************************************
 //                          LOCAL DEFINES
 //*****************************************************************************
-
+// DMA address end-pointer to the last address of the DMA transfer (inclusive).
+#define END_PTR (CB_TRANSFER_SZ*4)-4
 
 //*****************************************************************************
 //                          GLOBAL VARIABLES
@@ -179,15 +180,10 @@ void DMAPingPongCompleteAppCB_opt()
 		//PRIMARY part of the ping pong
 		if ((pControlTable[ulPrimaryIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
-#if (CODEC_ENABLE_MULTI_CHANNEL==1)
-			#define END_PTR_DEBUG (CB_TRANSFER_SZ*4)-1
-#else
-			#define END_PTR_DEBUG  END_PTR
-#endif
 			pucDMADest = (unsigned char *) ping;
 			pControlTable[ulPrimaryIndexTx].ulControl |= CTRL_WRD;
 			pControlTable[ulPrimaryIndexTx].pvDstEndAddr = (void *) (pucDMADest
-					+ END_PTR_DEBUG);
+					+ END_PTR);
 			MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==0)
@@ -230,7 +226,7 @@ void DMAPingPongCompleteAppCB_opt()
 				pucDMADest = (unsigned char *) pong;
 				pControlTable[ulAltIndexTx].ulControl |= CTRL_WRD;
 				pControlTable[ulAltIndexTx].pvDstEndAddr = (void *) (pucDMADest
-						+ END_PTR_DEBUG);
+						+ END_PTR);
 				MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==0)
@@ -287,12 +283,6 @@ void DMAPingPongCompleteAppCB_opt()
 		HWREG(0x4402609c) = (1 << 11);
 		pControlTable = MAP_uDMAControlBaseGet();
 
-#if (CODEC_ENABLE_MULTI_CHANNEL==1)
-			#define END_PTR_DEBUG (CB_TRANSFER_SZ*4)-1
-#else
-			#define END_PTR_DEBUG  END_PTR
-#endif
-
 		if ((pControlTable[ulPrimaryIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
 			if ( qqbufsz > CB_TRANSFER_SZ && can_playback) {
@@ -324,7 +314,7 @@ void DMAPingPongCompleteAppCB_opt()
 			pControlTable[ulPrimaryIndexRx].ulControl |= CTRL_WRD;
 			//pControlTable[ulPrimaryIndex].pvSrcEndAddr = (void *)((unsigned long)&gaucZeroBuffer[0] + 15);
 			pControlTable[ulPrimaryIndexRx].pvSrcEndAddr =
-					(void *) ((unsigned long) pucDMASrc + END_PTR_DEBUG);
+					(void *) ((unsigned long) pucDMASrc + END_PTR);
 			//HWREG(DMA_BASE + UDMA_O_ENASET) = (1 << 5);
 			MAP_uDMAChannelEnable(UDMA_CH5_I2S_TX);
 		} else {
@@ -357,7 +347,7 @@ void DMAPingPongCompleteAppCB_opt()
 
 				pControlTable[ulAltIndexRx].ulControl |= CTRL_WRD;
 				pControlTable[ulAltIndexRx].pvSrcEndAddr =
-						(void *) ((unsigned long) pucDMASrc + END_PTR_DEBUG);
+						(void *) ((unsigned long) pucDMASrc + END_PTR);
 				//HWREG(DMA_BASE + UDMA_O_ENASET) = (1 << 5);
 				MAP_uDMAChannelEnable(UDMA_CH5_I2S_TX);
 			}
