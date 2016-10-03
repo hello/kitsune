@@ -168,7 +168,6 @@ void DMAPingPongCompleteAppCB_opt()
 	// I2S RX
 	if (i2s_status & 0x40000000) {
 		qqbufsz = GetBufferSize(pAudInBuf);
-		HWREG(0x4402609c) = (1 << 10);
 		//
 		// Get the base address of the control table.
 		//
@@ -278,7 +277,6 @@ void DMAPingPongCompleteAppCB_opt()
 	// I2S TX
 	if (i2s_status & 0x80000000) {
 		qqbufsz = GetBufferSize(pAudOutBuf);
-		HWREG(0x4402609c) = (1 << 11);
 		pControlTable = MAP_uDMAControlBaseGet();
 
 		if ((pControlTable[ulPrimaryIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
