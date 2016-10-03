@@ -235,7 +235,7 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	p->speech_pb.has_eq = true;
 	p->speech_pb.eq = Equalizer_NONE;
 	p->speech_pb.has_response = true;
-	p->speech_pb.response = AudioFormat_ADPCM;
+	p->speech_pb.response = AudioFormat_MP3;
 	p->speech_pb.has_sampling_rate = true;
 	p->speech_pb.sampling_rate = AUDIO_SAMPLE_RATE/2;
 
