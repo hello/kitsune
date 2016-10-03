@@ -148,6 +148,13 @@ void pcm_set_ping_pong_incoming_stream_mode(const int mode) {
 	_pcm_ping_pong_incoming_stream_mode = mode;
 }
 
+
+/* << 20 because I2SIntStatus() shifts DMA_RIS contents by 20.
+ */
+#define MCASP_WR_DMA_DONE_INT_STS_ACTIVE ((1UL << 11) << 20)
+#define MCASP_RD_DMA_DONE_INT_STS_ACTIVE ((1UL << 10) << 20)
+
+
 /*ramcode*/
 void DMAPingPongCompleteAppCB_opt()
 {
@@ -163,10 +170,12 @@ void DMAPingPongCompleteAppCB_opt()
 
     traceISR_ENTER();
 
+    /*The interrupt status returns the DMA_RIS, MCASP_XSTAT and MCASP_RSTAT registers.
+     *Of the three, only DMA_RIS is used in this ISR callback */
 	i2s_status = MAP_I2SIntStatus(I2S_BASE);
 
 	// I2S RX
-	if (i2s_status & 0x40000000) {
+	if (i2s_status & MCASP_RD_DMA_DONE_INT_STS_ACTIVE) {
 		qqbufsz = GetBufferSize(pAudInBuf);
 		//
 		// Get the base address of the control table.
@@ -275,7 +284,7 @@ void DMAPingPongCompleteAppCB_opt()
 	}
 
 	// I2S TX
-	if (i2s_status & 0x80000000) {
+	if (i2s_status & MCASP_WR_DMA_DONE_INT_STS_ACTIVE) {
 		qqbufsz = GetBufferSize(pAudOutBuf);
 		pControlTable = MAP_uDMAControlBaseGet();
 
