@@ -293,8 +293,7 @@ void DMAPingPongCompleteAppCB_opt()
 			if ( qqbufsz > CB_TRANSFER_SZ && can_playback) {
 				guiDMATransferCountRx += CB_TRANSFER_SZ*4;
 
-				memcpy(  (void*)ping_p, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
-				UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
+				ReadBuffer(pAudOutBuf,(unsigned char*)ping_p,CB_TRANSFER_SZ);
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
 				for (i = CB_TRANSFER_SZ/4-1; i!=-1 ; --i) {
@@ -328,8 +327,8 @@ void DMAPingPongCompleteAppCB_opt()
 				if ( qqbufsz > CB_TRANSFER_SZ && can_playback) {
 					guiDMATransferCountRx += CB_TRANSFER_SZ*4;
 
-					memcpy(  (void*)pong_p,  (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
-					UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
+					ReadBuffer(pAudOutBuf,(unsigned char*)pong_p,CB_TRANSFER_SZ);
+
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
 				for (i = CB_TRANSFER_SZ/4-1; i!=-1 ; --i) {
 					pong_p[(i<<2) + 3] = 0;
