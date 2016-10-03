@@ -1760,9 +1760,9 @@ void launch_tasks() {
 	hlo_audio_init();
 
 	// Create audio tasks for playback and record
-	xTaskCreate(AudioPlaybackTask,"playbackTask",10*1024/4,NULL,4,NULL);
+	xTaskCreate(AudioPlaybackTask,"playbackTask",4*1024/4,NULL,4,NULL);
 
-	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 2, NULL);
+	xTaskCreate(AudioControlTask, "AudioControl",  7*1024 / 4, NULL, 2, NULL);
 }
 
 int Cmd_boot(int argc, char *argv[]) {

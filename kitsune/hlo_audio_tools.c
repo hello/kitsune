@@ -336,7 +336,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	uint32_t begin = xTaskGetTickCount();
 	uint32_t speech_detected_time;
 
-	hlo_stream_t * wwbuf = hlo_lossless_init_chunkbuf(10*1024);
+	hlo_stream_t * wwbuf = hlo_lossless_init_chunkbuf(20*1024);
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, NUM_SAMPLES_TO_RUN_FFT*2, 4)) > 0 ){
 		//net always gets samples
