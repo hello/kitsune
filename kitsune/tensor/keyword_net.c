@@ -86,7 +86,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 		for (j = 2; j < out->dims[3]; j++) {
 			max = max > out->x[j] ? max : out->x[j];
 		}
-
+/*
 		for(j = 0 ; j < 10; j++){
 			if(max >= j * TOFIX(0.1) ){
 				DISP("X");
@@ -95,6 +95,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 			}
 		}
 		DISP("%03d %d\r", out->x[1], idlecnt);
+*/
 		idlecnt = 0;
 	}
 

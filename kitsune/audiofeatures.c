@@ -28,9 +28,6 @@
 #define PSD_SIZE_2N (5)
 #define PSD_SIZE (1 << PSD_SIZE_2N)
 
-#define SAMPLE_RATE_IN_HZ (66)
-#define SAMPLE_PERIOD_IN_MILLISECONDS  (1000 / SAMPLE_RATE_IN_HZ)
-
 #define ENERGY_BUF_SIZE_2N (4)
 #define ENERGY_BUF_SIZE (1 << ENERGY_BUF_SIZE_2N)
 #define ENERGY_BUF_MASK (ENERGY_BUF_SIZE - 1)
@@ -44,7 +41,7 @@
 #define TRUE (1)
 #define FALSE (0)
 
-#define MICROPHONE_NOISE_FLOOR_DB (0.0f)
+#define MICROPHONE_CALIBRATION_OFFSET (56.0f)
 
 
 //the higher this gets, the less likely you are to be stable
@@ -92,8 +89,7 @@ typedef struct {
     uint8_t statsLastIsStable;
     int16_t maxenergy;
 
-    AudioFeatureCallback_t fpCallback;
-    AudioOncePerMinuteDataCallback_t fpOncePerMinuteDataCallback;
+    AudioEnergyStatsCallback_t fpEnergyStatsResultsCallback;
     
 } SimpleAudioFeatures_t;
 
@@ -109,11 +105,11 @@ static SimpleAudioFeatures_t _data;
 /*--------------------------------
  *   Functions
  *--------------------------------*/
-void init_background_energy(AudioOncePerMinuteDataCallback_t fpOncePerMinuteCallback) {
+void init_background_energy(AudioEnergyStatsCallback_t fpOncePerMinuteCallback) {
     
     memset(&_data,0,sizeof(_data));
     
-    _data.fpOncePerMinuteDataCallback = fpOncePerMinuteCallback;
+    _data.fpEnergyStatsResultsCallback = fpOncePerMinuteCallback;
 
     _data.min_energy = MIN_ENERGY;
 
@@ -132,7 +128,7 @@ static int32_t GetAudioEnergyAsDBA(int16_t logenergy) {
 	dba *= 3;
 
 	//add microphone noise floor (measured)
-	dba += TOFIX(MICROPHONE_NOISE_FLOOR_DB,10);
+	dba += TOFIX(MICROPHONE_CALIBRATION_OFFSET,10);
 
 	return dba;
 }
@@ -158,13 +154,12 @@ static int16_t MovingAverage16(uint32_t counter, const int16_t x,int16_t * buf, 
 
 //finds stats of a disturbance, and performs callback when distubance is over
 static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t logTotalEnergy) {
-	AudioOncePerMinuteData_t data;
-
-	data.num_disturbances = 0;
+	AudioEnergyStats_t data;
+	memset(&data,0,sizeof(data));
 
 	//leaving stable mode -- therefore starting a disturbance
 	if (!isStable && _data.statsLastIsStable) {
-		DISP("S->US\r\n");
+		//DISP("S->US\r\n");
 		_data.maxenergy = logTotalEnergy;
 	}
 
@@ -176,15 +171,15 @@ static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t
 
 	//entering stable mode --ending a disturbance
 	if (isStable && !_data.statsLastIsStable ) {
-		DISP("US->S\r\n");
+		//DISP("US->S\r\n");
 		data.num_disturbances = 1;
 	}
 
-	if (_data.fpOncePerMinuteDataCallback) {
+	if (_data.fpEnergyStatsResultsCallback) {
+		data.disturbance_time_count = isStable ? 0 : SAMPLE_PERIOD_IN_MILLISECONDS;
 		data.peak_background_energy = GetAudioEnergyAsDBA(logTotalEnergyAvg);
 		data.peak_energy = GetAudioEnergyAsDBA(logTotalEnergy);
-
-		_data.fpOncePerMinuteDataCallback(&data);
+		_data.fpEnergyStatsResultsCallback(&data);
 	}
 
 
@@ -196,7 +191,6 @@ static uint8_t IsStable(EChangeModes_t currentMode,const int16_t energySignal) {
     
     uint8_t isStable = FALSE;
     
- 
     if (currentMode != stable) {
         _data.stableCount = 0;
     }
@@ -456,19 +450,19 @@ void set_background_energy(const int16_t fr[], const int16_t fi[], int16_t log2s
      *   that all the audio we are hearing is just background noise
      */
     UpdateChangeSignals(&currentMode, logTotalEnergyAvg, _data.callcounter);
-
     isStable = IsStable(currentMode,logTotalEnergyAvg);
-
-    if (_data.callcounter & 0xFF == 0) {
-    	DISP("vol_energy=%d\r\n",GetAudioEnergyAsDBA(logTotalEnergyAvg));
-    }
 
 
     UpdateEnergyStats(isStable,logTotalEnergyAvg,logTotalEnergy);
 
     _data.lastEnergy = logTotalEnergy;
 
-    /* Update counter.  It's okay if this one rolls over*/
     _data.callcounter++;
+
+    /*
+    if (_data.callcounter % 66 == 0) {
+       	DISP("vol_energy=%d\r\n",GetAudioEnergyAsDBA(logTotalEnergyAvg));
+    }
+*/
 
 }

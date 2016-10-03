@@ -11,11 +11,9 @@
 extern "C" {
 #endif
 
-    
-
 
 /*  exported for your enjoyment -- use these! */
-void init_background_energy(AudioOncePerMinuteDataCallback_t fpOncePerMinuteCallback);
+void init_background_energy(AudioEnergyStatsCallback_t fpOncePerMinuteCallback);
     
 /*  Expects FEATURES_FFT_SIZE samples in samplebuf  */
 void set_background_energy(const int16_t fr[], const int16_t fi[], int16_t log2scale);

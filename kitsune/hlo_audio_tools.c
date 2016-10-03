@@ -42,11 +42,11 @@ AudioState get_audio_state();
 #define STOP_MIN_DURATION     1
 
 static xSemaphoreHandle _statsMutex = NULL;
-static AudioOncePerMinuteData_t _stats;
+static AudioEnergyStats_t _stats;
 
 int audio_sig_stop = 0;
 
-static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
+static void StatsCallback(const AudioEnergyStats_t * pdata) {
 
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
 
@@ -55,11 +55,12 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 		LOGI("\n");
 	}
 	_stats.num_disturbances += pdata->num_disturbances;
+	_stats.disturbance_time_count += pdata->disturbance_time_count;
 	_stats.num_samples++;
 
-        if (pdata->peak_background_energy > _stats.peak_background_energy) {
-            _stats.peak_background_energy = pdata->peak_background_energy;
-        }
+	if (pdata->peak_background_energy > _stats.peak_background_energy) {
+		_stats.peak_background_energy = pdata->peak_background_energy;
+	}
 
 	if (pdata->peak_energy > _stats.peak_energy) {
 	    _stats.peak_energy = pdata->peak_energy;
@@ -67,15 +68,17 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 	_stats.isValid = 1;
 	xSemaphoreGive(_statsMutex);
 }
-void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
+void AudioTask_DumpOncePerMinuteStats(AudioEnergyStats_t * pdata) {
 	if(!_statsMutex){
 		_statsMutex = xSemaphoreCreateMutex();
 		assert(_statsMutex);
 	}
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
-	memcpy(pdata,&_stats,sizeof(AudioOncePerMinuteData_t));
-	pdata->peak_background_energy/=pdata->num_samples;
+
+	//copy and reset
+	memcpy(pdata,&_stats,sizeof(AudioEnergyStats_t));
 	memset(&_stats,0,sizeof(_stats));
+
 	xSemaphoreGive(_statsMutex);
 }
 ////-------------------------------------------

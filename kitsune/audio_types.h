@@ -70,11 +70,12 @@ typedef struct {
 	int32_t num_samples;
 	int32_t peak_energy;
 	int32_t peak_background_energy;
+	int32_t disturbance_time_count;
 	uint8_t isValid;
-} AudioOncePerMinuteData_t;
+} AudioEnergyStats_t;
 
 typedef void (*AudioFeatureCallback_t)(const AudioFeatures_t * pfeats);
-typedef void (*AudioOncePerMinuteDataCallback_t) (const AudioOncePerMinuteData_t * pdata);
+typedef void (*AudioEnergyStatsCallback_t) (const AudioEnergyStats_t * pdata);
 typedef void (*NotificationCallback_t)(void * context);
 typedef void (*RecordAudioCallback_t)(const AudioCaptureDesc_t * request);
     
