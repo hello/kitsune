@@ -391,9 +391,6 @@ int wait_for_top_boot(unsigned int timeout) {
 int send_top(char * s, int n) {
 	int i;
 
-	if( !self.top_boot ) {
-		return -1;
-	}
 	if(self.mode == TOP_NORMAL_MODE){
 		if(memcmp(s, "r ", 2) != 0)
 		{
