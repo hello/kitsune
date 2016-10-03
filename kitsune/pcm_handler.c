@@ -158,17 +158,15 @@ void DMAPingPongCompleteAppCB_opt()
     tCircularBuffer *pAudInBuf = pTxBuffer;
     unsigned char *pucDMADest;
     unsigned char *pucDMASrc;
-    unsigned int dma_status;
     unsigned int i2s_status;
     int i = 0;
 
     traceISR_ENTER();
 
-	i2s_status = I2SIntStatus(I2S_BASE);
-	dma_status = uDMAIntStatus();
+	i2s_status = MAP_I2SIntStatus(I2S_BASE);
 
 	// I2S RX
-	if (dma_status & 0x00000010) {
+	if (i2s_status & 0x40000000) {
 		qqbufsz = GetBufferSize(pAudInBuf);
 		HWREG(0x4402609c) = (1 << 10);
 		//
@@ -278,7 +276,7 @@ void DMAPingPongCompleteAppCB_opt()
 	}
 
 	// I2S TX
-	if (dma_status & 0x00000020) {
+	if (i2s_status & 0x80000000) {
 		qqbufsz = GetBufferSize(pAudOutBuf);
 		HWREG(0x4402609c) = (1 << 11);
 		pControlTable = MAP_uDMAControlBaseGet();
@@ -364,8 +362,8 @@ void DMAPingPongCompleteAppCB_opt()
 			}
 		}
 	}
-	uDMAIntClear(dma_status);
-	I2SIntClear(I2S_BASE, i2s_status );
+
+	MAP_I2SIntClear(I2S_BASE, i2s_status );
 
 	traceISR_EXIT();
 }
