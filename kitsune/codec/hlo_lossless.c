@@ -23,10 +23,11 @@ int hlo_lossless_write_chunkbuf( hlo_stream_t * s, int16_t short_samples[] ) {
 int hlo_lossless_dump_chunkbuf( hlo_stream_t * s, hlo_stream_t * output ) {
 	uint32_t word,w=0;
 	int ret = 1;
+	int ret_out = 1;
 	uint8_t buf[512];
 
 	//scan for frame sync
-	while( ret >= 0 ) {
+	while( 1 ) {
 		ret = hlo_stream_transfer_all(FROM_STREAM, s, (uint8_t*)&word,sizeof(int32_t), 4);
 		if (ret < 0 ) break;
 		w++;
@@ -36,16 +37,18 @@ int hlo_lossless_dump_chunkbuf( hlo_stream_t * s, hlo_stream_t * output ) {
 		if( word == frame_sync ) {
 			DISP("got sync at %d\n", 4*w);
 			hlo_lossless_start_stream(output);
-			ret = hlo_stream_transfer_all(INTO_STREAM, output, (uint8_t*)&frame_sync,sizeof(int32_t), 4);
-			if (ret < 0 ) break;
+			ret_out = hlo_stream_transfer_all(INTO_STREAM, output, (uint8_t*)&frame_sync,sizeof(int32_t), 4);
+			if (ret_out < 0 ) break;
 			while( ret >= 0 ) {
-				ret = hlo_stream_transfer_between(s,output,buf,sizeof(buf),4);
+				int ret = hlo_stream_transfer_all(FROM_STREAM, s, buf,sizeof(buf), 4 );
+				if(ret < 0)	break;
+				ret_out = hlo_stream_transfer_all(INTO_STREAM, output, buf,sizeof(buf), 4 );
+				if (ret_out < 0 ) break;
 			}
-			if (ret < 0 ) break;
 		}
 	}
 	hlo_stream_close(s);
-	return ret;
+	return ret_out;
 }
 
 int hlo_lossless_start_stream( hlo_stream_t * output) {
