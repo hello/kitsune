@@ -149,36 +149,10 @@ static const reg_value REG_Section_program[] = {
     {  3,0x00},
 //			# reg[0][1][4 ] = 0x00                       ; reg(0)(1)(0x04 => 4 )     RDAC FIR
     {  4,0x00},
-#if 0
-//			# reg[0][1][31] = 0x80                       ; reg(0)(1)(0x1F =>31 )     HP in ground Centered mode; HPL gain 0 dB
-    { 31,0x80},
-//			# reg[0][1][32] = 0x00                       ; reg(0)(1)(0x20 =>32 )     HPR independent gain 0 dB
-    { 32,0x00},
-//			# reg[0][1][33] = 0x28                       ; reg(0)(1)(0x21 =>33 )     Charge pump runs on Osc./4
-    { 33,0x28},
-//			# reg[0][1][34] = 0x33 ;0x3e                       ; reg(0)(1)(0x22 =>34 )     Set CP mode
-    { 34,0x33},
-//			# reg[0][1][35] = 0x10                       ; reg(0)(1)(0x23 =>35 )     Power up CP with HP
-    { 35,0x10},
-//			# reg[0][1][52] = 0x40                       ; reg(0)(1)(0x34 => 52)     ADC IN1_L is selected for left P
-    { 52,0x40},
-//			# reg[0][1][54] = 0x40                       ; reg(0)(1)(0x36 => 54)     ADC CM1 is selected for left M
-    { 54,0x40},
-//			# reg[0][1][55] = 0x40                       ; reg(0)(1)(0x37 => 55)     ADC IN1_R is selected for right P
-    { 55,0x40},
-//			# reg[0][1][57] = 0x40                       ; reg(0)(1)(0x39 => 57)     ADC CM1 is selected for right M
-    { 57,0x40},
-
-#endif
 //			# reg[0][1][121] = 0x33                      ; reg(0)(1)(0x79 => 121)    Quick charge time for Mic inputs
     {121,0x33},
 //			# reg[0][1][122] = 0x01                      ; reg(0)(1)(0x7A => 122)    Vref charge time - 40 ms.
     {122,0x01},
-#if (KITSUNE_CODE==1)
-#if 0
-	{ 51, (4<<0)},
-#endif
-#endif
 };
 
 static const reg_value REG_Section_program2[] = {
@@ -227,13 +201,6 @@ static const reg_value REG_Section_program2[] = {
     { 63,0xC2},
 //			# reg[0][0][64] = 0x00                       ; reg(0)(0)(0x40 => 64)     DAC Left and Right DAC unmuted with indep.  vol. ctrl
     { 64,0x00},
-#if (KITSUNE_CODE==1)
-#if 0
-	// digital volume control
-	{ 65, 0x30},
-	{ 66, 0x30},
-#endif
-#endif
 //			# reg[0][0][81] = 0xd6                      ; reg(0)(0)(0x51 => d6)     ADC Powerup ADC left and right channels in Digital mode(soft-stepping disable)
     { 81,0xD6},
 //			# reg[0][0][82] = 0x00                       ; reg(0)(0)(0x51 => 81)     ADC Powerup ADC left and right channels (soft-stepping disable); reg(0)(0)(0x52 => 82)     ADC Unmute ADC left and right channels,L,R fine gain=0dB
@@ -358,38 +325,6 @@ static const reg_value REG_Section_program2[] = {
 
 //			# reg[0][0][82] = 0
     { 82,0x00},
-#if 0 // AGC
-//			# reg[0][0][86] = 32
-    { 86,0x20},
-//			# reg[0][0][87] = 254
-    { 87,0xFE},
-//			# reg[0][0][88] = 0
-    { 88,0x00},
-//			# reg[0][0][89] = 104
-    { 89,0x68},
-//			# reg[0][0][90] = 168
-    { 90,0xA8},
-//			# reg[0][0][91] = 6
-    { 91,0x06},
-//			# reg[0][0][92] = 0
-    { 92,0x00},
-//			# reg[0][0][84] = 0
-    { 84,0x00},
-//			# reg[0][0][94] = 32
-    { 94,0x20},
-//			# reg[0][0][95] = 254
-    { 95,0xFE},
-//			# reg[0][0][96] = 0
-    { 96,0x00},
-//			# reg[0][0][97] = 104
-    { 97,0x68},
-//			# reg[0][0][98] = 168
-    { 98,0xA8},
-//			# reg[0][0][99] = 6
-    { 99,0x06},
-//			# reg[0][0][100] = 0
-    {100,0x00},
-#endif
 };
 
 const static reg_value miniDSP_A_reg_values[] = {
