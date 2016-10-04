@@ -26,6 +26,7 @@ int verify_top_update(void);
 
 void start_top_boot_watcher(void);
 bool is_top_in_dfu(void);
+int activate_top_ota(void);
 
 #ifdef __cplusplus
 }

@@ -925,7 +925,7 @@ void boot_commit_ota() {
         DISP("\r\n-----------------------\r\n");
         if( !verify_top_update() ){
             LOGI("Updating top board\r\n");
-            send_top("dfu", strlen("dfu"));
+            activate_top_ota();
             if(wait_for_top_boot(60000)){
                 LOGI("Top board update success\r\n");
 				//delete update on success
