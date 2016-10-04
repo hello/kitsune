@@ -388,6 +388,7 @@ static void getvolume(int16_t * logTotalEnergy, const int16_t * fr,const int16_t
     uint64_t a_weighted_energy = 0;
     int32_t temp32;
     
+    //from 0 - 8Khz
     const static uint16_t a_weight_q10[128] = { 0, 0, 100, 150, 263, 379, 489,
                         510, 725, 763, 823, 859, 896, 934, 963, 994, 1024, 1054, 1085, 1093,
                         1101, 1110, 1123, 1136, 1149, 1152, 1156, 1159, 1162, 1166, 1169,
@@ -403,7 +404,7 @@ static void getvolume(int16_t * logTotalEnergy, const int16_t * fr,const int16_t
 
     uint16_t idx, ifft;
 
-    const int16_t idx_shift = FEATURES_FFT_SIZE_2N - 7;
+    const int16_t idx_shift = FEATURES_FFT_SIZE_2N - 8;
 
     for (ifft = 1; ifft < FEATURES_FFT_SIZE/2; ifft++) {
     	utemp64 = 0;
