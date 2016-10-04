@@ -28,6 +28,10 @@
 #define PSD_SIZE_2N (5)
 #define PSD_SIZE (1 << PSD_SIZE_2N)
 
+#define FRAME_AVG_BUF_SIZE_2N (2)
+#define FRAME_AVG_BUF_SIZE (1 << FRAME_AVG_BUF_SIZE_2N)
+#define FRAME_AVG_BUF_MASK (FRAME_AVG_BUF_SIZE - 1)
+
 #define ENERGY_BUF_SIZE_2N (4)
 #define ENERGY_BUF_SIZE (1 << ENERGY_BUF_SIZE_2N)
 #define ENERGY_BUF_MASK (ENERGY_BUF_SIZE - 1)
@@ -71,6 +75,9 @@ typedef enum {
 } EChangeModes_t;
 
 typedef struct {
+	int16_t framebuf[FRAME_AVG_BUF_SIZE];
+	int32_t frameaccumulator;
+
     int16_t energybuf[ENERGY_BUF_SIZE];//32 bytes
     int32_t energyaccumulator;
     
@@ -437,6 +444,7 @@ static void getvolume(int16_t * logTotalEnergy, const int16_t * fr,const int16_t
 void set_background_energy(const int16_t fr[], const int16_t fi[], int16_t log2scale) {
     int16_t logTotalEnergy = 0;
     int16_t logTotalEnergyAvg = 0;
+
     EChangeModes_t currentMode;
     uint8_t isStable;
 
@@ -453,6 +461,9 @@ void set_background_energy(const int16_t fr[], const int16_t fi[], int16_t log2s
     UpdateChangeSignals(&currentMode, logTotalEnergyAvg, _data.callcounter);
     isStable = IsStable(currentMode,logTotalEnergyAvg);
 
+
+    /* human pereption is ~50 ms, so we average volume over 4 frames (60 ms) */
+    logTotalEnergy = MovingAverage16(_data.callcounter, logTotalEnergy, _data.framebuf, &_data.frameaccumulator,FRAME_AVG_BUF_MASK,FRAME_AVG_BUF_SIZE_2N);
 
     UpdateEnergyStats(currentMode,isStable,logTotalEnergyAvg,logTotalEnergy);
 
