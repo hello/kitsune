@@ -153,7 +153,7 @@ static int16_t MovingAverage16(uint32_t counter, const int16_t x,int16_t * buf, 
 }
 
 //finds stats of a disturbance, and performs callback when distubance is over
-static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t logTotalEnergy) {
+static void UpdateEnergyStats(EChangeModes_t changeMode, uint8_t isStable,int16_t logTotalEnergyAvg,int16_t logTotalEnergy) {
 	AudioEnergyStats_t data;
 	memset(&data,0,sizeof(data));
 
@@ -176,7 +176,7 @@ static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t
 	}
 
 	if (_data.fpEnergyStatsResultsCallback) {
-		data.disturbance_time_count = isStable ? 0 : SAMPLE_PERIOD_IN_MILLISECONDS;
+		data.disturbance_time_count = changeMode == stable ? 0 : SAMPLE_PERIOD_IN_MILLISECONDS;
 		data.peak_background_energy = GetAudioEnergyAsDBA(logTotalEnergyAvg);
 		data.peak_energy = GetAudioEnergyAsDBA(logTotalEnergy);
 		_data.fpEnergyStatsResultsCallback(&data);
@@ -453,7 +453,7 @@ void set_background_energy(const int16_t fr[], const int16_t fi[], int16_t log2s
     isStable = IsStable(currentMode,logTotalEnergyAvg);
 
 
-    UpdateEnergyStats(isStable,logTotalEnergyAvg,logTotalEnergy);
+    UpdateEnergyStats(currentMode,isStable,logTotalEnergyAvg,logTotalEnergy);
 
     _data.lastEnergy = logTotalEnergy;
 
