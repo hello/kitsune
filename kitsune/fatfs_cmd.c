@@ -1287,6 +1287,9 @@ int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
     	}
     	hlo_stream_close(fs);
     	SHA1_Final(sha, &sha1ctx);
+    }else{
+    	LOGI("%s does not exist/error!\r\n", serial_file_path);
+    	return -1;
     }
     //compare
     if (memcmp(sha, sha_truth, SHA1_SIZE) != 0) {
