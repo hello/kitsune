@@ -535,6 +535,8 @@ static bool _is_file_exists(char* path)
 }
 #include "hellofilesystem.h"
 uint8_t get_alpha_from_light();
+extern volatile int sys_volume;
+
 void thread_alarm(void * unused) {
 	int alarm_led_id = -1;
 	while (1) {
@@ -1940,7 +1942,6 @@ int Cmd_time_test(int argc, char * argv[]);
 int cmd_file_sync_upload(int argc, char *argv[]);
 
 extern volatile int ch;
-extern volatile int sys_volume;
 
 int cmd_vol(int argc, char *argv[]) {
  set_system_volume( atoi(argv[1])) ;
