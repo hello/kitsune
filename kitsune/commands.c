@@ -535,6 +535,8 @@ static bool _is_file_exists(char* path)
 }
 #include "hellofilesystem.h"
 uint8_t get_alpha_from_light();
+extern volatile int sys_volume;
+
 void thread_alarm(void * unused) {
 	int alarm_led_id = -1;
 	while (1) {
@@ -610,7 +612,7 @@ void thread_alarm(void * unused) {
 				desc.stream = fs_stream_open_media(file_name,INT32_MAX);
 				ustrncpy(desc.source_name, file_name, sizeof(desc.source_name));
 				desc.durationInSeconds = alarm.ring_duration_in_second;
-				desc.volume = 64;
+				desc.volume = sys_volume;
 				desc.onFinished = thread_alarm_on_finished;
 				desc.rate = AUDIO_SAMPLE_RATE;
 				desc.context = &alarm_led_id;
@@ -1940,7 +1942,6 @@ int Cmd_time_test(int argc, char * argv[]);
 int cmd_file_sync_upload(int argc, char *argv[]);
 
 extern volatile int ch;
-extern volatile int sys_volume;
 
 int cmd_vol(int argc, char *argv[]) {
  set_system_volume( atoi(argv[1])) ;
