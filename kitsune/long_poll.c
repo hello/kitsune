@@ -73,8 +73,10 @@ static void _on_volume( Volume * cmd ) {
 	set_system_volume(cmd->volume * 64 / 100); //convert from percent to codec range)
 }
 
+extern volatile bool disable_voice;
 static void _on_voice_control( VoiceControl * cmd ) {
-
+	LOGI("voice disabled\n");
+	disable_voice = !cmd->enable;
 }
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 

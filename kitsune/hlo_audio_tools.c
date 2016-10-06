@@ -46,6 +46,8 @@ static AudioOncePerMinuteData_t _stats;
 
 int audio_sig_stop = 0;
 
+volatile bool disable_voice = false;
+
 static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
@@ -378,6 +380,12 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	}
 	hlo_stream_close(input);
 	light_sensor_power(HIGH_POWER);
+
+	if( disable_voice ) {
+		stop_led_animation(0, 33);
+		play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1, 18, 1);
+		LOGI("voicetrigbutdisabled\n");
+	}
 
 	if (ret < 0) {
 		if( ret != HLO_STREAM_EAGAIN ) {
