@@ -170,7 +170,7 @@ int hlo_filter_throughput_test(hlo_stream_t * input, hlo_stream_t * output, void
 ////-------------------------------------------
 //octogram sample app
 #include "octogram.h"
-#define PROCESSOR_BUFFER_SIZE ((AUDIO_FFT_SIZE)*3*2)
+#define PROCESSOR_BUFFER_SIZE ((OCTOGRAM_FFT_SIZE)*3*2)
 #define OCTOGRAM_DURATION 10
 int hlo_filter_octogram(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	Octogram_t octogramdata = {0};
@@ -182,7 +182,7 @@ int hlo_filter_octogram(hlo_stream_t * input, hlo_stream_t * output, void * ctx,
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM,input,(uint8_t*)samples,PROCESSOR_BUFFER_SIZE,4)) > 0){
 		//convert from 48K to 16K
 		for(i = 0; i < 256; i++){
-			int32_t sum = samples[i] + samples[AUDIO_FFT_SIZE+i] + samples[(2*AUDIO_FFT_SIZE)+i];
+			int32_t sum = samples[i] + samples[OCTOGRAM_FFT_SIZE+i] + samples[(2*OCTOGRAM_FFT_SIZE)+i];
 			samples[i] = (int16_t)(sum / 3);
 		}
 		Octogram_Update(&octogramdata,samples);

@@ -4,8 +4,8 @@
 #include "audio_types.h"
 
 #define OCTOGRAM_SIZE (7)
-#define AUDIO_FFT_SIZE_2N (OCTOGRAM_SIZE + 1)
-#define AUDIO_FFT_SIZE (1 << AUDIO_FFT_SIZE_2N)
+#define OCTOGRAM_FFT_SIZE_2N (OCTOGRAM_SIZE + 1)
+#define OCTOGRAM_FFT_SIZE (1 << AUDIO_FFT_SIZE_2N)
 
 typedef struct {
 	int32_t logenergy[OCTOGRAM_SIZE];
