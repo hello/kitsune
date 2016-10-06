@@ -73,6 +73,9 @@ static void _on_volume( Volume * cmd ) {
 	set_system_volume(cmd->volume * 64 / 100); //convert from percent to codec range)
 }
 
+static void _on_voice_control( VoiceControl * cmd ) {
+
+}
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
 static bool _on_message(pb_istream_t *stream, const pb_field_t *field, void **arg) {
@@ -100,6 +103,9 @@ static bool _on_message(pb_istream_t *stream, const pb_field_t *field, void **ar
 	}
 	if (message.has_stop_audio) {
 		_on_stop_audio(&message.stop_audio);
+	}
+	if(message.has_voice_control) {
+		_on_voice_control(&message.voice_control);
 	}
 
 	vPortFree(message.sender_id.arg);
