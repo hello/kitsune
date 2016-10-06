@@ -35,6 +35,9 @@ AudioState get_audio_state();
 #define OKAY_SENSE_THRESHOLD     TOFIX(0.95)
 #define OKAY_SENSE_MIN_DURATION  5
 
+#define OKAY_THRESHOLD     TOFIX(0.2)
+#define OKAY_MIN_DURATION  1
+
 #define SNOOZE_THRESHOLD      TOFIX(0.60)
 #define SNOOZE_MIN_DURATION   1
 
@@ -225,6 +228,9 @@ typedef struct{
 static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	LOGI("KEYWORD BEGIN\n");
 }
+static void _voice_begin_OK(void * ctx, Keyword_t keyword, int16_t value){
+	LOGI("OK %d\n", value);
+}
 
 bool cancel_alarm();
 static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
@@ -320,6 +326,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 	keyword_net_initialize();
 	keyword_net_register_callback(&nn_ctx,okay_sense,OKAY_SENSE_THRESHOLD,OKAY_SENSE_MIN_DURATION,_voice_begin_keyword,_voice_finish_keyword);
+	keyword_net_register_callback(&nn_ctx,okay,OKAY_THRESHOLD,OKAY_MIN_DURATION,_voice_begin_ok,NULL);
 	keyword_net_register_callback(&nn_ctx,snooze,SNOOZE_THRESHOLD,SNOOZE_MIN_DURATION,_voice_begin_keyword,_snooze_stop);
 	keyword_net_register_callback(&nn_ctx,stop,STOP_THRESHOLD,STOP_MIN_DURATION,_voice_begin_keyword,_stop_stop);
 	keyword_net_register_speech_callback(&nn_ctx,_speech_detect_callback);

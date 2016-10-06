@@ -11,7 +11,6 @@ typedef enum {
 	stop,
 	snooze,
 	NUM_KEYWORDS
-
 } Keyword_t;
 
 typedef void (*KeywordCallback_t)(void * context, Keyword_t keyword, int16_t value);
