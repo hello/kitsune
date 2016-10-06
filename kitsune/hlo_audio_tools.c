@@ -223,19 +223,28 @@ typedef struct{
 	uint16_t reserved;
 	uint32_t timeout;
 	uint8_t is_speaking;
+	TickType_t got_ok;
 }nn_keyword_ctx_t;
 
 static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	LOGI("KEYWORD BEGIN\n");
 }
-static void _voice_begin_OK(void * ctx, Keyword_t keyword, int16_t value){
+static void _voice_begin_ok(void * ctx, Keyword_t keyword, int16_t value){
+	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)ctx;
+
 	LOGI("OK %d\n", value);
+	p->got_ok = xTaskGetTickCount();
 }
 
 bool cancel_alarm();
 static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)ctx;
 
+	if( keyword == okay_sense ) {
+		if( xTaskGetTickCount() - p->got_ok > 5000 ) {
+			LOGI("rejectedok %d\n", xTaskGetTickCount() - p->got_ok);
+		}
+	}
 	p->speech_pb.has_version = true;
 	p->speech_pb.version = KIT_VER;
 	p->speech_pb.has_eq = true;
