@@ -100,6 +100,7 @@
 #include "filedownloadmanager.h"
 
 #include "tensor/keyword_net.h"
+#include "octogram.h"
 
 #define ONLY_AUDIO 0
 

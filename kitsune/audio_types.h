@@ -16,12 +16,6 @@
 #define SAMPLE_RATE_IN_HZ (66)
 #define SAMPLE_PERIOD_IN_MILLISECONDS  (1000 / SAMPLE_RATE_IN_HZ)
 
-#define NUM_AUDIO_FEATURES (16)
-
-#define OCTOGRAM_SIZE (7)
-#define AUDIO_FFT_SIZE_2N (OCTOGRAM_SIZE + 1)
-#define AUDIO_FFT_SIZE (1 << AUDIO_FFT_SIZE_2N)
-
 /*
  // use simplelink.h instead
 #define TRUE (1)
@@ -61,9 +55,6 @@ typedef struct {
 	uint32_t unix_time;
 } DeviceCurrentInfo_t;
 
-typedef struct {
-	int32_t logenergy[OCTOGRAM_SIZE];
-} OctogramResult_t;
 
 typedef struct {
 	int32_t num_disturbances;
