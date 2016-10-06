@@ -101,11 +101,7 @@
 
 #include "tensor/keyword_net.h"
 
-#define ONLY_AUDIO 0
-
-#if (AUDIO_FULL_DUPLEX==1)
 #include "audiohelper.h"
-#endif
 
 #define ONLY_MID 0
 

@@ -87,9 +87,8 @@
 //*****************************************************************************
 //                          LOCAL DEFINES
 //*****************************************************************************
-#define UDMA_DSTSZ_32_SRCSZ_16          0x21000000
-#define mainQUEUE_SIZE		        3
-#define UI_BUFFER_EMPTY_THRESHOLD  2048
+// DMA address end-pointer to the last address of the DMA transfer (inclusive).
+#define END_PTR (CB_TRANSFER_SZ*4)-4
 
 //*****************************************************************************
 //                          GLOBAL VARIABLES
@@ -149,6 +148,13 @@ void pcm_set_ping_pong_incoming_stream_mode(const int mode) {
 	_pcm_ping_pong_incoming_stream_mode = mode;
 }
 
+
+/* << 20 because I2SIntStatus() shifts DMA_RIS contents by 20.
+ */
+#define MCASP_WR_DMA_DONE_INT_STS_ACTIVE ((1UL << 11) << 20)
+#define MCASP_RD_DMA_DONE_INT_STS_ACTIVE ((1UL << 10) << 20)
+
+
 /*ramcode*/
 void DMAPingPongCompleteAppCB_opt()
 {
@@ -159,19 +165,18 @@ void DMAPingPongCompleteAppCB_opt()
     tCircularBuffer *pAudInBuf = pTxBuffer;
     unsigned char *pucDMADest;
     unsigned char *pucDMASrc;
-    unsigned int dma_status;
     unsigned int i2s_status;
     int i = 0;
 
     traceISR_ENTER();
 
-	i2s_status = I2SIntStatus(I2S_BASE);
-	dma_status = uDMAIntStatus();
+    /*The interrupt status returns the DMA_RIS, MCASP_XSTAT and MCASP_RSTAT registers.
+     *Of the three, only DMA_RIS is used in this ISR callback */
+	i2s_status = MAP_I2SIntStatus(I2S_BASE);
 
 	// I2S RX
-	if (dma_status & 0x00000010) {
+	if (i2s_status & MCASP_RD_DMA_DONE_INT_STS_ACTIVE) {
 		qqbufsz = GetBufferSize(pAudInBuf);
-		HWREG(0x4402609c) = (1 << 10);
 		//
 		// Get the base address of the control table.
 		//
@@ -181,15 +186,10 @@ void DMAPingPongCompleteAppCB_opt()
 		//PRIMARY part of the ping pong
 		if ((pControlTable[ulPrimaryIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
-#if (CODEC_ENABLE_MULTI_CHANNEL==1)
-			#define END_PTR_DEBUG (CB_TRANSFER_SZ*4)-1
-#else
-			#define END_PTR_DEBUG  END_PTR
-#endif
 			pucDMADest = (unsigned char *) ping;
 			pControlTable[ulPrimaryIndexTx].ulControl |= CTRL_WRD;
 			pControlTable[ulPrimaryIndexTx].pvDstEndAddr = (void *) (pucDMADest
-					+ END_PTR_DEBUG);
+					+ END_PTR);
 			MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==0)
@@ -232,7 +232,7 @@ void DMAPingPongCompleteAppCB_opt()
 				pucDMADest = (unsigned char *) pong;
 				pControlTable[ulAltIndexTx].ulControl |= CTRL_WRD;
 				pControlTable[ulAltIndexTx].pvDstEndAddr = (void *) (pucDMADest
-						+ END_PTR_DEBUG);
+						+ END_PTR);
 				MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==0)
@@ -284,24 +284,16 @@ void DMAPingPongCompleteAppCB_opt()
 	}
 
 	// I2S TX
-	if (dma_status & 0x00000020) {
+	if (i2s_status & MCASP_WR_DMA_DONE_INT_STS_ACTIVE) {
 		qqbufsz = GetBufferSize(pAudOutBuf);
-		HWREG(0x4402609c) = (1 << 11);
 		pControlTable = MAP_uDMAControlBaseGet();
-
-#if (CODEC_ENABLE_MULTI_CHANNEL==1)
-			#define END_PTR_DEBUG (CB_TRANSFER_SZ*4)-1
-#else
-			#define END_PTR_DEBUG  END_PTR
-#endif
 
 		if ((pControlTable[ulPrimaryIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
 			if ( qqbufsz > CB_TRANSFER_SZ && can_playback) {
 				guiDMATransferCountRx += CB_TRANSFER_SZ*4;
 
-				memcpy(  (void*)ping_p, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
-				UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
+				ReadBuffer(pAudOutBuf,(unsigned char*)ping_p,CB_TRANSFER_SZ);
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
 				for (i = CB_TRANSFER_SZ/4-1; i!=-1 ; --i) {
@@ -326,7 +318,7 @@ void DMAPingPongCompleteAppCB_opt()
 			pControlTable[ulPrimaryIndexRx].ulControl |= CTRL_WRD;
 			//pControlTable[ulPrimaryIndex].pvSrcEndAddr = (void *)((unsigned long)&gaucZeroBuffer[0] + 15);
 			pControlTable[ulPrimaryIndexRx].pvSrcEndAddr =
-					(void *) ((unsigned long) pucDMASrc + END_PTR_DEBUG);
+					(void *) ((unsigned long) pucDMASrc + END_PTR);
 			//HWREG(DMA_BASE + UDMA_O_ENASET) = (1 << 5);
 			MAP_uDMAChannelEnable(UDMA_CH5_I2S_TX);
 		} else {
@@ -335,8 +327,8 @@ void DMAPingPongCompleteAppCB_opt()
 				if ( qqbufsz > CB_TRANSFER_SZ && can_playback) {
 					guiDMATransferCountRx += CB_TRANSFER_SZ*4;
 
-					memcpy(  (void*)pong_p,  (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
-					UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
+					ReadBuffer(pAudOutBuf,(unsigned char*)pong_p,CB_TRANSFER_SZ);
+
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
 				for (i = CB_TRANSFER_SZ/4-1; i!=-1 ; --i) {
 					pong_p[(i<<2) + 3] = 0;
@@ -359,7 +351,7 @@ void DMAPingPongCompleteAppCB_opt()
 
 				pControlTable[ulAltIndexRx].ulControl |= CTRL_WRD;
 				pControlTable[ulAltIndexRx].pvSrcEndAddr =
-						(void *) ((unsigned long) pucDMASrc + END_PTR_DEBUG);
+						(void *) ((unsigned long) pucDMASrc + END_PTR);
 				//HWREG(DMA_BASE + UDMA_O_ENASET) = (1 << 5);
 				MAP_uDMAChannelEnable(UDMA_CH5_I2S_TX);
 			}
@@ -376,8 +368,8 @@ void DMAPingPongCompleteAppCB_opt()
 			}
 		}
 	}
-	uDMAIntClear(dma_status);
-	I2SIntClear(I2S_BASE, i2s_status );
+
+	MAP_I2SIntClear(I2S_BASE, i2s_status );
 
 	traceISR_EXIT();
 }
