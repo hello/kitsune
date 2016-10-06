@@ -19,7 +19,8 @@ typedef enum _keyword {
     keyword_OK_SENSE = 1,
     keyword_STOP = 2,
     keyword_SNOOZE = 3,
-    keyword_ALEXA = 4
+    keyword_ALEXA = 4,
+    keyword_OKAY = 5
 } keyword;
 
 /* Struct definitions */
