@@ -672,7 +672,7 @@ int light_sensor_power(light_power_mode power_state) {
 	b[0] = 0x8E;
 	if( power_state == HIGH_POWER ) {
 		resume_gestures();
-		b[1] = 0xc0;
+		b[1] = 0xcf;
 	} else {
 		pause_gestures();
 		b[1] = 0;
@@ -696,7 +696,7 @@ int init_light_sensor()
 
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
 	b[0] = 0x80;
-	b[1] = 0b1000111; //enable gesture/prox/als/power
+	b[1] = 0b0000111; //enable prox/als/power
 	b[2] = 249; //20ms integration
 	b[3] = 35; //100ms prox time
 	b[4] = 249; //20ms als time
@@ -710,7 +710,7 @@ int init_light_sensor()
 
 	//max pulse length, number of pluses
 	b[0] = 0x8E;
-	b[1] = 0xC0;
+	b[1] = 0xCF;
 	(I2C_IF_Write(0x39, b, 2, 1));
 
 	//gain and power
