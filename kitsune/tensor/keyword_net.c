@@ -95,6 +95,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 			}
 		}
 		DISP("%03d %d\r", out->x[1], idlecnt);
+
 		idlecnt = 0;
 	}
 

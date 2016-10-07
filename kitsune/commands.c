@@ -100,6 +100,7 @@
 #include "filedownloadmanager.h"
 
 #include "tensor/keyword_net.h"
+#include "octogram.h"
 
 #include "audiohelper.h"
 
@@ -1142,7 +1143,7 @@ void sample_sensor_data(periodic_data* data)
 	data->has_light_duration_ms = true;
 	data->light_duration_ms = led_duration;
 
-	AudioOncePerMinuteData_t aud_data;
+	AudioEnergyStats_t aud_data;
 	data->unix_time = get_time();
 	data->has_unix_time = true;
 	{
@@ -1960,6 +1961,14 @@ int cmd_button(int argc, char *argv[]) {
 	return 0;
 }
 int Cmd_readlight(int argc, char *argv[]);
+int cmd_tap(int argc, char * argv[]){
+	LOGI("User Tapped Sense\r\n");
+	return 0;
+}
+int cmd_flipped(int argc, char * argv[]){
+	LOGI("User Flipped Sense\r\n");
+	return 0;
+}
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -2115,6 +2124,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"fs", cmd_file_sync_upload, ""},
 		{"nn",cmd_test_neural_net,""},
 		{"pn",cmd_audio_self_test,""},
+		{"tap", cmd_tap, ""},
+		{"flipped", cmd_flipped, ""},
 
 		{ 0, 0, 0 } };
 
