@@ -56,7 +56,7 @@ static void speech_detect_callback(void * context, SpeechTransition_t transition
 uint8_t keyword_net_get_and_reset_stats(NetStats_t * stats) {
     //copy out stats, and zero it out
     if( xSemaphoreTake(_context.stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
-        memcpy(stats,_context.stats,sizeof(NetStats_t));
+        memcpy(stats,&_context.stats,sizeof(NetStats_t));
         net_stats_reset(&_context.stats);
         xSemaphoreGive(_context.stats_mutex);
         return 1;

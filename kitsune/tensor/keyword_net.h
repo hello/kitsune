@@ -5,12 +5,14 @@
 
 #include <stdint.h>
 #include "tinytensor_features.h" //this is a hack.  put definitions in another header
+#include "net_stats.h"
+
 typedef enum {
 	none = 0,
 	okay_sense,
 	stop,
 	snooze,
-        okay,
+    okay,
 	NUM_KEYWORDS
 
 } Keyword_t;
