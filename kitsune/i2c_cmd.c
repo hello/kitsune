@@ -442,15 +442,15 @@ int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 
 	xSemaphoreGiveRecursive(i2c_smphr);
 
+    temp_raw = (b[3] << 16) | (b[4]<<8) | (b[5]);
+    temp_raw >>= 4;
+    *temp = BME280_compensate_T_int32(temp_raw);
+    DBG_BME("%x %x %x %d %d\n", b[3],b[4],b[5], temp_raw, *temp);
+
 	press_raw = (b[0] << 16) | (b[1]<<8) | (b[2]);
 	press_raw >>= 4;
     *press = BME280_compensate_P_int64(press_raw);
     DBG_BME("%x %x %x %d %d\n", b[0],b[1],b[2], press_raw, *press);
-
-	temp_raw = (b[3] << 16) | (b[4]<<8) | (b[5]);
-	temp_raw >>= 4;
-    *temp = BME280_compensate_T_int32(temp_raw);
-    DBG_BME("%x %x %x %d %d\n", b[0],b[1],b[2], temp_raw, *temp);
 
 	hum_raw = (b[6]<<8) | (b[7]);
     *hum = bme280_compensate_H_int32(hum_raw);
