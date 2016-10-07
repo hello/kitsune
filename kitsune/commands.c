@@ -100,6 +100,7 @@
 #include "filedownloadmanager.h"
 
 #include "tensor/keyword_net.h"
+#include "octogram.h"
 
 #include "audiohelper.h"
 
@@ -1142,7 +1143,7 @@ void sample_sensor_data(periodic_data* data)
 	data->has_light_duration_ms = true;
 	data->light_duration_ms = led_duration;
 
-	AudioOncePerMinuteData_t aud_data;
+	AudioEnergyStats_t aud_data;
 	data->unix_time = get_time();
 	data->has_unix_time = true;
 	{

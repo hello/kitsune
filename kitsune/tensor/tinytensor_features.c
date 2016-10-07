@@ -9,15 +9,10 @@
 #include "tinytensor_math.h"
 
 
-void set_background_energy(const int16_t fr[], const int16_t fi[]);
+void set_background_energy(const int16_t fr[], const int16_t fi[], int16_t log2scale);
 
 #define USE_BACKGROUND_NORMALIZATION (1)
 #define BACKGROUND_NOISE_MAX_ATTENUATION (-2048)
-
-//this controls how much less to "descale" the FFT output (NOT USED CURRENTLY)
-
-#define FFT_SIZE_2N (9)
-#define FFT_SIZE (1 << FFT_SIZE_2N)
 
 //0.95 in Q15
 #define PREEMPHASIS (31129)
@@ -152,7 +147,7 @@ void tinytensor_features_force_voice_activity_detection(void) {
 
 #define SPEECH_BIN_START (4)
 #define SPEECH_BIN_END (16)
-#define ENERGY_END (FFT_SIZE/2)
+#define ENERGY_END (FEATURES_FFT_SIZE/2)
 static void do_voice_activity_detection(int16_t * fr,int16_t * fi,int16_t input_scaling) {
     uint32_t i;
     int16_t log_energy_frac;
@@ -235,8 +230,8 @@ static void do_voice_activity_detection(int16_t * fr,int16_t * fi,int16_t input_
 
 __attribute__((section(".ramcode")))
 static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_t * melbank, const int16_t * samples, const uint32_t num_samples) {
-    int16_t fr[FFT_SIZE] = {0};
-    int16_t fi[FFT_SIZE] = {0};
+    int16_t fr[FEATURES_FFT_SIZE] = {0};
+    int16_t fi[FEATURES_FFT_SIZE] = {0};
     const int16_t preemphasis_coeff = PREEMPHASIS;
     uint32_t i;
 
@@ -249,7 +244,7 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
     /* add samples to circular buffer
        
         while current pointer is NUM_SAMPLES_TO_RUN_FFT behind the buffer pointer
-        then we copy the last FFT_UNPADDED_SIZE samples to the FFT buf, zero pad it up to FFT_SIZE
+        then we copy the last FFT_UNPADDED_SIZE samples to the FFT buf, zero pad it up to FEATURES_FFT_SIZE
     
      */
 
@@ -316,7 +311,7 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
     CHKCYC(" fft prep");
 
     //PERFORM FFT
-    fft(fr,fi,FFT_SIZE_2N);
+    fft(fr,fi,FEATURES_FFT_SIZE_2N);
 
     CHKCYC("FFT");
 
@@ -327,10 +322,28 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
     _this.speech_detector_counter++;
     //GET MEL FEATURES (one time slice in the mel spectrogram)
     tinytensor_features_get_mel_bank(melbank,fr,fi,temp16);
+ 
 
-    if( (_this.speech_detector_counter & 0x3)==0 ) {
-    	set_background_energy(fr, fi);
-    }
+    /*--------VOLUME CALCULATION CALL --------
+     in theory, we are arrive at this point in this function @ 66.6666 Hz
+     currently:
+        Fs = 16000Hz, 400 samples per FFT (last 400 samples), @ 66.666 Hz 
+        FFT_SIZE = 512
+    
+    originally 
+        Fs = 16000Hz, 256 samples per FFT (last 256 samples), @ 62.5Hz
+        FFT_SIZE = 256
+   
+    I think we just normalize based on the number of samples, since Fs is the same
+    256 / 400 = 0.64 = -3.87 dBenergy
+
+    ...and keep in mind that the FFT size is larger than it was before
+  
+    and for the purposes of disturbance calculations, let's just say that 62.5 Hz ~ 66.66 Hz and call it good.
+    ----------------------------------*/
+    /***********/
+    set_background_energy(fr, fi,temp16);
+    /***********/
 
     //GET MAX
     temp16 = MIN_INT_16;

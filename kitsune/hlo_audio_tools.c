@@ -42,24 +42,25 @@ AudioState get_audio_state();
 #define STOP_MIN_DURATION     1
 
 static xSemaphoreHandle _statsMutex = NULL;
-static AudioOncePerMinuteData_t _stats;
+static AudioEnergyStats_t _stats;
 
 int audio_sig_stop = 0;
 
-static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
+static void StatsCallback(const AudioEnergyStats_t * pdata) {
 
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
 
 	if(pdata->num_disturbances){
-		LOGI("audio disturbance: %d,  background=%d, peak=%d, samples = %d\r",pdata->num_disturbances, pdata->peak_background_energy, _stats.peak_energy , _stats.num_samples);
+		LOGI("audio disturbance:ms=%d,bg=%d,peak=%d,peak_for_minute=%d,samples=%d\r\n",_stats.disturbance_time_count, pdata->peak_background_energy,pdata->peak_energy, _stats.peak_energy , _stats.num_samples);
 		LOGI("\n");
 	}
 	_stats.num_disturbances += pdata->num_disturbances;
+	_stats.disturbance_time_count += pdata->disturbance_time_count;
 	_stats.num_samples++;
 
-        if (pdata->peak_background_energy > _stats.peak_background_energy) {
-            _stats.peak_background_energy = pdata->peak_background_energy;
-        }
+	if (pdata->peak_background_energy > _stats.peak_background_energy) {
+		_stats.peak_background_energy = pdata->peak_background_energy;
+	}
 
 	if (pdata->peak_energy > _stats.peak_energy) {
 	    _stats.peak_energy = pdata->peak_energy;
@@ -67,15 +68,17 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 	_stats.isValid = 1;
 	xSemaphoreGive(_statsMutex);
 }
-void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
+void AudioTask_DumpOncePerMinuteStats(AudioEnergyStats_t * pdata) {
 	if(!_statsMutex){
 		_statsMutex = xSemaphoreCreateMutex();
 		assert(_statsMutex);
 	}
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
-	memcpy(pdata,&_stats,sizeof(AudioOncePerMinuteData_t));
-	pdata->peak_background_energy/=pdata->num_samples;
+
+	//copy and reset
+	memcpy(pdata,&_stats,sizeof(AudioEnergyStats_t));
 	memset(&_stats,0,sizeof(_stats));
+
 	xSemaphoreGive(_statsMutex);
 }
 ////-------------------------------------------
@@ -167,7 +170,7 @@ int hlo_filter_throughput_test(hlo_stream_t * input, hlo_stream_t * output, void
 ////-------------------------------------------
 //octogram sample app
 #include "octogram.h"
-#define PROCESSOR_BUFFER_SIZE ((AUDIO_FFT_SIZE)*3*2)
+#define PROCESSOR_BUFFER_SIZE ((OCTOGRAM_FFT_SIZE)*3*2)
 #define OCTOGRAM_DURATION 10
 int hlo_filter_octogram(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	Octogram_t octogramdata = {0};
@@ -179,7 +182,7 @@ int hlo_filter_octogram(hlo_stream_t * input, hlo_stream_t * output, void * ctx,
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM,input,(uint8_t*)samples,PROCESSOR_BUFFER_SIZE,4)) > 0){
 		//convert from 48K to 16K
 		for(i = 0; i < 256; i++){
-			int32_t sum = samples[i] + samples[AUDIO_FFT_SIZE+i] + samples[(2*AUDIO_FFT_SIZE)+i];
+			int32_t sum = samples[i] + samples[OCTOGRAM_FFT_SIZE+i] + samples[(2*OCTOGRAM_FFT_SIZE)+i];
 			samples[i] = (int16_t)(sum / 3);
 		}
 		Octogram_Update(&octogramdata,samples);
