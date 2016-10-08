@@ -91,6 +91,16 @@ static gesture_t _fsm(int in){
 		if( exceeded > 0 ){
 			LOGI("->1\r\n");
 			_transition_state(GFSM_LEVEL);
+#if 1
+			LOGF("Gesture: WAVE\r\n");
+			analytics_event( "{gesture: wave}" );
+			if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
+			{
+				self.wave_count += 1;
+				xSemaphoreGive(self.gesture_count_semaphore);
+			}
+			ret = GESTURE_WAVE;
+#endif
 		}
 		break;
 	case GFSM_LEVEL:
@@ -107,6 +117,7 @@ static gesture_t _fsm(int in){
 				ret = GESTURE_HOLD;
 			} else if (_hasWave()) {
 				if (_hasWave()) {
+#if 0
 					LOGF("Gesture: WAVE\r\n");
 					analytics_event( "{gesture: wave}" );
 					if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
@@ -115,6 +126,7 @@ static gesture_t _fsm(int in){
 						xSemaphoreGive(self.gesture_count_semaphore);
 					}
 					ret = GESTURE_WAVE;
+#endif
 				}
 				_transition_state(GFSM_IDLE);
 				LOGI("\r\n");
