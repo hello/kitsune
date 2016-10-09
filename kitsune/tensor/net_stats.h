@@ -14,7 +14,7 @@
 
 typedef struct {
 	uint32_t time_count;
-	Keyword_t keyword;
+	uint32_t keyword;
 } NetStatsActivation_t;
 
 typedef struct {
@@ -22,13 +22,14 @@ typedef struct {
     uint32_t num_keywords;
     NetStatsActivation_t activations[NET_STATS_MAX_ACTIVATIONS];
     uint32_t iactivation;
+    const char * neural_net_id;
 } NetStats_t;
 
-void net_stats_init(NetStats_t * stats, uint32_t num_keywords);
+void net_stats_init(NetStats_t * stats, uint32_t num_keywords,const char * neural_net_id);
 
 void net_stats_reset(NetStats_t * stats);
 
-void net_stats_record_activation(NetStats_t * stats, Keyword_t keyword, uint32_t counter);
+void net_stats_record_activation(NetStats_t * stats, uint32_t keyword, uint32_t counter);
 
 static inline net_stats_update_counts(NetStats_t * stats,const Weight_t * output, const uint32_t len) {
     uint32_t i;

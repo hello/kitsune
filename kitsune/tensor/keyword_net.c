@@ -15,6 +15,8 @@
 
 static volatile int _is_net_running = 1;
 
+const char * k_net_id = "model_aug30_lstm_med_dist_okay_sense_stop_snooze_tiny_912_ep216_q12";
+
 typedef struct {
 	KeywordCallback_t on_start;
 	KeywordCallback_t on_end;
@@ -135,24 +137,28 @@ static void feats_callback(void * p, Weight_t * feats) {
 			}
 
 
-			//activating
-
+			//activating?
 			if (val >= callback_item->activation_threshold) {
 
-				//just started
+				//did we just start?
 				if (callback_item->active_count == 0 && callback_item->on_start) {
 					callback_item->on_start(callback_item->context,(Keyword_t)i, val);
 				}
 
 				callback_item->active_count++;
-			//deactivating
 
-				//report max value
+				//did we reach the desired number of counts?
 				if (callback_item->active_count == callback_item->min_duration && callback_item->on_end) {
+
+					//log activation
+					net_stats_record_activation(&context->stats,(Keyword_t)i,context->counter);
+
+					//do callback
 					callback_item->on_end(callback_item->context,(Keyword_t)i,callback_item->max_value);
 				}
 			}
 
+			//check if we went below threshold, if so, then reset
 			if (val < callback_item->activation_threshold && callback_item->active_count) {
 				//reset
 				callback_item->active_count = 0;
@@ -178,6 +184,8 @@ void keyword_net_initialize(void) {
 	MEMSET(&_context,0,sizeof(_context));
 
 	_context.net = initialize_network();
+
+	net_stats_init(&_context.stats,NUM_KEYWORDS,k_net_id);
 
     tinytensor_allocate_states(&_context.state, &_context.net);
 

@@ -5,18 +5,23 @@
 #include "../protobuf/keyword_stats.pb.h"
 #include "../nanopb/pb.h"
 
-void net_stats_init(NetStats_t * stats, uint32_t num_keywords) {
+void net_stats_init(NetStats_t * stats, uint32_t num_keywords, const char * neural_net_id) {
     memset(stats,0,sizeof(NetStats_t));
     stats->num_keywords = num_keywords;
+    stats->neural_net_id = neural_net_id;
 }
 
 void net_stats_reset(NetStats_t * stats) {
 	uint32_t num_keywords = stats->num_keywords;
+	const char * neural_net_id = stats->neural_net_id;
+
     memset(stats,0,sizeof(NetStats_t));
+
     stats->num_keywords = num_keywords;
+    stats->neural_net_id = neural_net_id;
 }
 
-void net_stats_record_activation(NetStats_t * stats, Keyword_t keyword, uint32_t counter) {
+void net_stats_record_activation(NetStats_t * stats, uint32_t keyword, uint32_t counter) {
 	NetStatsActivation_t * pActivation = stats->activations[stats->iactivation];
 
 	//behavior: increment no matter what, but if we've reached the max
@@ -89,6 +94,10 @@ static bool encode_histogram(pb_ostream_t *stream, const pb_field_t *field, void
 			hist.key_word = keyword_SNOOZE;
 			break;
 
+		case okay:
+			hist.key_word = keyword_OKAY;
+			break;
+
 		default:
 			continue;
 
@@ -151,14 +160,14 @@ static bool encode_neural_net_id(pb_ostream_t *stream, const pb_field_t *field, 
 
 
 
-void set_encoders(KeywordStats * keyword_stats_item, NetStats_t * stats, const char * neural_net_id) {
+void set_encoders_with_data(KeywordStats * keyword_stats_item, NetStats_t * stats) {
 	keyword_stats_item->histograms.funcs.encode = encode_histogram;
 	keyword_stats_item->histograms.arg = stats;
 
 	keyword_stats_item->net_model.funcs.encode = encode_neural_net_id;
-	keyword_stats_item->net_model.arg = neural_net_id;
+	keyword_stats_item->net_model.arg = stats->neural_net_id;
 
-	keyword_stats_item->keyword_activations = encode_activations;
+	keyword_stats_item->keyword_activations.funcs.encode = encode_activations;
 	keyword_stats_item->keyword_activations.arg = stats;
 
 }
