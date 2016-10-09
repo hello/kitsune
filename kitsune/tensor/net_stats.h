@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "tinytensor_types.h"
 #include "tinytensor_math.h"
+#include <stdbool.h>
 
 #define NET_STATS_MAX_OUTPUTS (10)
 #define NET_STATS_HISTOGRAM_BINS_2N (3)
@@ -11,6 +12,10 @@
 #define NET_STATS_SHIFT (QFIXEDPOINT - NET_STATS_HISTOGRAM_BINS_2N)
 
 #define NET_STATS_MAX_ACTIVATIONS (32)
+
+// TODO bring this in later
+//typedef bool (*net_stats_map_protobuf_keywords_t)(int * mapout, int mapin);
+
 
 typedef struct {
 	uint32_t time_count;

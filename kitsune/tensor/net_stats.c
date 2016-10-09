@@ -60,7 +60,35 @@ static bool encode_histogram_counts(pb_ostream_t *stream, const pb_field_t *fiel
 
 }
 
+typedef bool (*net_stats_map_protobuf_keywords_t)(int * mapout, int mapin);
 
+static bool map_protobuf_keywords(int * mapout, int mapin) {
+	//TODO support other maps
+	switch (mapin) {
+
+	case okay_sense:
+		*mapout = keyword_OK_SENSE;
+		break;
+
+	case stop:
+		*mapout = keyword_STOP;
+		break;
+
+	case snooze:
+		*mapout = keyword_SNOOZE;
+		break;
+
+	case okay:
+		*mapout = keyword_OKAY;
+		break;
+
+	default:
+		return false;
+
+	}
+
+	return true;
+}
 
 static bool encode_histogram(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 
@@ -80,30 +108,8 @@ static bool encode_histogram(pb_ostream_t *stream, const pb_field_t *field, void
 		IndividualKeywordHistogram hist;
 		memset(&hist,0,sizeof(hist));
 
-		switch (i) {
 
-		case okay_sense:
-			hist.key_word = keyword_OK_SENSE;
-			break;
-
-		case stop:
-			hist.key_word = keyword_STOP;
-			break;
-
-		case snooze:
-			hist.key_word = keyword_SNOOZE;
-			break;
-
-		case okay:
-			hist.key_word = keyword_OKAY;
-			break;
-
-		default:
-			continue;
-
-		}
-
-		hist.has_key_word = true;
+		hist.has_key_word = map_protobuf_keywords(&hist->key_word,i);
 
 		hist.histogram_counts.arg = &stats->counts[i];
 		hist.histogram_counts.funcs.encode = encode_histogram_counts;
