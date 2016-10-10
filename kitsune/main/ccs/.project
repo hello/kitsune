@@ -1166,6 +1166,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/tensor/keyword_net.h</locationURI>
 		</link>
 		<link>
+			<name>tensor/keywords.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/keywords.h</locationURI>
+		</link>
+		<link>
 			<name>tensor/net_stats.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/tensor/net_stats.c</locationURI>

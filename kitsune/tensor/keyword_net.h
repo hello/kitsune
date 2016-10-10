@@ -6,16 +6,7 @@
 #include <stdint.h>
 #include "tinytensor_features.h" //this is a hack.  put definitions in another header
 #include "net_stats.h"
-
-typedef enum {
-	none = 0,
-	okay_sense,
-	stop,
-	snooze,
-    okay,
-	NUM_KEYWORDS
-
-} Keyword_t;
+#include "keywords.h"
 
 typedef void (*KeywordCallback_t)(void * context, Keyword_t keyword, int16_t value);
 

@@ -2,8 +2,10 @@
 #include <string.h>
 #include <stdbool.h>
 
-#include "../protobuf/keyword_stats.pb.h"
+#include "keywords.h"
 #include "../nanopb/pb.h"
+#include "../nanopb/pb_encode.h"
+#include "../protobuf/keyword_stats.pb.h"
 
 void net_stats_init(NetStats_t * stats, uint32_t num_keywords, const char * neural_net_id) {
     memset(stats,0,sizeof(NetStats_t));
@@ -22,7 +24,7 @@ void net_stats_reset(NetStats_t * stats) {
 }
 
 void net_stats_record_activation(NetStats_t * stats, uint32_t keyword, uint32_t counter) {
-	NetStatsActivation_t * pActivation = stats->activations[stats->iactivation];
+	NetStatsActivation_t * pActivation = &stats->activations[stats->iactivation];
 
 	//behavior: increment no matter what, but if we've reached the max
 	//then don't save the activation (we're out of memory)
@@ -43,7 +45,7 @@ static bool encode_histogram_counts(pb_ostream_t *stream, const pb_field_t *fiel
 
     //find size
     for (i = 0; i < NET_STATS_HISTOGRAM_BINS; i++) {
-    	pb_encode_svarint(sizestream,p[i]);
+    	pb_encode_svarint(&sizestream,p[i]);
     }
 
 	//encode size
@@ -66,19 +68,19 @@ static bool map_protobuf_keywords(int * mapout, int mapin) {
 	switch (mapin) {
 
 	case okay_sense:
-		*mapout = keyword_OK_SENSE;
+		*mapout = Keyword_OK_SENSE;
 		break;
 
 	case stop:
-		*mapout = keyword_STOP;
+		*mapout = Keyword_STOP;
 		break;
 
 	case snooze:
-		*mapout = keyword_SNOOZE;
+		*mapout = Keyword_SNOOZE;
 		break;
 
 	case okay:
-		*mapout = keyword_OKAY;
+		*mapout = Keyword_OKAY;
 		break;
 
 	default:
@@ -103,12 +105,12 @@ static bool encode_histogram(pb_ostream_t *stream, const pb_field_t *field, void
 		return false;
 	}
 
-	for (i = 1; i < stats.num_keywords; i++) {
+	for (i = 1; i < stats->num_keywords; i++) {
 		IndividualKeywordHistogram hist;
 		memset(&hist,0,sizeof(hist));
 
 
-		hist.has_key_word = map_protobuf_keywords(&hist->key_word,i);
+		hist.has_key_word = map_protobuf_keywords(&hist.key_word,i);
 
 		hist.histogram_counts.arg = &stats->counts[i];
 		hist.histogram_counts.funcs.encode = encode_histogram_counts;
@@ -135,7 +137,7 @@ static bool encode_activations(pb_ostream_t *stream, const pb_field_t *field, vo
 	}
 
 	for (i = 0; i < num_activations; i++) {
-		const NetStatsActivation_t pActivation = stats->activations[i];
+		const NetStatsActivation_t * pActivation = &stats->activations[i];
 		const KeywordActivation activation = {true,pActivation->time_count,true,pActivation->keyword};
 
 		pb_encode_submessage(stream,KeywordActivation_fields,&activation);
@@ -146,11 +148,10 @@ static bool encode_activations(pb_ostream_t *stream, const pb_field_t *field, vo
 }
 
 static bool encode_neural_net_id(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-	const char * str = (const char *)(*arg);
-	static const char nullchar = '\0';
+	const NetStats_t * stats = *arg;
 
-	if (!str) {
-		str = &nullchar;
+	if (!arg) {
+		return false;
 	}
 
 	//write tag
@@ -158,7 +159,7 @@ static bool encode_neural_net_id(pb_ostream_t *stream, const pb_field_t *field, 
 		return 0;
 	}
 
-	pb_encode_string(stream, (uint8_t*)str, strlen(str));
+	pb_encode_string(stream, (uint8_t*)stats->neural_net_id, strlen(stats->neural_net_id));
 
 	return true;
 }
@@ -170,7 +171,7 @@ void set_encoders_with_data(KeywordStats * keyword_stats_item, NetStats_t * stat
 	keyword_stats_item->histograms.arg = stats;
 
 	keyword_stats_item->net_model.funcs.encode = encode_neural_net_id;
-	keyword_stats_item->net_model.arg = stats->neural_net_id;
+	keyword_stats_item->net_model.arg = stats;
 
 	keyword_stats_item->keyword_activations.funcs.encode = encode_activations;
 	keyword_stats_item->keyword_activations.arg = stats;

@@ -26,14 +26,14 @@ typedef struct _KeywordStats {
 typedef struct _IndividualKeywordHistogram {
     pb_callback_t histogram_counts;
     bool has_key_word;
-    keyword key_word;
+    Keyword key_word;
 } IndividualKeywordHistogram;
 
 typedef struct _KeywordActivation {
     bool has_time_counter;
     int64_t time_counter;
     bool has_key_word;
-    keyword key_word;
+    Keyword key_word;
 } KeywordActivation;
 
 /* Default values for struct fields */
