@@ -151,11 +151,15 @@ static void feats_callback(void * p, Weight_t * feats) {
 				//did we reach the desired number of counts?
 				if (callback_item->active_count == callback_item->min_duration && callback_item->on_end) {
 
-					//log activation
-					net_stats_record_activation(&context->stats,(Keyword_t)i,context->counter);
 
 					//do callback
 					callback_item->on_end(callback_item->context,(Keyword_t)i,callback_item->max_value);
+
+					//log activation, has to be thread safe
+					if( xSemaphoreTake(context->stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
+						net_stats_record_activation(&context->stats,(Keyword_t)i,context->counter);
+						xSemaphoreGive(context->stats_mutex);
+					}
 				}
 			}
 

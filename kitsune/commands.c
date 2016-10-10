@@ -99,7 +99,7 @@
 #include "long_poll.h"
 #include "filedownloadmanager.h"
 
-#include "tensor/keyword_net.h"
+#include "tensor/net_stats.h"
 #include "octogram.h"
 
 #include "audiohelper.h"
@@ -115,6 +115,11 @@
 //******************************************************************************
 //			        FUNCTION DECLARATIONS
 //******************************************************************************
+
+//Benjo says -- this stuff are items I didn't want to drag in a header for
+extern uint8_t keyword_net_get_and_reset_stats(NetStats_t * stats);
+extern void set_encoders_with_data(KeywordStats * keyword_stats_item, NetStats_t * stats);
+extern int cmd_test_neural_net(int argc, char * argv[]);
 
 //******************************************************************************
 //			    GLOBAL VARIABLES
@@ -1133,7 +1138,7 @@ void thread_tx(void* unused) {
 #include "audio_types.h"
 extern volatile int led_duration;
 
-void sample_sensor_data(periodic_data* data)
+void sample_sensor_data(periodic_data* data,NetStats_t * keyword_net_stats)
 {
 	if(!data )
 	{
@@ -1196,6 +1201,15 @@ void sample_sensor_data(periodic_data* data)
 
 	//get audio -- this is thread safe
 	AudioTask_DumpOncePerMinuteStats(&aud_data);
+
+
+	//Benjo wrote this:  get keyword statistics -- this is thread safe
+	//IF we have memory allocated for this
+	if (keyword_net_stats && keyword_net_get_and_reset_stats(keyword_net_stats)) {
+
+		//if you got the stats, then set up all the protobuf encoders, which use "keyword_net_stats" as part of its memeory
+		set_encoders_with_data(&data->keyword_stats,keyword_net_stats);
+	}
 
 	if (aud_data.isValid) {
 		data->has_audio_num_disturbances = true;
@@ -1325,7 +1339,7 @@ int force_data_push()
 
     periodic_data data;
     memset(&data, 0, sizeof(periodic_data));
-    sample_sensor_data(&data);
+    sample_sensor_data(&data,NULL);
     xQueueSend(force_data_queue, (void* )&data, 0);
 
     return 0;
@@ -1335,6 +1349,7 @@ int Cmd_tasks(int argc, char *argv[]);
 int Cmd_inttemp(int argc, char *argv[]);
 void thread_sensor_poll(void* unused) {
 	periodic_data data = {0};
+	NetStats_t keyword_net_stats;
 	unsigned int count = 0;
 
 	while (1) {
@@ -1344,7 +1359,7 @@ void thread_sensor_poll(void* unused) {
 
 		wait_for_time(WAIT_FOREVER);
 
-		sample_sensor_data(&data);
+		sample_sensor_data(&data,&keyword_net_stats);
 
 		if( booted ) {
 			LOGI(	"collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d, inq %d\n",
