@@ -152,20 +152,13 @@ static void do_voice_activity_detection(int16_t * fr,int16_t * fi,int16_t input_
     uint32_t i;
     int16_t log_energy_frac;
     uint64_t speech_energy = 0;
-    uint64_t total_energy = 0;
     int32_t temp32;
     
     for (i = SPEECH_BIN_START; i < SPEECH_BIN_END; i++) {
-        speech_energy += fr[i] * fr[i] + fi[i] * fi[i];
+        speech_energy += fr[i] * fr[i];
+        speech_energy += fi[i] * fi[i];
     }
-    
-    total_energy = speech_energy;
-    
-    for (i = SPEECH_BIN_END; i < ENERGY_END; i++) {
-        total_energy += fr[i] * fr[i] + fi[i] * fi[i];
-    }
-    
-    
+     
     //log (a/b) = log(a) - log(b)
     temp32 = FixedPointLog2Q10(speech_energy) - 2*input_scaling * 1024;
 
