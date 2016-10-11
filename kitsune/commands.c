@@ -775,26 +775,28 @@ uint8_t get_alpha_from_light()
 static int _is_light_off()
 {
 	static int last_light = -1;
+	static int now_light;
 	static unsigned int last_light_time = 0;
 	const int light_off_threshold = 300;
 	int ret = 0;
 
 	xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY);
+	now_light = get_ambient_light_level();
 	if(last_light != -1)
 	{
-		int delta = last_light - _light_data.light;
+		int delta = last_light - now_light;
 		if(xTaskGetTickCount() - last_light_time > 2000
 				&& delta >= light_off_threshold
-				&& _light_data.light < 300)
+				&& now_light < 300)
 		{
-			LOGI("light delta: %d, current %d, last %d\n", delta, _light_data.light, last_light);
+			LOGI("light delta: %d, current %d, last %d\n", delta, now_light, last_light);
 			ret = 1;
 			_light_data.light_mean =_light_data. light; //so the led alpha will be at the lights off level
 			last_light_time = xTaskGetTickCount();
 		}
 	}
 
-	last_light = _light_data.light;
+	last_light = now_light;
 	xSemaphoreGiveRecursive(_light_data.light_smphr);
 	return ret;
 
