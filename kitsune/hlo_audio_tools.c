@@ -35,10 +35,10 @@ AudioState get_audio_state();
 #define OKAY_SENSE_THRESHOLD     TOFIX(0.9)
 #define OKAY_SENSE_MIN_DURATION  1
 
-#define SNOOZE_THRESHOLD      TOFIX(0.60)
+#define SNOOZE_THRESHOLD      TOFIX(0.80)
 #define SNOOZE_MIN_DURATION   1
 
-#define STOP_THRESHOLD        TOFIX(0.40)
+#define STOP_THRESHOLD        TOFIX(0.80)
 #define STOP_MIN_DURATION     1
 
 static xSemaphoreHandle _statsMutex = NULL;
