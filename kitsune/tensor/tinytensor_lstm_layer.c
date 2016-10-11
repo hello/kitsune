@@ -1,4 +1,4 @@
-
+#include "tinytensor_lstm_layer.h"
 #include "tinytensor_memory.h"
 #include "tinytensor_math.h"
 #include "kit_assert.h"
