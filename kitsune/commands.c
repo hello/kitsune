@@ -723,16 +723,20 @@ xSemaphoreHandle i2c_smphr;
  * sensors of r g b w als
  * rgbw = 16bit
  */
-int get_ambient_light_level(void){
+int get_ambient_light_level(bool use_lpf){
 	int tmg[5] = {0};
 	static int last_val;
 	get_rgb_prox(tmg+0, tmg+1, tmg+2, tmg+3, tmg+4);
 	int als = read_zopt(ZOPT_ALS);
-	int val =  ((als + tmg[0] * 10) / 2) * 0.3 + last_val * 0.7;
+	int light = (als + tmg[0] * 10) / 2;
+	int val =  light * 0.3 + last_val * 0.7;
 	last_val = val;
+	if(use_lpf){
+		return val;
+	}else{
+		return light;
+	}
 //	LOGF("(%d\t%d\t%d\t%d)(%d) = %d\r\n", tmg[0], tmg[1],tmg[2], tmg[3], als, val);
-	return val;
-
 }
 uint8_t get_alpha_from_light()
 {
@@ -755,7 +759,7 @@ uint8_t get_alpha_from_light()
 
 	if( xTaskGetTickCount() - last_als > 1000 ) {
 		last_als = xTaskGetTickCount();
-		als = get_ambient_light_level();
+		als = get_ambient_light_level(1);
 
 		if( als > adjust_max_light ) {
 			adjust = adjust_max_light;
@@ -783,7 +787,7 @@ static int _is_light_off()
 	int ret = 0;
 
 	xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY);
-	now_light = get_ambient_light_level();
+	now_light = get_ambient_light_level(0);
 	if(last_light != -1)
 	{
 		int delta = last_light - now_light;
