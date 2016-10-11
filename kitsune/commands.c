@@ -753,7 +753,7 @@ uint8_t get_alpha_from_light()
 
 	if( xTaskGetTickCount() - last_als > 1000 ) {
 		last_als = xTaskGetTickCount();
-		als = read_zopt( ZOPT_ALS );
+		als = get_ambient_light_level();
 
 		if( als > adjust_max_light ) {
 			adjust = adjust_max_light;
