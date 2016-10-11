@@ -1220,7 +1220,7 @@ void sample_sensor_data(periodic_data* data)
 	if (xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY)) {
 		if(_light_data.light_cnt == 0)
 		{
-			data->has_light_sensor = false;
+			data->has_light_sensor = false; // TODO This will will always be ovewritten by "data->has_light_sensor = true;" below
 		}else{
 			_light_data.light_log_sum /= _light_data.light_cnt;  // just be careful for devide by zero.
 			_light_data.light_sf = (_light_data.light_mean << 8) / bitexp( _light_data.light_log_sum );
