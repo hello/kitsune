@@ -2241,6 +2241,7 @@ void vUARTTask(void *pvParameters) {
 	init_tvoc(0x30);
 	init_temp_sensor();
 	init_light_sensor();
+	read_zopt(ZOPT_ALS);
 
 	init_led_animation();
 
