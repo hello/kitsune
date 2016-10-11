@@ -718,6 +718,20 @@ static light_data_t _light_data = {0};
 
 xSemaphoreHandle i2c_smphr;
 
+/**
+ * this returns the adjusted ambient light based on the combined
+ * sensors of r g b w als
+ * rgbw = 16bit
+ */
+int get_ambient_light_level(void){
+	int tmg[5] = {0};
+	get_rgb_prox(tmg+0, tmg+1, tmg+2, tmg+3, tmg+4);
+	int als = read_zopt(ZOPT_ALS);
+	int val =  (als + tmg[3] * 10) / 2;
+//	LOGF("(%d\t%d\t%d\t%d)(%d) = %d\r\n", tmg[0], tmg[1],tmg[2], tmg[3], als, val);
+	return val;
+
+}
 uint8_t get_alpha_from_light()
 {
 	int adjust_max_light = 7366 / 4;
