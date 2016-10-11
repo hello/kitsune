@@ -734,7 +734,7 @@ int get_ambient_light_level(void){
 }
 uint8_t get_alpha_from_light()
 {
-	int adjust_max_light = 800;
+	int adjust_max_light = 1000;
 	int adjust;
 
 #if 0
