@@ -192,24 +192,16 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *evnt) {
     {
         wifi_status_set(CONNECT, false);
         wifi_status_set(CONNECTING, true);
-
-#if 0
-        TODO
-
-        char* pSSID = (char*)evnt->Data.IpAcquiredV4.ssid_name;
-        uint8_t ssidLength = evnt->Data.IpAcquiredV4.ssid_len;
+        char* pSSID = (char*)evnt->Data.Connect.SsidName;
+        uint8_t ssidLength = evnt->Data.Connect.SsidLen;
         if (ssidLength > MAX_SSID_LEN) {
         	LOGI("ssid tooo long\n");
 		}else{
 			memset(_connected_ssid, 0, MAX_SSID_LEN);
 			memcpy(_connected_ssid, pSSID, ssidLength);
-			memset(_connected_bssid, 0, BSSID_LEN);
-			memcpy(_connected_bssid, (char*)evnt->Data.STAandP2PModeWlanConnected.bssid, BSSID_LEN);
 		}
-#endif
         LOGI("SL_WLAN_CONNECT_EVENT\n");
 		xTaskCreate(wifi_update_task, "wifi_update_task", 1024 / 4, (void*)wifi_connection_state_WLAN_CONNECTED, 1, NULL);
-
     }
     break;
     case SL_WLAN_EVENT_DISCONNECT:
