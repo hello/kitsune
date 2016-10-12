@@ -30,7 +30,7 @@ void set_background_energy(const int16_t fr[], const int16_t fi[], int16_t log2s
 
 #define SCALE_TO_8_BITS (7)
 
-#define NOMINAL_TARGET (50)
+#define NOMINAL_TARGET (40)
 
 
 #define SPEECH_LPF_CEILING (-1000)
