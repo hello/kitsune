@@ -26,6 +26,8 @@
 AudioState get_audio_state();
 
 #include "speech.pb.h"
+
+#include "codec/hlo_lossless.h"
 ////-------------------------------------------
 //The feature/extractor processor we used in sense 1.0
 //
@@ -133,6 +135,7 @@ int hlo_filter_adpcm_encoder(hlo_stream_t * input, hlo_stream_t * output, void *
 	}
 	return ret;
 }
+
 ////-------------------------------------------
 // Simple data transfer filter
 #include "codec_runtime_update.h"
@@ -307,8 +310,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	int16_t samples[NSAMPLES];
 	uint8_t hmac[SHA1_SIZE] = {0};
 
-	char compressed[NUM_SAMPLES_TO_RUN_FFT/2];
-
 	adpcm_state state = (adpcm_state){0};
 	bool light_open = false;
 
@@ -338,6 +339,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	uint32_t begin = xTaskGetTickCount();
 	uint32_t speech_detected_time;
 
+	hlo_stream_t * wwbuf = hlo_lossless_init_chunkbuf(10*1024);
+
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, NUM_SAMPLES_TO_RUN_FFT*2, 4)) > 0 ){
 		//net always gets samples
 		if( !ble_user_active() ) {
@@ -355,12 +358,15 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				hlo_pb_encode(send_str, SpeechRequest_fields, &nn_ctx.speech_pb);
 
 				speech_detected_time = xTaskGetTickCount();
-			} else {
-				adpcm_coder((short*)samples, (char*)compressed, ret / 2, &state);
-				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)compressed, sizeof(compressed), 4);
-				if( ret < 0 ) {
-					break;
-				}
+
+				ret = hlo_lossless_dump_chunkbuf( wwbuf, send_str );
+			}
+			if( ret < 0 ) {
+				break;
+			}
+			ret = hlo_lossless_write_frame(send_str, samples);
+			if( ret < 0 ) {
+				break;
 			}
 
 			if (!nn_ctx.is_speaking) {
@@ -370,6 +376,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 		} else {
 			keyword_net_resume_net_operation();
+			hlo_lossless_write_chunkbuf( wwbuf, samples );
 		}
 
 		BREAK_ON_SIG(signal);
@@ -744,6 +751,8 @@ static hlo_filter _filter_from_string(const char * str){
 		return hlo_filter_nn_keyword_recognition;
 	case 'm':
 		return hlo_filter_mp3_decoder;
+	case 'h':
+		return hlo_filter_lossless_encoder;
 	default:
 		return hlo_filter_data_transfer;
 	}
