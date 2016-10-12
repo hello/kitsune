@@ -783,7 +783,7 @@ static int _is_light_off()
 	static int last_light = -1;
 	static int now_light;
 	static unsigned int last_light_time = 0;
-	const int light_off_threshold = 300;
+	const int light_off_threshold = 200;
 	int ret = 0;
 
 	xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY);
