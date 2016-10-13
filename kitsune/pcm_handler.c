@@ -115,7 +115,7 @@ extern xSemaphoreHandle record_isr_sem;
 extern xSemaphoreHandle playback_isr_sem;;
 
 
-volatile int _pcm_ping_pong_incoming_stream_mode = PCM_PING_PONG_MODE_SINGLE_CHANNEL_HALF_RATE;
+volatile int _pcm_ping_pong_incoming_stream_mode = PCM_PING_PONG_MODE_ALL_CHANNELS_HALF_RATE;
 
 //*****************************************************************************
 //
@@ -217,6 +217,14 @@ void DMAPingPongCompleteAppCB_opt()
 			else if (_pcm_ping_pong_incoming_stream_mode == PCM_PING_PONG_MODE_ALL_CHANNELS_FULL_RATE) {
 				FillBuffer(pAudInBuf, (unsigned char*) pong, sizeof(pong) );
 			}
+			else if(_pcm_ping_pong_incoming_stream_mode == PCM_PING_PONG_MODE_ALL_CHANNELS_HALF_RATE) {
+				int k=0;
+				for (i = 0; i< CB_TRANSFER_SZ-4-1 ; i++ ) {
+					pong[k++] = (pong[i]+pong[i+4]);
+				}
+
+				FillBuffer(pAudInBuf, (unsigned char*) pong, 2*k );
+			}
 #else
 			FillBuffer(pAudInBuf, (unsigned char*)pong, CB_TRANSFER_SZ*2);
 #endif
@@ -258,6 +266,14 @@ void DMAPingPongCompleteAppCB_opt()
 				}
 				else if (_pcm_ping_pong_incoming_stream_mode == PCM_PING_PONG_MODE_ALL_CHANNELS_FULL_RATE) {
 					FillBuffer(pAudInBuf, (unsigned char*) ping, sizeof(ping) );
+				}
+				else if(_pcm_ping_pong_incoming_stream_mode == PCM_PING_PONG_MODE_ALL_CHANNELS_HALF_RATE) {
+					int k=0;
+					for (i = 0; i< CB_TRANSFER_SZ-4-1 ; i++ ) {
+						ping[k++] = (ping[i]+ping[i+4]);
+					}
+
+					FillBuffer(pAudInBuf, (unsigned char*) ping, 2*k );
 				}
 #else
 				FillBuffer(pAudInBuf, (unsigned char*)ping, CB_TRANSFER_SZ*2);

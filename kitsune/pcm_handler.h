@@ -55,6 +55,7 @@ extern "C"
 #define PCM_PING_PONG_MODE_SINGLE_CHANNEL_HALF_RATE (0)
 #define PCM_PING_PONG_MODE_SINGLE_CHANNEL_FULL_RATE (1)
 #define PCM_PING_PONG_MODE_ALL_CHANNELS_FULL_RATE   (2)
+#define PCM_PING_PONG_MODE_ALL_CHANNELS_HALF_RATE   (3)
 
 void pcm_set_ping_pong_incoming_stream_mode(const int mode);
 
