@@ -97,12 +97,14 @@ TEST_F(TestNetStats,TestProtobuf) {
     
     KeywordStats a;
     
-    ASSERT_TRUE(a.ParseFromArray(state.buf, bufstream.bytes_written));
+    std::string s;
+    s.assign(state.buf,bufstream.bytes_written);
+    
+    ASSERT_TRUE(a.ParseFromString(s));
     ASSERT_TRUE(a.has_net_model());
     ASSERT_EQ(a.net_model(), "foobars");
-    
-    
-    
-    
+    ASSERT_EQ(a.histograms_size(),3);
+    ASSERT_EQ(a.histograms(0).histogram_counts_size(),8 );
+
 }
 
