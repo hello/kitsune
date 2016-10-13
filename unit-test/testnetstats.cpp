@@ -13,7 +13,7 @@ namespace embedded {
 #include "../kitsune/nanopb/pb_encode.h"
 }
 
-#include "keyword_stats.pb.h"
+#include "cpp_proto/keyword_stats.pb.h"
 
 
 extern "C" {
@@ -72,9 +72,9 @@ bool callback_file_write(embedded::pb_ostream_t *stream, const uint8_t *buf, siz
 TEST_F(TestNetStats,TestProtobuf) {
 
     NetStats_t stats;
-    
     net_stats_init(&stats, 3, "foobars");
-    Weight_t output [3] = {0,0,1<<QFIXEDPOINT};
+    Weight_t output [3] = {0,0,(1 << QFIXEDPOINT) - 1};
+    
     
     net_stats_update_counts(&stats, output);
     
@@ -103,8 +103,11 @@ TEST_F(TestNetStats,TestProtobuf) {
     ASSERT_TRUE(a.ParseFromString(s));
     ASSERT_TRUE(a.has_net_model());
     ASSERT_EQ(a.net_model(), "foobars");
-    ASSERT_EQ(a.histograms_size(),3);
-    ASSERT_EQ(a.histograms(0).histogram_counts_size(),8 );
+    ASSERT_GE(a.histograms_size(), 2);
+    ASSERT_TRUE(a.histograms(1).has_key_word());
+    ASSERT_TRUE(a.histograms(1).histogram_counts(7) == 1);
+
+    
 
 }
 

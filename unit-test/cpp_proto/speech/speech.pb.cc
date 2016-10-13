@@ -2,7 +2,7 @@
 // source: speech/speech.proto
 
 #define INTERNAL_SUPPRESS_PROTOBUF_FIELD_DEPRECATION
-#include "speech/speech.pb.h"
+#include "speech.pb.h"
 
 #include <algorithm>
 

@@ -7,9 +7,7 @@ set(CMAKE_INCLUDE_PATH ${PROJECT_SOURCE_DIR}/)
 
 find_package(Protobuf REQUIRED)
 include_directories ("${PROTOBUF_INCLUDE_DIRS}")
-
 include_directories("../kitsune/nanopb")
-include_directories("cpp_proto/")
 
 #compile gtest
 add_subdirectory("../third_party/gtest" "${CMAKE_CURRENT_BINARY_DIR}/gtest" )

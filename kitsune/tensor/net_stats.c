@@ -41,21 +41,24 @@ static bool encode_histogram_counts(pb_ostream_t *stream, const pb_field_t *fiel
 	const uint32_t * p = (const uint32_t *)*arg;
 	uint32_t i;
 
-    pb_ostream_t sizestream = {0};
+    pb_ostream_t sizestream = PB_OSTREAM_SIZING;
 
     //write tag
     if (!pb_encode_tag(stream,PB_WT_STRING, field->tag)) {
         return false;
     }
-
     
     //find size
     for (i = 0; i < NET_STATS_HISTOGRAM_BINS; i++) {
+       // if (i != 0) printf(",");
+       // printf("%d",p[i]);
     	pb_encode_svarint(&sizestream,p[i]);
     }
+   // printf("\n");
+    
     
 	//encode size
-	if (!pb_encode_varint(stream,(uint64_t)sizestream.bytes_written)) {
+	if (!pb_encode_varint(stream,sizestream.bytes_written)) {
 	    return false;
 	}
 
@@ -74,19 +77,19 @@ static bool map_protobuf_keywords(int * mapout, int mapin) {
 	switch (mapin) {
 
 	case okay_sense:
-		*mapout = Keyword_OK_SENSE;
+		*mapout = keyword_OK_SENSE;
 		break;
 
 	case stop:
-		*mapout = Keyword_STOP;
+		*mapout = keyword_STOP;
 		break;
 
 	case snooze:
-		*mapout = Keyword_SNOOZE;
+		*mapout = keyword_SNOOZE;
 		break;
 
 	case okay:
-		*mapout = Keyword_OKAY;
+		*mapout = keyword_OKAY;
 		break;
 
 	default:
@@ -97,16 +100,16 @@ static bool map_protobuf_keywords(int * mapout, int mapin) {
 	return true;
 }
 
-static bool write_individual_histogram(pb_ostream_t * stream, const NetStats_t * stats) {
-    uint32_t i;
+static bool write_individual_histogram(pb_ostream_t * stream, const NetStats_t * stats,uint32_t i) {
     
-    for (i = 1; i < stats->num_keywords; i++) {
-        IndividualKeywordHistogram hist;
-        memset(&hist,0,sizeof(hist));
-        
-        
-        hist.has_key_word = map_protobuf_keywords((int *)&hist.key_word,i);
-        
+       
+    IndividualKeywordHistogram hist;
+    memset(&hist,0,sizeof(hist));
+    
+    
+    hist.has_key_word = map_protobuf_keywords((int *)&hist.key_word,i);
+    
+    if (hist.has_key_word) {
         hist.histogram_counts.arg = (void *)&stats->counts[i][0];
         hist.histogram_counts.funcs.encode = encode_histogram_counts;
         
@@ -115,38 +118,46 @@ static bool write_individual_histogram(pb_ostream_t * stream, const NetStats_t *
         }
     }
     
+    
     return true;
 }
 
 static bool encode_histogram(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 
 	const NetStats_t * stats = *arg;
-    pb_ostream_t sizestream;
+    uint32_t i;
     
-    memset(&sizestream,0,sizeof(sizestream));
-    
-	if (!stats) {
-		return false;
-	}
-
-    //encode magic string tag for repeated field
-	if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)) {
-		return false;
-	}
-
-    //compute payload size
-    if (!write_individual_histogram(&sizestream,stats)) {
+    if (!stats) {
         return false;
     }
     
-    //write size
-    if (!pb_encode_varint(stream,sizestream.bytes_written)) {
-        return false;
-    }
-    
-    //write payload
-    if (!write_individual_histogram(stream,stats)) {
-        return false;
+    for (i = 0; i < stats->num_keywords; i++) {
+        pb_ostream_t sizestream = PB_OSTREAM_SIZING;
+
+        
+        //compute payload size
+        if (!write_individual_histogram(&sizestream,stats,i)) {
+            return false;
+        }
+        
+        if (sizestream.bytes_written == 0) {
+            continue;
+        }
+        
+        //encode string tag for size delimited field
+        if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)) {
+            return false;
+        }
+
+        //write size
+        if (!pb_encode_varint(stream,sizestream.bytes_written)) {
+            return false;
+        }
+        
+        //write payload
+        if (!write_individual_histogram(stream,stats,i)) {
+            return false;
+        }
     }
     
 	return true;
@@ -170,7 +181,7 @@ static bool write_activations(pb_ostream_t * stream,const NetStats_t * stats) {
 
 static bool encode_activations(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	const NetStats_t * stats = *arg;
-    pb_ostream_t sizestream;
+    pb_ostream_t sizestream = {0};
 
 	if (!stats) {
 		return false;

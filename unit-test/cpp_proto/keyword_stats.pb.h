@@ -113,7 +113,7 @@ class IndividualKeywordHistogram : public ::google::protobuf::Message /* @@proto
 
   // accessors -------------------------------------------------------
 
-  // repeated int32 histogram_counts = 1;
+  // repeated sint32 histogram_counts = 1;
   int histogram_counts_size() const;
   void clear_histogram_counts();
   static const int kHistogramCountsFieldNumber = 1;
@@ -396,7 +396,7 @@ extern ::google::protobuf::internal::ExplicitlyConstructed<KeywordStats> Keyword
 #if !PROTOBUF_INLINE_NOT_IN_HEADERS
 // IndividualKeywordHistogram
 
-// repeated int32 histogram_counts = 1;
+// repeated sint32 histogram_counts = 1;
 inline int IndividualKeywordHistogram::histogram_counts_size() const {
   return histogram_counts_.size();
 }

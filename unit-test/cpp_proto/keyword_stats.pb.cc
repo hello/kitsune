@@ -142,7 +142,7 @@ void protobuf_AddDesc_keyword_5fstats_2eproto_impl() {
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\023keyword_stats.proto\032\023speech/speech.pro"
     "to\"R\n\032IndividualKeywordHistogram\022\030\n\020hist"
-    "ogram_counts\030\001 \003(\005\022\032\n\010key_word\030\002 \001(\0162\010.k"
+    "ogram_counts\030\001 \003(\021\022\032\n\010key_word\030\002 \001(\0162\010.k"
     "eyword\"E\n\021KeywordActivation\022\024\n\014time_coun"
     "ter\030\001 \001(\003\022\032\n\010key_word\030\002 \001(\0162\010.keyword\"\203\001"
     "\n\014KeywordStats\022\021\n\tnet_model\030\001 \001(\t\022/\n\nhis"
@@ -260,16 +260,16 @@ bool IndividualKeywordHistogram::MergePartialFromCodedStream(
     tag = p.first;
     if (!p.second) goto handle_unusual;
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // repeated int32 histogram_counts = 1;
+      // repeated sint32 histogram_counts = 1;
       case 1: {
         if (tag == 8) {
          parse_histogram_counts:
           DO_((::google::protobuf::internal::WireFormatLite::ReadRepeatedPrimitive<
-                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
+                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_SINT32>(
                  1, 8, input, this->mutable_histogram_counts())));
         } else if (tag == 10) {
           DO_((::google::protobuf::internal::WireFormatLite::ReadPackedPrimitiveNoInline<
-                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
+                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_SINT32>(
                  input, this->mutable_histogram_counts())));
         } else {
           goto handle_unusual;
@@ -324,9 +324,9 @@ failure:
 void IndividualKeywordHistogram::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
   // @@protoc_insertion_point(serialize_start:IndividualKeywordHistogram)
-  // repeated int32 histogram_counts = 1;
+  // repeated sint32 histogram_counts = 1;
   for (int i = 0; i < this->histogram_counts_size(); i++) {
-    ::google::protobuf::internal::WireFormatLite::WriteInt32(
+    ::google::protobuf::internal::WireFormatLite::WriteSInt32(
       1, this->histogram_counts(i), output);
   }
 
@@ -347,10 +347,10 @@ void IndividualKeywordHistogram::SerializeWithCachedSizes(
     bool deterministic, ::google::protobuf::uint8* target) const {
   (void)deterministic; // Unused
   // @@protoc_insertion_point(serialize_to_array_start:IndividualKeywordHistogram)
-  // repeated int32 histogram_counts = 1;
+  // repeated sint32 histogram_counts = 1;
   for (int i = 0; i < this->histogram_counts_size(); i++) {
     target = ::google::protobuf::internal::WireFormatLite::
-      WriteInt32ToArray(1, this->histogram_counts(i), target);
+      WriteSInt32ToArray(1, this->histogram_counts(i), target);
   }
 
   // optional .keyword key_word = 2;
@@ -377,13 +377,13 @@ size_t IndividualKeywordHistogram::ByteSizeLong() const {
       ::google::protobuf::internal::WireFormatLite::EnumSize(this->key_word());
   }
 
-  // repeated int32 histogram_counts = 1;
+  // repeated sint32 histogram_counts = 1;
   {
     size_t data_size = 0;
     unsigned int count = this->histogram_counts_size();
     for (unsigned int i = 0; i < count; i++) {
       data_size += ::google::protobuf::internal::WireFormatLite::
-        Int32Size(this->histogram_counts(i));
+        SInt32Size(this->histogram_counts(i));
     }
     total_size += 1 *
                   ::google::protobuf::internal::FromIntSize(this->histogram_counts_size());
@@ -482,7 +482,7 @@ void IndividualKeywordHistogram::InternalSwap(IndividualKeywordHistogram* other)
 #if PROTOBUF_INLINE_NOT_IN_HEADERS
 // IndividualKeywordHistogram
 
-// repeated int32 histogram_counts = 1;
+// repeated sint32 histogram_counts = 1;
 int IndividualKeywordHistogram::histogram_counts_size() const {
   return histogram_counts_.size();
 }
