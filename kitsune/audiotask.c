@@ -227,7 +227,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	if(vol_ramp) {
 		vol = (ramp_ctx_t){
 			.current = 0,
-			.target = desc->volume,
+			.target = desc->volume > 64?64:desc->volume,
 			.ramp_up_ms = desc->fade_in_ms / (desc->volume + 1),
 			.ramp_down_ms = desc->fade_out_ms / (desc->volume + 1),
 			.duration =  desc->durationInSeconds * 1000,
