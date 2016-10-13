@@ -1967,6 +1967,10 @@ int cmd_vol(int argc, char *argv[]) {
  return 0;
 }
 
+int cmd_get_vol(int argc, char* argv[]) {
+	LOGI("%d", get_system_volume());
+	return 0;
+}
 
 int cmd_ch(int argc, char *argv[]) {
  ch = atoi(argv[1]);
@@ -1999,6 +2003,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		//    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
 		{ "b",      cmd_button,      " " },
 		{ "v",      cmd_vol,      " " },
+		{ "getv", cmd_get_vol,   "  " },
 
 	    { "nnc",      cmd_confidence,      " " },
 	    { "co",      cmd_codec,      " " },
@@ -2305,7 +2310,6 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(top_board_task, "top_board_task", 1680 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
 
-
 #ifndef BUILD_SERVERS
 	uart_logger_init();
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
@@ -2318,10 +2322,6 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	start_top_boot_watcher();
 
-	/*******************************************************************************
-	*           AUDIO INIT END
-	********************************************************************************
-	*/
 	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 
 #ifndef DEMO
