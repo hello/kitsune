@@ -782,7 +782,7 @@ int get_ir( int * ir ) {
 	(I2C_IF_Write(0x39, b, 2, 1));
 	vTaskDelay(110);
 	get_rgb_prox( &w, &r, &g, &bl, &p );
-	*ir = (r+g+bl-w) >> 1;
+	*ir = (r+g+bl-w)/2;
 
 	b[0] = 0xAB;
 	b[1] = 0x00;
