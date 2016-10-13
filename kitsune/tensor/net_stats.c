@@ -140,6 +140,7 @@ static bool encode_histogram(pb_ostream_t *stream, const pb_field_t *field, void
             return false;
         }
         
+        //check to see if there is a write
         if (sizestream.bytes_written == 0) {
             continue;
         }
@@ -163,50 +164,57 @@ static bool encode_histogram(pb_ostream_t *stream, const pb_field_t *field, void
 	return true;
 }
 
-static bool write_activations(pb_ostream_t * stream,const NetStats_t * stats) {
-    uint32_t i;
-    const uint32_t num_activations = stats->iactivation > NET_STATS_MAX_ACTIVATIONS ? NET_STATS_MAX_ACTIVATIONS : stats->iactivation;
+static bool write_activations(pb_ostream_t * stream,const NetStats_t * stats,uint32_t i) {
     
-    for (i = 0; i < num_activations; i++) {
-        const NetStatsActivation_t * pActivation = &stats->activations[i];
-        const KeywordActivation activation = {true,pActivation->time_count,true,pActivation->keyword};
-        
-        if (!pb_encode(stream,KeywordActivation_fields,&activation)) {
-            return false;
-        }
+    const NetStatsActivation_t * pActivation = &stats->activations[i];
+    const KeywordActivation activation = {true,pActivation->time_count,true,pActivation->keyword};
+    
+    if (!pb_encode(stream,KeywordActivation_fields,&activation)) {
+        return false;
     }
+    
     
     return true;
 }
 
 static bool encode_activations(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	const NetStats_t * stats = *arg;
-    pb_ostream_t sizestream = {0};
+    uint32_t i;
+    const uint32_t num_activations = stats->iactivation > NET_STATS_MAX_ACTIVATIONS ? NET_STATS_MAX_ACTIVATIONS : stats->iactivation;
 
+    
 	if (!stats) {
 		return false;
 	}
 
-	//do this for a repeated field
-	if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)) {
-		return false;
-	}
+    for (i = 0; i < num_activations; i++) {
+        pb_ostream_t sizestream = PB_OSTREAM_SIZING;
 
-    //get size
-    if (!write_activations(&sizestream,stats)) {
-        return false;
+        //get size
+        if (!write_activations(&sizestream,stats,i)) {
+            return false;
+        }
+        
+        if (sizestream.bytes_written == 0) {
+            continue;
+        }
+        
+        //do this for a repeated field
+        if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)) {
+            return false;
+        }
+   
+        //write size
+        if (!pb_encode_varint(stream,sizestream.bytes_written)) {
+            return false;
+        }
+        
+        //write payload
+        if (!write_activations(stream,stats,i)) {
+            return false;
+        }
+        
     }
-    
-    //write size
-    if (!pb_encode_varint(stream,sizestream.bytes_written)) {
-        return false;
-    }
-    
-    //write payload
-    if (!write_activations(stream,stats)) {
-        return false;
-    }
-	
 	return true;
 }
 

@@ -224,7 +224,7 @@ class KeywordActivation : public ::google::protobuf::Message /* @@protoc_inserti
 
   // accessors -------------------------------------------------------
 
-  // optional int64 time_counter = 1;
+  // optional sint64 time_counter = 1;
   bool has_time_counter() const;
   void clear_time_counter();
   static const int kTimeCounterFieldNumber = 1;
@@ -458,7 +458,7 @@ inline const IndividualKeywordHistogram* IndividualKeywordHistogram::internal_de
 
 // KeywordActivation
 
-// optional int64 time_counter = 1;
+// optional sint64 time_counter = 1;
 inline bool KeywordActivation::has_time_counter() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }

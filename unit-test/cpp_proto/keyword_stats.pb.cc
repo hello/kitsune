@@ -144,7 +144,7 @@ void protobuf_AddDesc_keyword_5fstats_2eproto_impl() {
     "to\"R\n\032IndividualKeywordHistogram\022\030\n\020hist"
     "ogram_counts\030\001 \003(\021\022\032\n\010key_word\030\002 \001(\0162\010.k"
     "eyword\"E\n\021KeywordActivation\022\024\n\014time_coun"
-    "ter\030\001 \001(\003\022\032\n\010key_word\030\002 \001(\0162\010.keyword\"\203\001"
+    "ter\030\001 \001(\022\022\032\n\010key_word\030\002 \001(\0162\010.keyword\"\203\001"
     "\n\014KeywordStats\022\021\n\tnet_model\030\001 \001(\t\022/\n\nhis"
     "tograms\030\002 \003(\0132\033.IndividualKeywordHistogr"
     "am\022/\n\023keyword_activations\030\003 \003(\0132\022.Keywor"
@@ -645,12 +645,12 @@ bool KeywordActivation::MergePartialFromCodedStream(
     tag = p.first;
     if (!p.second) goto handle_unusual;
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // optional int64 time_counter = 1;
+      // optional sint64 time_counter = 1;
       case 1: {
         if (tag == 8) {
           set_has_time_counter();
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   ::google::protobuf::int64, ::google::protobuf::internal::WireFormatLite::TYPE_INT64>(
+                   ::google::protobuf::int64, ::google::protobuf::internal::WireFormatLite::TYPE_SINT64>(
                  input, &time_counter_)));
         } else {
           goto handle_unusual;
@@ -704,9 +704,9 @@ failure:
 void KeywordActivation::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
   // @@protoc_insertion_point(serialize_start:KeywordActivation)
-  // optional int64 time_counter = 1;
+  // optional sint64 time_counter = 1;
   if (has_time_counter()) {
-    ::google::protobuf::internal::WireFormatLite::WriteInt64(1, this->time_counter(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteSInt64(1, this->time_counter(), output);
   }
 
   // optional .keyword key_word = 2;
@@ -726,9 +726,9 @@ void KeywordActivation::SerializeWithCachedSizes(
     bool deterministic, ::google::protobuf::uint8* target) const {
   (void)deterministic; // Unused
   // @@protoc_insertion_point(serialize_to_array_start:KeywordActivation)
-  // optional int64 time_counter = 1;
+  // optional sint64 time_counter = 1;
   if (has_time_counter()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteInt64ToArray(1, this->time_counter(), target);
+    target = ::google::protobuf::internal::WireFormatLite::WriteSInt64ToArray(1, this->time_counter(), target);
   }
 
   // optional .keyword key_word = 2;
@@ -750,10 +750,10 @@ size_t KeywordActivation::ByteSizeLong() const {
   size_t total_size = 0;
 
   if (_has_bits_[0 / 32] & 3u) {
-    // optional int64 time_counter = 1;
+    // optional sint64 time_counter = 1;
     if (has_time_counter()) {
       total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::Int64Size(
+        ::google::protobuf::internal::WireFormatLite::SInt64Size(
           this->time_counter());
     }
 
@@ -858,7 +858,7 @@ void KeywordActivation::InternalSwap(KeywordActivation* other) {
 #if PROTOBUF_INLINE_NOT_IN_HEADERS
 // KeywordActivation
 
-// optional int64 time_counter = 1;
+// optional sint64 time_counter = 1;
 bool KeywordActivation::has_time_counter() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
