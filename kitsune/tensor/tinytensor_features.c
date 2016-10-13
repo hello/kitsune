@@ -42,7 +42,7 @@ void set_background_energy(const int16_t fr[], const int16_t fi[], int16_t log2s
 // 10 * 1024 / 3 / 128 = +26 counts
 //
 // you have to tweak this empirically to determine what's right
-#define NOMINAL_AGC_TARGET (35)
+#define NOMINAL_AGC_TARGET (40)
 
 
 #define SPEECH_LPF_CEILING (-1000)
