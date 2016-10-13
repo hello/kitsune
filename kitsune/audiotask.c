@@ -225,9 +225,15 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	hlo_stream_t * fs = desc->stream;
 
 	if(vol_ramp) {
+		int ramp_target = desc->volume;
+		if(ramp_target > 64){
+			ramp_target = 64;
+		}else if(ramp_target < 0){
+			ramp_target = 0;
+		}
 		vol = (ramp_ctx_t){
 			.current = 0,
-			.target = desc->volume > 64?64:desc->volume,
+			.target = ramp_target,
 			.ramp_up_ms = desc->fade_in_ms / (desc->volume + 1),
 			.ramp_down_ms = desc->fade_out_ms / (desc->volume + 1),
 			.duration =  desc->durationInSeconds * 1000,
