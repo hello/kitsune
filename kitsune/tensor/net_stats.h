@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include "tinytensor_types.h"
-#include "tinytensor_math.h"
+#include "tinytensor_math_defs.h"
 #include <stdbool.h>
 
 #define NET_STATS_MAX_OUTPUTS (10)
@@ -31,7 +31,7 @@ void net_stats_reset(NetStats_t * stats);
 
 void net_stats_record_activation(NetStats_t * stats, uint32_t keyword, uint32_t counter);
 
-static inline net_stats_update_counts(NetStats_t * stats,const Weight_t * output, const uint32_t len) {
+static inline void net_stats_update_counts(NetStats_t * stats,const Weight_t * output, const uint32_t len) {
     uint32_t i;
     uint32_t idx;
     for (i = 0; i < len; i++) {
