@@ -419,7 +419,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			LOGI("\r\n===========\r\n");
 	}
 
-	stop_led_animation(2, 15);
 	hlo_stream_close(send_str);
 
 	keyword_net_deinitialize();
