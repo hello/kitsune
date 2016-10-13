@@ -33,13 +33,13 @@ AudioState get_audio_state();
 #include "tensor/tinytensor_math_defs.h"
 
 #define OKAY_SENSE_THRESHOLD     TOFIX(0.9)
-#define OKAY_SENSE_MIN_DURATION  1
+#define OKAY_SENSE_MIN_DURATION  3
 
-#define SNOOZE_THRESHOLD      TOFIX(0.80)
+#define SNOOZE_THRESHOLD      TOFIX(0.70)
 #define SNOOZE_MIN_DURATION   1
 
-#define STOP_THRESHOLD        TOFIX(0.80)
-#define STOP_MIN_DURATION     1
+#define STOP_THRESHOLD        TOFIX(0.90)
+#define STOP_MIN_DURATION     3
 
 static xSemaphoreHandle _statsMutex = NULL;
 static AudioEnergyStats_t _stats;
