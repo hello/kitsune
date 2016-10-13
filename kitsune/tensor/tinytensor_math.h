@@ -16,6 +16,7 @@ void tinytensor_linear(Weight_t * y, int8_t * out_scale, int32_t x,int8_t in_sca
 void tinytensor_relu(Weight_t * y, int8_t * out_scale, int32_t x,int8_t in_scale);
 
 
+int32_t tinytensor_exp_q12(Weight_t x);
 void tinytensor_vec_softmax_in_place(Weight_t * xvec, uint32_t len, int8_t in_scale);
 
 void tinytensor_descale(Weight_t * y, int8_t * out_scale, int32_t x, int8_t in_scale);

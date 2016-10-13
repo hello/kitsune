@@ -718,9 +718,29 @@ static light_data_t _light_data = {0};
 
 xSemaphoreHandle i2c_smphr;
 
+/**
+ * this returns the adjusted ambient light based on the combined
+ * sensors of r g b w als
+ * rgbw = 16bit
+ */
+int get_ambient_light_level(bool use_lpf){
+	int tmg[5] = {0};
+	static int last_val;
+	get_rgb_prox(tmg+0, tmg+1, tmg+2, tmg+3, tmg+4);
+	int als = read_zopt(ZOPT_ALS);
+	int light = (als + tmg[0] * 10) / 2;
+	int val =  light * 0.3 + last_val * 0.7;
+	last_val = val;
+	if(use_lpf){
+		return val;
+	}else{
+		return light;
+	}
+//	LOGF("(%d\t%d\t%d\t%d)(%d) = %d\r\n", tmg[0], tmg[1],tmg[2], tmg[3], als, val);
+}
 uint8_t get_alpha_from_light()
 {
-	int adjust_max_light = 7366 / 4;
+	int adjust_max_light = 1000;
 	int adjust;
 
 #if 0
@@ -739,7 +759,7 @@ uint8_t get_alpha_from_light()
 
 	if( xTaskGetTickCount() - last_als > 1000 ) {
 		last_als = xTaskGetTickCount();
-		als = read_zopt( ZOPT_ALS );
+		als = get_ambient_light_level(1);
 
 		if( als > adjust_max_light ) {
 			adjust = adjust_max_light;
@@ -761,26 +781,28 @@ uint8_t get_alpha_from_light()
 static int _is_light_off()
 {
 	static int last_light = -1;
+	static int now_light;
 	static unsigned int last_light_time = 0;
-	const int light_off_threshold = 300;
+	const int light_off_threshold = 200;
 	int ret = 0;
 
 	xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY);
+	now_light = get_ambient_light_level(0);
 	if(last_light != -1)
 	{
-		int delta = last_light - _light_data.light;
+		int delta = last_light - now_light;
 		if(xTaskGetTickCount() - last_light_time > 2000
 				&& delta >= light_off_threshold
-				&& _light_data.light < 300)
+				&& now_light < 300)
 		{
-			LOGI("light delta: %d, current %d, last %d\n", delta, _light_data.light, last_light);
+			LOGI("light delta: %d, current %d, last %d\n", delta, now_light, last_light);
 			ret = 1;
 			_light_data.light_mean =_light_data. light; //so the led alpha will be at the lights off level
 			last_light_time = xTaskGetTickCount();
 		}
 	}
 
-	last_light = _light_data.light;
+	last_light = now_light;
 	xSemaphoreGiveRecursive(_light_data.light_smphr);
 	return ret;
 
@@ -2246,6 +2268,7 @@ void vUARTTask(void *pvParameters) {
 	init_tvoc(0x30);
 	init_temp_sensor();
 	init_light_sensor();
+	read_zopt(ZOPT_ALS);
 
 	init_led_animation();
 
