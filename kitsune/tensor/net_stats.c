@@ -75,23 +75,13 @@ static bool encode_histogram_counts(pb_ostream_t *stream, const pb_field_t *fiel
 static bool map_protobuf_keywords(int * mapout, int mapin) {
 	//TODO support other maps
 	switch (mapin) {
-
 	case okay_sense:
-		*mapout = keyword_OK_SENSE;
-		break;
-
 	case stop:
-		*mapout = keyword_STOP;
-		break;
-
 	case snooze:
-		*mapout = keyword_SNOOZE;
-		break;
-
 	case okay:
-		*mapout = keyword_OKAY;
-		break;
-
+        *mapout = mapin;
+        break;
+            
 	default:
 		return false;
 
@@ -107,9 +97,9 @@ static bool write_individual_histogram(pb_ostream_t * stream, const NetStats_t *
     memset(&hist,0,sizeof(hist));
     
     
-    hist.has_key_word = map_protobuf_keywords((int *)&hist.key_word,i);
+    hist.has_key_word_index = map_protobuf_keywords(&hist.key_word_index,i);
     
-    if (hist.has_key_word) {
+    if (hist.has_key_word_index) {
         hist.histogram_counts.arg = (void *)&stats->counts[i][0];
         hist.histogram_counts.funcs.encode = encode_histogram_counts;
         

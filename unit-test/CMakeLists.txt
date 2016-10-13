@@ -22,7 +22,6 @@ include_directories ("../kitsune/")
 #protobuf definition in C++
 add_library(cpp-protobuf-defs STATIC
 cpp_proto/keyword_stats.pb.cc
-cpp_proto/speech/speech.pb.cc
 )
 
 add_executable(unit-test

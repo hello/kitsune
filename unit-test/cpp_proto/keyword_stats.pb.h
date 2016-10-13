@@ -27,7 +27,6 @@
 #include <google/protobuf/repeated_field.h>
 #include <google/protobuf/extension_set.h>
 #include <google/protobuf/unknown_field_set.h>
-#include "speech/speech.pb.h"
 // @@protoc_insertion_point(includes)
 
 // Internal implementation detail -- do not call these.
@@ -125,23 +124,23 @@ class IndividualKeywordHistogram : public ::google::protobuf::Message /* @@proto
   ::google::protobuf::RepeatedField< ::google::protobuf::int32 >*
       mutable_histogram_counts();
 
-  // optional .keyword key_word = 2;
-  bool has_key_word() const;
-  void clear_key_word();
-  static const int kKeyWordFieldNumber = 2;
-  ::keyword key_word() const;
-  void set_key_word(::keyword value);
+  // optional sint32 key_word_index = 2;
+  bool has_key_word_index() const;
+  void clear_key_word_index();
+  static const int kKeyWordIndexFieldNumber = 2;
+  ::google::protobuf::int32 key_word_index() const;
+  void set_key_word_index(::google::protobuf::int32 value);
 
   // @@protoc_insertion_point(class_scope:IndividualKeywordHistogram)
  private:
-  inline void set_has_key_word();
-  inline void clear_has_key_word();
+  inline void set_has_key_word_index();
+  inline void clear_has_key_word_index();
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
   ::google::protobuf::internal::HasBits<1> _has_bits_;
   mutable int _cached_size_;
   ::google::protobuf::RepeatedField< ::google::protobuf::int32 > histogram_counts_;
-  int key_word_;
+  ::google::protobuf::int32 key_word_index_;
   friend void  protobuf_InitDefaults_keyword_5fstats_2eproto_impl();
   friend void  protobuf_AddDesc_keyword_5fstats_2eproto_impl();
   friend void protobuf_AssignDesc_keyword_5fstats_2eproto();
@@ -231,25 +230,25 @@ class KeywordActivation : public ::google::protobuf::Message /* @@protoc_inserti
   ::google::protobuf::int64 time_counter() const;
   void set_time_counter(::google::protobuf::int64 value);
 
-  // optional .keyword key_word = 2;
-  bool has_key_word() const;
-  void clear_key_word();
-  static const int kKeyWordFieldNumber = 2;
-  ::keyword key_word() const;
-  void set_key_word(::keyword value);
+  // optional sint32 key_word_index = 2;
+  bool has_key_word_index() const;
+  void clear_key_word_index();
+  static const int kKeyWordIndexFieldNumber = 2;
+  ::google::protobuf::int32 key_word_index() const;
+  void set_key_word_index(::google::protobuf::int32 value);
 
   // @@protoc_insertion_point(class_scope:KeywordActivation)
  private:
   inline void set_has_time_counter();
   inline void clear_has_time_counter();
-  inline void set_has_key_word();
-  inline void clear_has_key_word();
+  inline void set_has_key_word_index();
+  inline void clear_has_key_word_index();
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
   ::google::protobuf::internal::HasBits<1> _has_bits_;
   mutable int _cached_size_;
   ::google::protobuf::int64 time_counter_;
-  int key_word_;
+  ::google::protobuf::int32 key_word_index_;
   friend void  protobuf_InitDefaults_keyword_5fstats_2eproto_impl();
   friend void  protobuf_AddDesc_keyword_5fstats_2eproto_impl();
   friend void protobuf_AssignDesc_keyword_5fstats_2eproto();
@@ -426,29 +425,28 @@ IndividualKeywordHistogram::mutable_histogram_counts() {
   return &histogram_counts_;
 }
 
-// optional .keyword key_word = 2;
-inline bool IndividualKeywordHistogram::has_key_word() const {
+// optional sint32 key_word_index = 2;
+inline bool IndividualKeywordHistogram::has_key_word_index() const {
   return (_has_bits_[0] & 0x00000002u) != 0;
 }
-inline void IndividualKeywordHistogram::set_has_key_word() {
+inline void IndividualKeywordHistogram::set_has_key_word_index() {
   _has_bits_[0] |= 0x00000002u;
 }
-inline void IndividualKeywordHistogram::clear_has_key_word() {
+inline void IndividualKeywordHistogram::clear_has_key_word_index() {
   _has_bits_[0] &= ~0x00000002u;
 }
-inline void IndividualKeywordHistogram::clear_key_word() {
-  key_word_ = 0;
-  clear_has_key_word();
+inline void IndividualKeywordHistogram::clear_key_word_index() {
+  key_word_index_ = 0;
+  clear_has_key_word_index();
 }
-inline ::keyword IndividualKeywordHistogram::key_word() const {
-  // @@protoc_insertion_point(field_get:IndividualKeywordHistogram.key_word)
-  return static_cast< ::keyword >(key_word_);
+inline ::google::protobuf::int32 IndividualKeywordHistogram::key_word_index() const {
+  // @@protoc_insertion_point(field_get:IndividualKeywordHistogram.key_word_index)
+  return key_word_index_;
 }
-inline void IndividualKeywordHistogram::set_key_word(::keyword value) {
-  assert(::keyword_IsValid(value));
-  set_has_key_word();
-  key_word_ = value;
-  // @@protoc_insertion_point(field_set:IndividualKeywordHistogram.key_word)
+inline void IndividualKeywordHistogram::set_key_word_index(::google::protobuf::int32 value) {
+  set_has_key_word_index();
+  key_word_index_ = value;
+  // @@protoc_insertion_point(field_set:IndividualKeywordHistogram.key_word_index)
 }
 
 inline const IndividualKeywordHistogram* IndividualKeywordHistogram::internal_default_instance() {
@@ -482,29 +480,28 @@ inline void KeywordActivation::set_time_counter(::google::protobuf::int64 value)
   // @@protoc_insertion_point(field_set:KeywordActivation.time_counter)
 }
 
-// optional .keyword key_word = 2;
-inline bool KeywordActivation::has_key_word() const {
+// optional sint32 key_word_index = 2;
+inline bool KeywordActivation::has_key_word_index() const {
   return (_has_bits_[0] & 0x00000002u) != 0;
 }
-inline void KeywordActivation::set_has_key_word() {
+inline void KeywordActivation::set_has_key_word_index() {
   _has_bits_[0] |= 0x00000002u;
 }
-inline void KeywordActivation::clear_has_key_word() {
+inline void KeywordActivation::clear_has_key_word_index() {
   _has_bits_[0] &= ~0x00000002u;
 }
-inline void KeywordActivation::clear_key_word() {
-  key_word_ = 0;
-  clear_has_key_word();
+inline void KeywordActivation::clear_key_word_index() {
+  key_word_index_ = 0;
+  clear_has_key_word_index();
 }
-inline ::keyword KeywordActivation::key_word() const {
-  // @@protoc_insertion_point(field_get:KeywordActivation.key_word)
-  return static_cast< ::keyword >(key_word_);
+inline ::google::protobuf::int32 KeywordActivation::key_word_index() const {
+  // @@protoc_insertion_point(field_get:KeywordActivation.key_word_index)
+  return key_word_index_;
 }
-inline void KeywordActivation::set_key_word(::keyword value) {
-  assert(::keyword_IsValid(value));
-  set_has_key_word();
-  key_word_ = value;
-  // @@protoc_insertion_point(field_set:KeywordActivation.key_word)
+inline void KeywordActivation::set_key_word_index(::google::protobuf::int32 value) {
+  set_has_key_word_index();
+  key_word_index_ = value;
+  // @@protoc_insertion_point(field_set:KeywordActivation.key_word_index)
 }
 
 inline const KeywordActivation* KeywordActivation::internal_default_instance() {

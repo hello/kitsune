@@ -104,15 +104,15 @@ TEST_F(TestNetStats,TestProtobuf) {
     ASSERT_TRUE(a.has_net_model());
     ASSERT_EQ(a.net_model(), "foobars");
     ASSERT_GE(a.histograms_size(), 2);
-    ASSERT_TRUE(a.histograms(1).has_key_word());
+    ASSERT_TRUE(a.histograms(1).has_key_word_index());
     ASSERT_TRUE(a.histograms(1).histogram_counts(7) == 1);
     ASSERT_EQ(a.keyword_activations_size(),3);
     ASSERT_EQ(a.keyword_activations(0).time_counter(),42);
-    ASSERT_EQ(a.keyword_activations(0).key_word(),1);
+    ASSERT_EQ(a.keyword_activations(0).key_word_index(),1);
     ASSERT_EQ(a.keyword_activations(1).time_counter(),85);
-    ASSERT_EQ(a.keyword_activations(1).key_word(),2);
+    ASSERT_EQ(a.keyword_activations(1).key_word_index(),2);
     ASSERT_EQ(a.keyword_activations(2).time_counter(),93);
-    ASSERT_EQ(a.keyword_activations(2).key_word(),3);
+    ASSERT_EQ(a.keyword_activations(2).key_word_index(),3);
 
 }
 
