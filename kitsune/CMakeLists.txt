@@ -25,6 +25,27 @@ protobuf/matrix.pb.c
 debugutils/matmessageutils.c
 debugutils/DebugLog.cpp
 debugutils/base64.cpp
+
+protobuf/async.pb.c
+protobuf/audio_commands.pb.c
+protobuf/audio_control.pb.c
+protobuf/audio_data.pb.c
+protobuf/file_manifest.pb.c
+protobuf/filetransfer.pb.c
+protobuf/keyword_stats.pb.c
+protobuf/log.pb.c
+protobuf/matrix.pb.c
+protobuf/messeji.pb.c
+protobuf/morpheus_ble.pb.c
+protobuf/ntp.pb.c
+protobuf/periodic.pb.c
+protobuf/provision.pb.c
+protobuf/response.pb.c
+protobuf/speech.pb.c
+protobuf/state.pb.c
+protobuf/streaming.pb.c
+protobuf/sync_response.pb.c
+
 )
 
 
