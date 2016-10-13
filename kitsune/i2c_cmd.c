@@ -919,11 +919,13 @@ int get_system_volume() {
 	 if( fs_get(VOL_LOC, &sys_volume, sizeof(sys_volume), NULL) < 0 ) {
 		 sys_volume = 60;
 	 }
+
+	 return sys_volume;
 }
 int32_t set_system_volume(int new_volume) {
 	if( new_volume != sys_volume ) {
 		 sys_volume = new_volume;
-		 fs_save(VOL_LOC, sys_volume, sizeof(sys_volume));
+		 fs_save(VOL_LOC, &sys_volume, sizeof(sys_volume));
 	}
 	return set_volume(new_volume, portMAX_DELAY);
 }
