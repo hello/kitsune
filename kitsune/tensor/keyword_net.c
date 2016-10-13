@@ -122,7 +122,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 
         //update stats
         if( xSemaphoreTake(context->stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
-            net_stats_update_counts(&context->stats,out->x,NUM_KEYWORDS);
+            net_stats_update_counts(&context->stats,out->x);
             xSemaphoreGive(context->stats_mutex);
         }
 
