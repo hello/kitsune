@@ -30,7 +30,19 @@ void set_background_energy(const int16_t fr[], const int16_t fi[], int16_t log2s
 
 #define SCALE_TO_8_BITS (7)
 
-#define NOMINAL_TARGET (35)
+//NOTE -- SCALE_TO_8_BITS ---> means scale factor of 1/128
+//so to go from log2 Q10 of power to sound dB
+// you multiply by ~3.
+// so if log2q10 is 1024 (i.e. 1.0, which means 2^1 which means 3dB)
+// you get ~3000 in sound dB in Q10
+// this is multiplied by the scale factor (i.e. shift right by 7) to be turned into the 8 bit features
+//
+// so to change my nominal AGC target by +10 dB,
+//
+// 10 * 1024 / 3 / 128 = +26 counts
+//
+// you have to tweak this empirically to determine what's right
+#define NOMINAL_AGC_TARGET (20)
 
 
 #define SPEECH_LPF_CEILING (-1000)
@@ -422,7 +434,7 @@ void tinytensor_features_add_samples(const int16_t * samples, const uint32_t num
         //general idea is that as maxmel increases (say due to some LOUD THINGS happening)
         //that the offset backs off quickly
 
-        nominal_offset = NOMINAL_TARGET - avgmel;
+        nominal_offset = NOMINAL_AGC_TARGET - avgmel;
 
         offset_adjustment = maxmel + nominal_offset - INT8_MAX;
 
