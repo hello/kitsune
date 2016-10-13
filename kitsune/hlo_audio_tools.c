@@ -344,7 +344,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 		}
 
-		if( nn_ctx.speech_pb.has_word ) {
+		if( nn_ctx.speech_pb.has_word && nn_ctx.speech_pb.word == Keyword_OK_SENSE) {
 			if( !light_open ) {
 				light_sensor_power(LOW_POWER);
 				keyword_net_pause_net_operation();
