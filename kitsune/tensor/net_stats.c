@@ -167,14 +167,16 @@ static bool encode_neural_net_id(pb_ostream_t *stream, const pb_field_t *field, 
 
 
 void set_encoders_with_data(KeywordStats * keyword_stats_item, NetStats_t * stats) {
-	keyword_stats_item->histograms.funcs.encode = encode_histogram;
-	keyword_stats_item->histograms.arg = stats;
+    memset(keyword_stats_item,0,sizeof(KeywordStats));
+    
+    keyword_stats_item->net_model.funcs.encode = encode_neural_net_id;
+    keyword_stats_item->net_model.arg = stats;
+    
+	//keyword_stats_item->histograms.funcs.encode = encode_histogram;
+	//keyword_stats_item->histograms.arg = stats;
 
-	keyword_stats_item->net_model.funcs.encode = encode_neural_net_id;
-	keyword_stats_item->net_model.arg = stats;
-
-	keyword_stats_item->keyword_activations.funcs.encode = encode_activations;
-	keyword_stats_item->keyword_activations.arg = stats;
+	//keyword_stats_item->keyword_activations.funcs.encode = encode_activations;
+	//keyword_stats_item->keyword_activations.arg = stats;
 
 }
 

@@ -1,17 +1,23 @@
 #include "gtest/gtest.h"
-#include "../kitsune/tensor/net_stats.h"
 #include <string.h>
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <math.h>
 #include <stdlib.h>
+#include "../kitsune/tensor/net_stats.h"
 
+//this is here because we can't have both the nanopb and the normal C++ protobuf defs in the same namespace
+namespace embedded {
 #include "../kitsune/protobuf/keyword_stats.pb.h"
 #include "../kitsune/nanopb/pb_encode.h"
+}
+
+#include "keyword_stats.pb.h"
+
 
 extern "C" {
-    void set_encoders_with_data(KeywordStats * keyword_stats_item, NetStats_t * stats);
+    void set_encoders_with_data(embedded::KeywordStats * keyword_stats_item, NetStats_t * stats);
 }
 
 class TestNetStats : public ::testing::Test {
@@ -50,14 +56,14 @@ typedef struct {
     char buf[1024];
 } Buf_t;
 
-bool callback(pb_ostream_t *stream, const uint8_t *buf, size_t count)
+bool callback(embedded::pb_ostream_t *stream, const uint8_t *buf, size_t count)
 {
     Buf_t * item = (Buf_t*) stream->state;
     memcpy(&item->buf[stream->bytes_written],buf,count);
     return true;
 }
 
-bool callback_file_write(pb_ostream_t *stream, const uint8_t *buf, size_t count)
+bool callback_file_write(embedded::pb_ostream_t *stream, const uint8_t *buf, size_t count)
 {
     FILE *file = (FILE*) stream->state;
     return fwrite(buf, 1, count, file) == count;
@@ -76,25 +82,27 @@ TEST_F(TestNetStats,TestProtobuf) {
     net_stats_record_activation(&stats, 2, 85);
     net_stats_record_activation(&stats, 3, 93);
 
-    KeywordStats pb_kwstats;
-    memset(&pb_kwstats,0,sizeof(KeywordStats));
+    embedded::KeywordStats pb_kwstats;
+    memset(&pb_kwstats,0,sizeof(embedded::KeywordStats));
  
  
     set_encoders_with_data(&pb_kwstats,&stats);
     
-    /*
+    
     Buf_t state;
     memset(&state,0,sizeof(state));
     
-    pb_ostream_t bufstream = {&callback, &state, 1024, 0};
-    pb_encode(&bufstream, KeywordStats_fields, &pb_kwstats);
-    */
+    embedded::pb_ostream_t bufstream = {&callback, &state, 1024, 0};
+    pb_encode(&bufstream, embedded::KeywordStats_fields, &pb_kwstats);
     
-    FILE * f = fopen("test001.dat", "wb");
-    pb_ostream_t fileoutstream = {&callback_file_write, f, SIZE_MAX, 0};
-    pb_encode(&fileoutstream, KeywordStats_fields, &pb_kwstats);
-
-    fclose(f);
+    KeywordStats a;
+    
+    ASSERT_TRUE(a.ParseFromArray(state.buf, bufstream.bytes_written));
+    ASSERT_TRUE(a.has_net_model());
+    ASSERT_EQ(a.net_model(), "foobars");
+    
+    
+    
     
 }
 
