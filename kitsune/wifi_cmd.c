@@ -195,7 +195,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *evnt) {
         char* pSSID = (char*)evnt->Data.Connect.SsidName;
         uint8_t ssidLength = evnt->Data.Connect.SsidLen;
         if (ssidLength > MAX_SSID_LEN) {
-        	LOGI("ssid tooo long\n");
+        	LOGE("ssid tooo long\n");
 		}else{
 			memset(_connected_ssid, 0, MAX_SSID_LEN);
 			memcpy(_connected_ssid, pSSID, ssidLength);
