@@ -348,6 +348,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			if( !light_open ) {
 				light_sensor_power(LOW_POWER);
 				keyword_net_pause_net_operation();
+				stop_led_animation(2,20);
 				input = hlo_light_stream( input,true );
 				send_str = hlo_stream_bw_limited( send_str, AUDIO_NET_RATE/8, 5000);
 				light_open = true;
@@ -417,6 +418,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 			LOGI("\r\n===========\r\n");
 	}
+
 	hlo_stream_close(send_str);
 
 	keyword_net_deinitialize();
