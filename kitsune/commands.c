@@ -733,7 +733,7 @@ int get_ambient_light_level(ambient_light_source source){
 	get_rgb_prox(tmg+0, tmg+1, tmg+2, tmg+3, tmg+4);
 	int als = read_zopt(ZOPT_ALS);
 	int light = (als + tmg[0] * 10) / 2;
-	int val =  light * 0.3 + last_val * 0.7;
+	int val =  (light * 3 + last_val * 7)/10;
 	last_val = val;
 	if(source == LPF_LIGHT){
 		return val;
