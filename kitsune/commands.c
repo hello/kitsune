@@ -787,7 +787,7 @@ static int _is_light_off()
 	static int last_light = -1;
 	static int now_light;
 	static unsigned int last_light_time = 0;
-	const int light_off_threshold = 200;
+	const int light_off_threshold = 100;
 	int ret = 0;
 
 	xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY);
@@ -797,7 +797,7 @@ static int _is_light_off()
 		int delta = last_light - now_light;
 		if(xTaskGetTickCount() - last_light_time > 2000
 				&& delta >= light_off_threshold
-				&& now_light < 300)
+				&& now_light < 100)
 		{
 			LOGI("light delta: %d, current %d, last %d\n", delta, now_light, last_light);
 			ret = 1;
