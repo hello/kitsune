@@ -155,6 +155,13 @@ void tinytensor_vec_softmax_in_place(Weight_t * xvec, uint32_t len, int8_t in_sc
             val <<= -in_scale;
         }
         
+        if (val > INT16_MAX) {
+            val = INT16_MAX;
+        }
+        
+        if (val < INT16_MIN) {
+            val = INT16_MIN;
+        }
         temp64 += tinytensor_exp_q12(val);
     }
     
@@ -169,6 +176,13 @@ void tinytensor_vec_softmax_in_place(Weight_t * xvec, uint32_t len, int8_t in_sc
             val <<= -in_scale;
         }
         
+        if (val > INT16_MAX) {
+            val = INT16_MAX;
+        }
+        
+        if (val < INT16_MIN) {
+            val = INT16_MIN;
+        }
     
         expval = tinytensor_exp_q12(val);
 
