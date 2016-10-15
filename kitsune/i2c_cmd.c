@@ -584,12 +584,12 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 	vTaskDelay(10);
 	//environmental
 	b[0] = 0x05;
-	temp = (temp + 2500)/50;
-	humid /= 50;
+	temp = (temp + 2500)*2;
+	humid *= 2;
 	b[1] = humid>>8;
-	b[2] = (humid&0xff);;
+	b[2] = (humid & 0xff);;
 	b[3] = temp>>8;
-	b[4] = (temp&0xff);
+	b[4] = (temp & 0xff);
 	(I2C_IF_Write(0x5a, b, 5, 1));
 
 	b[0] = 2;
