@@ -582,6 +582,7 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 	//environmental
 	b[0] = 0x05;
 
+	humid *= 10;
 	// see cc-000803-an-4-ccs811_programming_and_interfacing_guide.pdf page 19, 20
 	b[1] = ((humid % 1000) / 100) > 7 ? (humid/1000 + 1)<<1 : (humid/1000)<<1;
 	if(((humid % 1000) / 100) > 2 && (((humid) / 100) < 8))
@@ -589,6 +590,8 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 		b[1] |= 1;
 	}
 	b[2] = 0;
+
+	temp *= 10;
 	temp += 25000;
 	b[3] = ((temp % 1000) / 100) > 7 ? (temp / 1000 + 1) << 1 : (temp) << 1;
 	if (((temp % 1000) / 100) > 2 && (((temp % 1000) / 100) < 8)) {
