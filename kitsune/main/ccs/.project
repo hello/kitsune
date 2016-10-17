@@ -491,16 +491,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/codec/hlo_lossless.h</locationURI>
 		</link>
 		<link>
-			<name>codec/lpc.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/codec/lpc.c</locationURI>
-		</link>
-		<link>
-			<name>codec/lpc.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/codec/lpc.h</locationURI>
-		</link>
-		<link>
 			<name>codec/rice.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/codec/rice.c</locationURI>
@@ -789,16 +779,6 @@
 			<name>hlo/audio_types.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audio_types.h</locationURI>
-		</link>
-		<link>
-			<name>hlo/audioclassifier.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.c</locationURI>
-		</link>
-		<link>
-			<name>hlo/audioclassifier.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.h</locationURI>
 		</link>
 		<link>
 			<name>hlo/audiofeatures.c</name>
@@ -1174,6 +1154,11 @@
 			<name>protobuf/sync_response.pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/sync_response.pb.h</locationURI>
+		</link>
+		<link>
+			<name>tensor/features_types.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/features_types.h</locationURI>
 		</link>
 		<link>
 			<name>tensor/fft.c</name>

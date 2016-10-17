@@ -34,34 +34,35 @@ AudioState get_audio_state();
 #include "audiofeatures.h"
 #include "tensor/tinytensor_math_defs.h"
 
-#define OKAY_SENSE_THRESHOLD     TOFIX(0.95)
-#define OKAY_SENSE_MIN_DURATION  5
+#define OKAY_SENSE_THRESHOLD     TOFIX(0.9)
+#define OKAY_SENSE_MIN_DURATION  3
 
-#define SNOOZE_THRESHOLD      TOFIX(0.60)
+#define SNOOZE_THRESHOLD      TOFIX(0.70)
 #define SNOOZE_MIN_DURATION   1
 
-#define STOP_THRESHOLD        TOFIX(0.40)
-#define STOP_MIN_DURATION     1
+#define STOP_THRESHOLD        TOFIX(0.90)
+#define STOP_MIN_DURATION     3
 
 static xSemaphoreHandle _statsMutex = NULL;
-static AudioOncePerMinuteData_t _stats;
+static AudioEnergyStats_t _stats;
 
 int audio_sig_stop = 0;
 
-static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
+static void StatsCallback(const AudioEnergyStats_t * pdata) {
 
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
 
 	if(pdata->num_disturbances){
-		LOGI("audio disturbance: %d,  background=%d, peak=%d, samples = %d\r",pdata->num_disturbances, pdata->peak_background_energy, _stats.peak_energy , _stats.num_samples);
+		LOGI("audio disturbance:ms=%d,bg=%d,peak=%d,peak_for_minute=%d,samples=%d\r\n",_stats.disturbance_time_count, pdata->peak_background_energy,pdata->peak_energy, _stats.peak_energy , _stats.num_samples);
 		LOGI("\n");
 	}
 	_stats.num_disturbances += pdata->num_disturbances;
+	_stats.disturbance_time_count += pdata->disturbance_time_count;
 	_stats.num_samples++;
 
-        if (pdata->peak_background_energy > _stats.peak_background_energy) {
-            _stats.peak_background_energy = pdata->peak_background_energy;
-        }
+	if (pdata->peak_background_energy > _stats.peak_background_energy) {
+		_stats.peak_background_energy = pdata->peak_background_energy;
+	}
 
 	if (pdata->peak_energy > _stats.peak_energy) {
 	    _stats.peak_energy = pdata->peak_energy;
@@ -69,15 +70,17 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 	_stats.isValid = 1;
 	xSemaphoreGive(_statsMutex);
 }
-void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
+void AudioTask_DumpOncePerMinuteStats(AudioEnergyStats_t * pdata) {
 	if(!_statsMutex){
 		_statsMutex = xSemaphoreCreateMutex();
 		assert(_statsMutex);
 	}
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
-	memcpy(pdata,&_stats,sizeof(AudioOncePerMinuteData_t));
-	pdata->peak_background_energy/=pdata->num_samples;
+
+	//copy and reset
+	memcpy(pdata,&_stats,sizeof(AudioEnergyStats_t));
 	memset(&_stats,0,sizeof(_stats));
+
 	xSemaphoreGive(_statsMutex);
 }
 ////-------------------------------------------
@@ -170,7 +173,7 @@ int hlo_filter_throughput_test(hlo_stream_t * input, hlo_stream_t * output, void
 ////-------------------------------------------
 //octogram sample app
 #include "octogram.h"
-#define PROCESSOR_BUFFER_SIZE ((AUDIO_FFT_SIZE)*3*2)
+#define PROCESSOR_BUFFER_SIZE ((OCTOGRAM_FFT_SIZE)*3*2)
 #define OCTOGRAM_DURATION 10
 int hlo_filter_octogram(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	Octogram_t octogramdata = {0};
@@ -182,7 +185,7 @@ int hlo_filter_octogram(hlo_stream_t * input, hlo_stream_t * output, void * ctx,
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM,input,(uint8_t*)samples,PROCESSOR_BUFFER_SIZE,4)) > 0){
 		//convert from 48K to 16K
 		for(i = 0; i < 256; i++){
-			int32_t sum = samples[i] + samples[AUDIO_FFT_SIZE+i] + samples[(2*AUDIO_FFT_SIZE)+i];
+			int32_t sum = samples[i] + samples[OCTOGRAM_FFT_SIZE+i] + samples[(2*OCTOGRAM_FFT_SIZE)+i];
 			samples[i] = (int16_t)(sum / 3);
 		}
 		Octogram_Update(&octogramdata,samples);
@@ -218,7 +221,7 @@ extern bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, 
 #include "tensor/keyword_net.h"
 typedef struct{
 	hlo_stream_t * base;
-	speech_data speech_pb;
+	SpeechRequest speech_pb;
 	uint8_t threshold;
 	uint16_t reserved;
 	uint32_t timeout;
@@ -235,6 +238,12 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 
 	p->speech_pb.has_version = true;
 	p->speech_pb.version = KIT_VER;
+	p->speech_pb.has_eq = true;
+	p->speech_pb.eq = Equalizer_NONE;
+	p->speech_pb.has_response = true;
+	p->speech_pb.response = AudioFormat_MP3;
+	p->speech_pb.has_sampling_rate = true;
+	p->speech_pb.sampling_rate = AUDIO_SAMPLE_RATE/2;
 
 	p->speech_pb.has_confidence = true;
 	p->speech_pb.confidence = value >> 5; // I think server is expecting q7
@@ -245,13 +254,13 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	switch (keyword ) {
 	case okay_sense:
 		LOGI("OKAY SENSE\r\n");
-		p->speech_pb.word = keyword_OK_SENSE;
+		p->speech_pb.word = Keyword_OK_SENSE;
 		break;
 	case snooze:
-		p->speech_pb.word = keyword_SNOOZE;
+		p->speech_pb.word = Keyword_SNOOZE;
 		break;
 	case stop:
-		p->speech_pb.word = keyword_STOP;
+		p->speech_pb.word = Keyword_STOP;
 		break;
 	}
 }
@@ -330,7 +339,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	uint32_t begin = xTaskGetTickCount();
 	uint32_t speech_detected_time;
 
-	hlo_stream_t * wwbuf = hlo_lossless_init_chunkbuf(10*1024);
+	hlo_stream_t * wwbuf = hlo_lossless_init_chunkbuf(20*1024);
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, NUM_SAMPLES_TO_RUN_FFT*2, 4)) > 0 ){
 		//net always gets samples
@@ -338,15 +347,17 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 		}
 
-		if( nn_ctx.speech_pb.has_word ) {
+		if( nn_ctx.speech_pb.has_word && nn_ctx.speech_pb.word == Keyword_OK_SENSE) {
 			if( !light_open ) {
 				light_sensor_power(LOW_POWER);
 				keyword_net_pause_net_operation();
+				stop_led_animation(2,20);
 				input = hlo_light_stream( input,true );
 				send_str = hlo_stream_bw_limited( send_str, AUDIO_NET_RATE/8, 5000);
 				light_open = true;
 
-				hlo_pb_encode(send_str, speech_data_fields, &nn_ctx.speech_pb);
+				hlo_pb_encode(send_str, SpeechRequest_fields, &nn_ctx.speech_pb);
+
 				speech_detected_time = xTaskGetTickCount();
 
 				ret = hlo_lossless_dump_chunkbuf( wwbuf, send_str );
@@ -380,7 +391,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	light_sensor_power(HIGH_POWER);
 
 	if (ret < 0) {
-		stop_led_animation(0, 33);
+		if( ret != HLO_STREAM_EAGAIN ) {
+			stop_led_animation(2, 33);
+		}
 		if (ret == HLO_STREAM_ERROR) {
 			play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1, 18, 1);
 		}
@@ -412,6 +425,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 			LOGI("\r\n===========\r\n");
 	}
+
 	hlo_stream_close(send_str);
 
 	keyword_net_deinitialize();
@@ -759,7 +773,7 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 	if(argc >= 4){
 		f = _filter_from_string(argv[3]);
 	}
-#if 0
+#if 1
 	hlo_stream_t * in = open_stream_from_path(argv[1],1);
 #else
 	hlo_stream_t * in = open_stream_from_path(argv[1],2); // TODO DKH
