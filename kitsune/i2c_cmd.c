@@ -578,18 +578,23 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 	unsigned char b[8];
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
-
-
-
 	vTaskDelay(10);
 	//environmental
 	b[0] = 0x05;
-	temp = (temp + 2500)*2;
-	humid *= 2;
-	b[1] = humid>>8;
-	b[2] = (humid & 0xff);;
-	b[3] = temp>>8;
-	b[4] = (temp & 0xff);
+
+	// see cc-000803-an-4-ccs811_programming_and_interfacing_guide.pdf page 19, 20
+	b[1] = ((humid % 1000) / 100) > 7 ? (humid/1000 + 1)<<1 : (humid/1000)<<1;
+	if(((humid % 1000) / 100) > 2 && (((humid) / 100) < 8))
+	{
+		b[1] |= 1;
+	}
+	b[2] = 0;
+	temp += 25000;
+	b[3] = ((temp % 1000) / 100) > 7 ? (temp / 1000 + 1) << 1 : (temp) << 1;
+	if (((temp % 1000) / 100) > 2 && (((temp % 1000) / 100) < 8)) {
+		b[3] |= 1;
+	}
+	b[4] = 0;
 	(I2C_IF_Write(0x5a, b, 5, 1));
 
 	b[0] = 2;
