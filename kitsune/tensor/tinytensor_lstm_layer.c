@@ -170,7 +170,7 @@ static void lstm_time_step_forwards(int32_t * cell_state,
 
         
         //apply forget gate to prev cell state
-        temp64 = activation_forget_gate * cell_state[icell]; //Qx x Qx ---> Q2x
+        temp64 = (int64_t)activation_forget_gate * cell_state[icell]; //Qx x Qx ---> Q2x
         
         //and add gated cell input
         temp64 += (int32_t)activation_input_gate * (int32_t)activation_cell; //Qx * Qx --->Q2x
@@ -297,7 +297,7 @@ static void eval_helper(const void * context, Tensor_t * out,const Tensor_t * in
 
         if (flags & NET_FLAG_LSTM_DAMPING) {
             for (i = 0; i < num_hidden_units; i++) {
-                int64_t temp64 = cell_state[i] * DAMPING_FACTOR;
+                int64_t temp64 = (int64_t)cell_state[i] * DAMPING_FACTOR;
                 temp64 >>= 8;
                 cell_state[i] = (int32_t)temp64;
             }

@@ -442,15 +442,15 @@ int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 
 	xSemaphoreGiveRecursive(i2c_smphr);
 
+    temp_raw = (b[3] << 16) | (b[4]<<8) | (b[5]);
+    temp_raw >>= 4;
+    *temp = BME280_compensate_T_int32(temp_raw);
+    DBG_BME("%x %x %x %d %d\n", b[3],b[4],b[5], temp_raw, *temp);
+
 	press_raw = (b[0] << 16) | (b[1]<<8) | (b[2]);
 	press_raw >>= 4;
     *press = BME280_compensate_P_int64(press_raw);
     DBG_BME("%x %x %x %d %d\n", b[0],b[1],b[2], press_raw, *press);
-
-	temp_raw = (b[3] << 16) | (b[4]<<8) | (b[5]);
-	temp_raw >>= 4;
-    *temp = BME280_compensate_T_int32(temp_raw);
-    DBG_BME("%x %x %x %d %d\n", b[0],b[1],b[2], temp_raw, *temp);
 
 	hum_raw = (b[6]<<8) | (b[7]);
     *hum = bme280_compensate_H_int32(hum_raw);
@@ -672,7 +672,7 @@ int light_sensor_power(light_power_mode power_state) {
 	b[0] = 0x8E;
 	if( power_state == HIGH_POWER ) {
 		resume_gestures();
-		b[1] = 0xc0;
+		b[1] = 0xcf;
 	} else {
 		pause_gestures();
 		b[1] = 0;
@@ -696,7 +696,7 @@ int init_light_sensor()
 
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
 	b[0] = 0x80;
-	b[1] = 0b1000111; //enable gesture/prox/als/power
+	b[1] = 0b0000111; //enable prox/als/power
 	b[2] = 249; //20ms integration
 	b[3] = 35; //100ms prox time
 	b[4] = 249; //20ms als time
@@ -710,7 +710,7 @@ int init_light_sensor()
 
 	//max pulse length, number of pluses
 	b[0] = 0x8E;
-	b[1] = 0xC0;
+	b[1] = 0xCF;
 	(I2C_IF_Write(0x39, b, 2, 1));
 
 	//gain and power
@@ -782,7 +782,7 @@ int get_ir( int * ir ) {
 	(I2C_IF_Write(0x39, b, 2, 1));
 	vTaskDelay(110);
 	get_rgb_prox( &w, &r, &g, &bl, &p );
-	*ir = w+r+g+bl;
+	*ir = (r+g+bl-w)/2;
 
 	b[0] = 0xAB;
 	b[1] = 0x00;
@@ -912,18 +912,20 @@ static void codec_sw_reset(void);
  * On the codec, this gain has 117 levels between 0db to -78.3db
  * The input v to the function varies from 0-64.
  */
-volatile int sys_volume = 64;
+volatile int sys_volume = 60;
 
 #define VOL_LOC "/hello/vol"
 int get_system_volume() {
 	 if( fs_get(VOL_LOC, &sys_volume, sizeof(sys_volume), NULL) < 0 ) {
 		 sys_volume = 60;
 	 }
+
+	 return sys_volume;
 }
 int32_t set_system_volume(int new_volume) {
 	if( new_volume != sys_volume ) {
 		 sys_volume = new_volume;
-		 fs_save(VOL_LOC, sys_volume, sizeof(sys_volume));
+		 fs_save(VOL_LOC, &sys_volume, sizeof(sys_volume));
 	}
 	return set_volume(new_volume, portMAX_DELAY);
 }
@@ -1120,7 +1122,7 @@ void codec_unmute_spkr(void)
 
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 		cmd[0] = 48;
-		cmd[1] = (SPK_VOLUME_18dB << 4) | (1 << 0);
+		cmd[1] = (SPK_VOLUME_18dB << 4);
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 		xSemaphoreGiveRecursive(i2c_smphr);

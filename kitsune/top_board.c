@@ -388,12 +388,8 @@ int wait_for_top_boot(unsigned int timeout) {
 	}
 	return self.top_boot;
 }
-int send_top(char * s, int n) {
+static int send_top_command(char * s, int n){
 	int i;
-
-	if( !self.top_boot ) {
-		return -1;
-	}
 	if(self.mode == TOP_NORMAL_MODE){
 		if(memcmp(s, "r ", 2) != 0)
 		{
@@ -411,6 +407,15 @@ int send_top(char * s, int n) {
 		LOGI("Top board is in DFU mode\r\n");
 		return -1;
 	}
+}
+int send_top(char * s, int n) {
+	if( !self.top_boot ) {
+		return -1;
+	}
+	return send_top_command(s, n);
+}
+int activate_top_ota(void){
+	return send_top_command("dfu", strlen("dfu"));
 }
 #include "kit_assert.h"
 int Cmd_send_top(int argc, char *argv[]){
