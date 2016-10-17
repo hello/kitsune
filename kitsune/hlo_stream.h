@@ -82,6 +82,13 @@ hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx, uint3
  * fifo buffer stream
  */
 hlo_stream_t * fifo_stream_open(size_t capacity);
+
+
+/*
+ * circular buffer stream, like fifo but drops on overflow
+ */
+hlo_stream_t * circ_stream_open(size_t capacity);
+
 /*
  * random stream (R/W)
  * Read:  fills the requested buffer with random bytes.
