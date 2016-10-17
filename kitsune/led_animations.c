@@ -221,6 +221,31 @@ static push_memory_queue(void * new){
 		}
 	}
 }
+int play_pairing_glow( void ){
+	int ret;
+	uint8_t trippy_base[3] = { 25, 30, 230 };
+	uint8_t trippy_range[3] = { 25, 30, 228 }; //last on wraps, but oh well
+	user_animation_t anim = (user_animation_t){
+		.handler = _animate_trippy,
+		.reinit_handler = NULL,
+		.context = NULL,
+		.reinit_handler = NULL,
+		.priority = 0,
+		.cycle_time = 30,
+		.fadein_time = 30,
+		.fadein_elapsed = 0,
+		.opt = 0,
+	};
+
+	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
+	ret = led_transition_custom_animation(&anim);
+	if( ret > 0 ) {
+		memcpy(self.trippy_base, trippy_base, 3);
+		memcpy(self.trippy_range, trippy_range, 3);
+	}
+	xSemaphoreGiveRecursive(led_smphr);
+	return ret;
+}
 
 int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout, unsigned int delay, unsigned int fade ){
 	int ret;
