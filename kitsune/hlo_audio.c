@@ -264,7 +264,7 @@ static void _do_lights(void * ctx, const void * buf, size_t size) {
 		}
 	}
 #else
-	set_modulation_intensity( LED_MAX );
+	//set_modulation_intensity( get_alpha_from_light() );
 #endif
  }
 
@@ -310,7 +310,7 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base, bool start){
 	if( start )
 	{
 		DISP("open light\n") ;
-		set_modulation_intensity( LED_MAX );
+		set_modulation_intensity( get_alpha_from_light() );
 		play_modulation(140,29,237,100,0);
 		stream->close_lights = false;
 		stream->lp = 2000;

@@ -723,15 +723,19 @@ xSemaphoreHandle i2c_smphr;
  * sensors of r g b w als
  * rgbw = 16bit
  */
-int get_ambient_light_level(bool use_lpf){
+typedef enum{
+	RAW_LIGHT = 0,
+	LPF_LIGHT
+}ambient_light_source;
+int get_ambient_light_level(ambient_light_source source){
 	int tmg[5] = {0};
 	static int last_val;
 	get_rgb_prox(tmg+0, tmg+1, tmg+2, tmg+3, tmg+4);
 	int als = read_zopt(ZOPT_ALS);
 	int light = (als + tmg[0] * 10) / 2;
-	int val =  light * 0.3 + last_val * 0.7;
+	int val =  (light * 3 + last_val * 7)/10;
 	last_val = val;
-	if(use_lpf){
+	if(source == LPF_LIGHT){
 		return val;
 	}else{
 		return light;
@@ -759,7 +763,7 @@ uint8_t get_alpha_from_light()
 
 	if( xTaskGetTickCount() - last_als > 1000 ) {
 		last_als = xTaskGetTickCount();
-		als = get_ambient_light_level(1);
+		als = get_ambient_light_level(LPF_LIGHT);
 
 		if( als > adjust_max_light ) {
 			adjust = adjust_max_light;
@@ -783,17 +787,17 @@ static int _is_light_off()
 	static int last_light = -1;
 	static int now_light;
 	static unsigned int last_light_time = 0;
-	const int light_off_threshold = 200;
+	const int light_off_threshold = 100;
 	int ret = 0;
 
 	xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY);
-	now_light = get_ambient_light_level(0);
+	now_light = get_ambient_light_level(RAW_LIGHT);
 	if(last_light != -1)
 	{
 		int delta = last_light - now_light;
 		if(xTaskGetTickCount() - last_light_time > 2000
 				&& delta >= light_off_threshold
-				&& now_light < 300)
+				&& now_light < 100)
 		{
 			LOGI("light delta: %d, current %d, last %d\n", delta, now_light, last_light);
 			ret = 1;
@@ -846,6 +850,7 @@ static void _on_hold(){
 	stop_led_animation( 0, 33 );
 	cancel_alarm();
 	ble_proto_start_hold();
+
 }
 
 static void _on_gesture_out()
@@ -872,7 +877,7 @@ return 0 == MAP_GPIOPinRead(BUTTON_GPIO_BASE_DOUT, BUTTON_GPIO_BIT_DOUT);
 }
 void reset_to_factory_fw();
 void play_startup_sound();
-
+void display_pairing_animation();
 void thread_fast_i2c_poll(void * unused)  {
 	unsigned int filter_buf[3];
 	unsigned int filter_idx=0;
@@ -976,7 +981,6 @@ void thread_fast_i2c_poll(void * unused)  {
 			LOGE("Thread fast i2c fail\n");
 		}
 
-		play_startup_sound();
 		vTaskDelayUntil(&now, delay);
 	}
 }
@@ -1242,7 +1246,7 @@ void sample_sensor_data(periodic_data* data)
 	if (xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY)) {
 		if(_light_data.light_cnt == 0)
 		{
-			data->has_light_sensor = false;
+			data->has_light_sensor = false; // TODO This will will always be ovewritten by "data->has_light_sensor = true;" below
 		}else{
 			_light_data.light_log_sum /= _light_data.light_cnt;  // just be careful for devide by zero.
 			_light_data.light_sf = (_light_data.light_mean << 8) / bitexp( _light_data.light_log_sum );
@@ -1783,7 +1787,13 @@ void launch_tasks() {
 	// Create audio tasks for playback and record
 	xTaskCreate(AudioPlaybackTask,"playbackTask",10*1024/4,NULL,4,NULL);
 
+	play_startup_sound();
+	display_pairing_animation();
+
 	xTaskCreate(AudioControlTask, "AudioControl",  17*1024 / 4, NULL, 2, NULL);
+
+
+
 }
 
 int Cmd_boot(int argc, char *argv[]) {
@@ -1967,6 +1977,10 @@ int cmd_vol(int argc, char *argv[]) {
  return 0;
 }
 
+int cmd_get_vol(int argc, char* argv[]) {
+	LOGI("%d", get_system_volume());
+	return 0;
+}
 
 int cmd_ch(int argc, char *argv[]) {
  ch = atoi(argv[1]);
@@ -1999,6 +2013,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		//    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
 		{ "b",      cmd_button,      " " },
 		{ "v",      cmd_vol,      " " },
+		{ "getv", cmd_get_vol,   "  " },
 
 	    { "nnc",      cmd_confidence,      " " },
 	    { "co",      cmd_codec,      " " },
@@ -2034,8 +2049,8 @@ tCmdLineEntry g_sCmdTable[] = {
     { "chdir",    Cmd_cd,       "" },
     { "cd",       Cmd_cd,       "" },
     { "rm",       Cmd_rm,       "" },
-#if 0
     { "mkdir",    Cmd_mkdir,    "" },
+#if 0
     { "write",    Cmd_write,    "" },
     { "mkfs",     Cmd_mkfs,     "" },
     { "pwd",      Cmd_pwd,      "" },
@@ -2305,7 +2320,6 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(top_board_task, "top_board_task", 1680 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
 
-
 #ifndef BUILD_SERVERS
 	uart_logger_init();
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
@@ -2318,10 +2332,6 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	start_top_boot_watcher();
 
-	/*******************************************************************************
-	*           AUDIO INIT END
-	********************************************************************************
-	*/
 	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 
 #ifndef DEMO

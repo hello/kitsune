@@ -33,13 +33,13 @@ AudioState get_audio_state();
 #include "tensor/tinytensor_math_defs.h"
 
 #define OKAY_SENSE_THRESHOLD     TOFIX(0.9)
-#define OKAY_SENSE_MIN_DURATION  1
+#define OKAY_SENSE_MIN_DURATION  3
 
-#define SNOOZE_THRESHOLD      TOFIX(0.80)
+#define SNOOZE_THRESHOLD      TOFIX(0.70)
 #define SNOOZE_MIN_DURATION   1
 
-#define STOP_THRESHOLD        TOFIX(0.80)
-#define STOP_MIN_DURATION     1
+#define STOP_THRESHOLD        TOFIX(0.90)
+#define STOP_MIN_DURATION     3
 
 static xSemaphoreHandle _statsMutex = NULL;
 static AudioEnergyStats_t _stats;
@@ -344,10 +344,11 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 		}
 
-		if( nn_ctx.speech_pb.has_word ) {
+		if( nn_ctx.speech_pb.has_word && nn_ctx.speech_pb.word == Keyword_OK_SENSE) {
 			if( !light_open ) {
 				light_sensor_power(LOW_POWER);
 				keyword_net_pause_net_operation();
+				stop_led_animation(2,20);
 				input = hlo_light_stream( input,true );
 				send_str = hlo_stream_bw_limited( send_str, AUDIO_NET_RATE/8, 5000);
 				light_open = true;
@@ -384,7 +385,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 	if (ret < 0) {
 		if( ret != HLO_STREAM_EAGAIN ) {
-			stop_led_animation(0, 33);
+			stop_led_animation(2, 33);
 		}
 		if (ret == HLO_STREAM_ERROR) {
 			play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1, 18, 1);
@@ -417,6 +418,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 			LOGI("\r\n===========\r\n");
 	}
+
 	hlo_stream_close(send_str);
 
 	keyword_net_deinitialize();
