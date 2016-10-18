@@ -171,7 +171,7 @@ hlo_stream_t * fifo_stream_open(size_t capacity){
 }
 
 ////==========================================================
-//circulat buffer stream, no optimization, no thread safety
+//circular buffer stream, no optimization, no thread safety
 typedef struct{
 	volatile int write_idx;
 	volatile int read_idx;
@@ -180,14 +180,14 @@ typedef struct{
 	uint8_t buf[0];
 }circ_stream_t;
 
-static int circ_read_byte(circ_stream_t * ctx, uint8_t * buf){
+static inline int circ_read_byte(circ_stream_t * ctx, uint8_t * buf){
 	*buf = ctx->buf[ctx->read_idx];
 	ctx->read_idx = (ctx->read_idx + 1)%ctx->capacity;
 	ctx->filled--;
 	return ctx->filled;
 }
 
-static int circ_write_byte(circ_stream_t * ctx, uint8_t * buf){
+static inline int circ_write_byte(circ_stream_t * ctx, uint8_t * buf){
 	ctx->buf[ctx->write_idx] = *buf;
 	ctx->write_idx = (ctx->write_idx + 1)%ctx->capacity;
 	ctx->filled++;
