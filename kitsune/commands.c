@@ -850,6 +850,7 @@ static void _on_hold(){
 	stop_led_animation( 0, 33 );
 	cancel_alarm();
 	ble_proto_start_hold();
+
 }
 
 static void _on_gesture_out()
@@ -876,7 +877,7 @@ return 0 == MAP_GPIOPinRead(BUTTON_GPIO_BASE_DOUT, BUTTON_GPIO_BIT_DOUT);
 }
 void reset_to_factory_fw();
 void play_startup_sound();
-
+void display_pairing_animation();
 void thread_fast_i2c_poll(void * unused)  {
 	unsigned int filter_buf[3];
 	unsigned int filter_idx=0;
@@ -1787,6 +1788,7 @@ void launch_tasks() {
 	xTaskCreate(AudioPlaybackTask,"playbackTask",10*1024/4,NULL,4,NULL);
 
 	play_startup_sound();
+	display_pairing_animation();
 
 	xTaskCreate(AudioControlTask, "AudioControl",  17*1024 / 4, NULL, 2, NULL);
 
