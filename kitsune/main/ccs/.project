@@ -751,6 +751,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audio_codec_pps_driver.h</locationURI>
 		</link>
 		<link>
+			<name>hlo/audio_features_upload_task.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audio_features_upload_task.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/audio_features_upload_task.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audio_features_upload_task.h</locationURI>
+		</link>
+		<link>
 			<name>hlo/audio_types.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audio_types.h</locationURI>
