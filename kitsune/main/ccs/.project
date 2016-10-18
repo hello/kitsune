@@ -856,6 +856,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio_tools.h</locationURI>
 		</link>
 		<link>
+			<name>hlo/hlo_circbuf_stream.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_circbuf_stream.h</locationURI>
+		</link>
+		<link>
 			<name>hlo/hlo_http.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_http.c</locationURI>
