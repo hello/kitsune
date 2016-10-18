@@ -2049,8 +2049,8 @@ tCmdLineEntry g_sCmdTable[] = {
     { "chdir",    Cmd_cd,       "" },
     { "cd",       Cmd_cd,       "" },
     { "rm",       Cmd_rm,       "" },
-#if 0
     { "mkdir",    Cmd_mkdir,    "" },
+#if 0
     { "write",    Cmd_write,    "" },
     { "mkfs",     Cmd_mkfs,     "" },
     { "pwd",      Cmd_pwd,      "" },
