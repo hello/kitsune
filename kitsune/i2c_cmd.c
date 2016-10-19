@@ -1440,6 +1440,7 @@ static int codec_after_init_test(void){
 	return 0;
 }
 
+#if BENJO_FIXES_THIS
 /******************************************************************************
  * MIC TEST CODE START
  ******************************************************************************/
@@ -1528,4 +1529,11 @@ int32_t mic_test_deviation(void)
 /******************************************************************************
  * MIC TEST CODE END
  ******************************************************************************/
+#else
+
+hlo_stream_t * mic_test_stream_open(void){ return NULL; }
+
+int32_t mic_test_deviation(void) {return 0; }
+
+#endif
 
