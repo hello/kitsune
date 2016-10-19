@@ -236,6 +236,7 @@ int fftr(int16_t f[], int32_t m)
         f[i] = tt;
     }
     fft(fi, fr, m-1);
+    return 0;
 }
 
 //requires 2N memory... for now

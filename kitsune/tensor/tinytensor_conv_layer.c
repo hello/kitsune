@@ -136,7 +136,7 @@ int8_t tinytensor_convolve3d_direct_maxpooling(int8_t * descale,
             
             
             //dropout
-            temp64 = temp32 * dropout_weight;
+            temp64 = (int64_t)temp32 * dropout_weight;
             temp64 >>= QFIXEDPOINT;
             
             //compensate for weight scaling
