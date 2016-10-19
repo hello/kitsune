@@ -46,6 +46,8 @@ static AudioEnergyStats_t _stats;
 
 int audio_sig_stop = 0;
 
+volatile bool disable_voice = false;
+
 static void StatsCallback(const AudioEnergyStats_t * pdata) {
 
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
