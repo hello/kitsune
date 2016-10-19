@@ -1775,7 +1775,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
+	xTaskCreate(thread_tx, "txTask", 2048 / 4, NULL, 1, NULL);
 	UARTprintf("*");
 	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
