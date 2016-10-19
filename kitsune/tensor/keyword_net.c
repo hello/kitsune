@@ -190,6 +190,8 @@ __attribute__((section(".ramcode")))
 void keyword_net_initialize(void) {
 	MEMSET(&_context,0,sizeof(_context));
 
+	_context.stats_mutex = xSemaphoreCreateMutex();
+
 	_context.net = initialize_network();
 
 	net_stats_init(&_context.stats,NUM_KEYWORDS,k_net_id);

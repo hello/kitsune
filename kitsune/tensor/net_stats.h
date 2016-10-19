@@ -11,7 +11,7 @@ extern "C" {
 #include "tinytensor_math_defs.h"
 #include <stdbool.h>
 
-#define NET_STATS_MAX_OUTPUTS (10)
+#define NET_STATS_MAX_OUTPUTS (5)
 #define NET_STATS_HISTOGRAM_BINS_2N (3)
 #define NET_STATS_HISTOGRAM_BINS (1 << NET_STATS_HISTOGRAM_BINS_2N)
 #define NET_STATS_SHIFT (QFIXEDPOINT - NET_STATS_HISTOGRAM_BINS_2N)
@@ -23,7 +23,7 @@ typedef struct {
 } NetStatsActivation_t;
 
 typedef struct {
-    uint32_t counts[NET_STATS_MAX_OUTPUTS][NET_STATS_HISTOGRAM_BINS];
+    uint16_t counts[NET_STATS_MAX_OUTPUTS][NET_STATS_HISTOGRAM_BINS];
     uint32_t num_keywords;
     NetStatsActivation_t activations[NET_STATS_MAX_ACTIVATIONS];
     uint32_t iactivation;
