@@ -3,7 +3,7 @@
 #include "tinytensor_memory.h"
 #include "tinytensor_math_defs.h"
 #include "uart_logger.h"
-
+#include "net_stats.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
