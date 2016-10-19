@@ -229,6 +229,7 @@ static void _do_lights(void * ctx, const void * buf, size_t size) {
 	int16_t * samples = (int16_t *)buf;
 	size /= sizeof(int16_t);
 
+#if 0
 	for(i = 0; i < size; i++){
 		stream->eng += abs(samples[i]);
 
@@ -262,6 +263,9 @@ static void _do_lights(void * ctx, const void * buf, size_t size) {
 			stream->eng = 0;
 		}
 	}
+#else
+	//set_modulation_intensity( get_alpha_from_light() );
+#endif
  }
 
 static int _write_light(void * ctx, const void * buf, size_t size) {
@@ -306,7 +310,7 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base, bool start){
 	if( start )
 	{
 		DISP("open light\n") ;
-		set_modulation_intensity( 253 );
+		set_modulation_intensity( get_alpha_from_light() );
 		play_modulation(140,29,237,100,0);
 		stream->close_lights = false;
 		stream->lp = 2000;

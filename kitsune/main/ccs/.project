@@ -756,16 +756,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audio_types.h</locationURI>
 		</link>
 		<link>
-			<name>hlo/audioclassifier.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.c</locationURI>
-		</link>
-		<link>
-			<name>hlo/audioclassifier.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.h</locationURI>
-		</link>
-		<link>
 			<name>hlo/audiofeatures.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.c</locationURI>
@@ -1139,6 +1129,11 @@
 			<name>protobuf/sync_response.pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/sync_response.pb.h</locationURI>
+		</link>
+		<link>
+			<name>tensor/features_types.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/features_types.h</locationURI>
 		</link>
 		<link>
 			<name>tensor/fft.c</name>

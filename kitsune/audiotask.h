@@ -46,7 +46,7 @@ void AudioPlaybackTask(void * data);
 void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc);
 
 void AudioTask_StopPlayback(void);
-void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata);
+void AudioTask_DumpOncePerMinuteStats(AudioEnergyStats_t * pdata);
 /**
  * testing commands
  */
