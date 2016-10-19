@@ -1145,8 +1145,8 @@ void sample_sensor_data(periodic_data* data,NetStats_t * keyword_net_stats)
 		return;
 	}
 
-	//data->has_light_duration_ms = true;
-	//data->light_duration_ms = led_duration;
+	data->has_light_duration_ms = true;
+	data->light_duration_ms = led_duration;
 
 	AudioEnergyStats_t aud_data;
 	data->unix_time = get_time();
