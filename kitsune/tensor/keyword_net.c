@@ -3,7 +3,6 @@
 #include "tinytensor_memory.h"
 #include "tinytensor_math_defs.h"
 #include "uart_logger.h"
-#include "net_stats.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -55,6 +54,17 @@ static void speech_detect_callback(void * context, SpeechTransition_t transition
 	}
 }
 
+uint8_t keyword_net_get_and_reset_stats(NetStats_t * stats) {
+    //copy out stats, and zero it out
+    if( xSemaphoreTake(_context.stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
+        memcpy(stats,&_context.stats,sizeof(NetStats_t));
+        net_stats_reset(&_context.stats);
+        xSemaphoreGive(_context.stats_mutex);
+        return 1;
+    }
+
+    return 0;
+}
 extern volatile int idlecnt;
 
 __attribute__((section(".ramcode")))
@@ -127,21 +137,22 @@ static void feats_callback(void * p, Weight_t * feats) {
 
 
 
-			//active
+			//activating?
 			if (val >= callback_item->activation_threshold) {
 
-				//just started
+				//did we just start?
 				if (callback_item->active_count == 0 && callback_item->on_start) {
 					callback_item->on_start(callback_item->context,(Keyword_t)i, val);
 				}
 
 				callback_item->active_count++;
 
-				//reached threshold for activation, do callback
+				//did we reach the desired number of counts?
 				if (callback_item->active_count == callback_item->min_duration && callback_item->on_end) {
+					//do callback
 					callback_item->on_end(callback_item->context,(Keyword_t)i, callback_item->max_value);
 					
-                    //update activations
+					//log activation, has to be thread safe
                     if( xSemaphoreTake(context->stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
 						net_stats_record_activation(&context->stats,(Keyword_t)i,context->counter);
 						xSemaphoreGive(context->stats_mutex);
@@ -149,7 +160,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 				}
 			}
 
-			//deactivating
+			//check if we went below threshold, if so, then reset
 			if (val < callback_item->activation_threshold && callback_item->active_count) {
 				//reset
 				callback_item->active_count = 0;
