@@ -879,8 +879,6 @@ void reset_to_factory_fw();
 void play_startup_sound();
 void display_pairing_animation();
 void thread_fast_i2c_poll(void * unused)  {
-	unsigned int filter_buf[3];
-	unsigned int filter_idx=0;
 	int w,r,g,b,p;
 
 	gesture_init();
@@ -891,7 +889,6 @@ void thread_fast_i2c_poll(void * unused)  {
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
-		uint32_t prox=0;
 
 #define BUTTON_PRESS_TIME 60
 
@@ -930,9 +927,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			}
 			LOGP("%d,%d,%d,%d,%d\n", w,r,g,b,p );
 
-			//prox = median_filter(p, filter_buf, &filter_idx);
-			prox = p;
-			switch(gesture_input(prox))
+			switch(gesture_input(p))
 			{
 			case GESTURE_WAVE:
 				_on_wave();
