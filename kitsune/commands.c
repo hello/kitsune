@@ -100,6 +100,7 @@
 #include "filedownloadmanager.h"
 
 #include "tensor/net_stats.h"
+#include "tensor/keyword_net.h"
 #include "protobuf/keyword_stats.pb.h"
 #include "octogram.h"
 
