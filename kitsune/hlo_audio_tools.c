@@ -23,7 +23,7 @@
 
 #include "wifi_cmd.h"
 #include "protobuf/state.pb.h"
-AudioState get_audio_state();
+bool audio_playing();
 
 #include "speech.pb.h"
 ////-------------------------------------------
@@ -274,7 +274,7 @@ static void _snooze_stop(void * ctx, Keyword_t keyword, int16_t value){
 }
 static void _stop_stop(void * ctx, Keyword_t keyword, int16_t value){
 	LOGI("STOP\r\n");
-	if( get_audio_state().playing_audio  ) {
+	if( audio_playing() ) {
 		LOGI("STOPPING\r\n");
 		cancel_alarm();
 		_voice_finish_keyword(ctx, keyword, value);

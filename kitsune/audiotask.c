@@ -72,13 +72,16 @@ static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload
 #include "networktask.h"
 #include "wifi_cmd.h"
 extern bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
-static SenseState sense_state;
-AudioState get_audio_state() {
-	return sense_state.audio_state;
+static bool _playing = false;
+bool audio_playing() {
+	return _playing;
 }
+extern volatile int sys_volume;
+extern volatile bool disable_voice;
 static void _sense_state_task(hlo_future_t * result, void * ctx){
 #define MAX_STATE_BACKOFF (15*60*1000)
-	AudioState last_audio_state;
+	SenseState sense_state;
+
 	sense_state.sense_id.funcs.encode = encode_device_id_string;
 	sense_state.has_audio_state = true;
 	bool state_sent = true;
@@ -87,13 +90,18 @@ static void _sense_state_task(hlo_future_t * result, void * ctx){
 		if(xQueueReceive( _state_queue,(void *) &(sense_state.audio_state), backoff)){
 			//reset backoff on state change
 			backoff = 1000;
-			last_audio_state = sense_state.audio_state;
-			LOGI("AudioState %s, %s\r\n", last_audio_state.playing_audio?"Playing":"Stopped", last_audio_state.file_path);
+			_playing = sense_state.audio_state.playing_audio;
+
+			sense_state.has_volume = true;
+			sense_state.volume = sys_volume;
+			sense_state.has_voice_control_enabled = true;
+			sense_state.voice_control_enabled = !disable_voice;
+
+			LOGI("AudioState %s, %s\r\n",  _playing ?"Playing":"Stopped", sense_state.audio_state.file_path);
 			state_sent = NetworkTask_SendProtobuf(true, DATA_SERVER,
 							SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 0,
 							NULL, NULL, NULL, true);
 		}else if(!state_sent && wifi_status_get(HAS_IP)){
-			sense_state.audio_state = last_audio_state;
 			state_sent = NetworkTask_SendProtobuf(true, DATA_SERVER,
 										SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 0,
 										NULL, NULL, NULL, true);
