@@ -1,5 +1,4 @@
 #include "keyword_net.h"
-#include "model_aug30_lstm_med_dist_okay_sense_stop_snooze_tiny_fa8_1014_ep105.c"
 #include "tinytensor_features.h"
 #include "tinytensor_memory.h"
 #include "tinytensor_math_defs.h"
@@ -13,9 +12,12 @@
 #include "arm_const_structs.h"
 #include "fft.h"
 
+#define NEURAL_NET_MODEL "model_aug30_lstm_med_dist_okay_sense_stop_snooze_tiny_fa8_1014_ep105.c"
+#include NEURAL_NET_MODEL
+const static char * k_net_id = NEURAL_NET_MODEL;
+
 static volatile int _is_net_running = 1;
 
-const char * k_net_id = "model_aug30_lstm_med_dist_okay_sense_stop_snooze_tiny_912_ep216_q12";
 
 typedef struct {
 	KeywordCallback_t on_start;
