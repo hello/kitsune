@@ -10,7 +10,7 @@
 
 /* how much delta does it take to activate the fsm over noise floor */
 /* set to 2x observed max at idle on DVT 1p5 */
-#define DETECTION_THRESH 100
+#define DETECTION_THRESH 200
 
 /* minimal frames require for the wave gesture */
 #define GESTURE_WAVE_MULTIPLIER (1)
@@ -89,7 +89,7 @@ static gesture_t _fsm(int in){
 	case GFSM_IDLE_FORREALS:
 		//any edge triggers edge up state
 		if( exceeded > 0 ){
-			LOGI("->1\r\n");
+			LOGI("->1 %d\r\n", in);
 			_transition_state(GFSM_LEVEL);
 #if 1
 			LOGF("Gesture: WAVE\r\n");
@@ -158,7 +158,6 @@ void gesture_init(){
 	self.last_pause = 0;
 	self.gesture_count_semaphore = xSemaphoreCreateMutex();
 }
-
 gesture_t gesture_input(int prox){
 	if( !self.output_gesture ) {
 		_fsm_reset();

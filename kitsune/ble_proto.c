@@ -572,11 +572,10 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 extern volatile bool provisioning_mode;
 
 void ble_proto_led_fade_in_trippy(){
-	uint8_t trippy_base[3] = { 25, 30, 230 };
-	uint8_t trippy_range[3] = { 25, 30, 228 }; //last on wraps, but oh well
-
 	flush_animation_history();
-	play_led_trippy(trippy_base, trippy_range, portMAX_DELAY, 30, 30 );
+	play_pairing_glow();
+
+
 }
 
 void ble_proto_led_fade_out(bool operation_result){
@@ -658,6 +657,12 @@ void ble_proto_end_hold()
 #include "hellofilesystem.h"
 #define STARTUP_SOUND_NAME "/ringtone/star003.raw"
 
+void display_pairing_animation() {
+	if(needs_pairing_animation){
+		play_pairing_glow();
+		needs_pairing_animation = false;
+	}
+}
 void play_startup_sound() {
 	// TODO: Play startup sound. You will only reach here once.
 	// Now the hand hover-to-pairing mode will not delete all the bonds
@@ -670,7 +675,7 @@ void play_startup_sound() {
 		memset(&desc, 0, sizeof(desc));
 		desc.stream = fs_stream_open(STARTUP_SOUND_NAME, HLO_STREAM_READ);
 		ustrncpy(desc.source_name, STARTUP_SOUND_NAME, sizeof(desc.source_name));
-		desc.volume = 64;
+		desc.volume = 48;
 		desc.durationInSeconds = -1;
 		desc.rate = AUDIO_SAMPLE_RATE;
 		desc.fade_in_ms = 0;
@@ -684,10 +689,7 @@ void play_startup_sound() {
 		ble_proto_led_init();
 		need_init_lights = false;
 	}
-	if(needs_pairing_animation){
-		ble_proto_led_fade_in_trippy();
-		needs_pairing_animation = false;
-	}
+
 
 }
 
@@ -829,6 +831,9 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     			needs_pairing_animation = true;
 				set_ble_mode(BLE_PAIRING);
 				LOGI( "PAIRING MODE \n");
+				if(xTaskGetTickCount() > 10000){
+					display_pairing_animation();
+				}
 #if 0
 				//wifi prescan, forked so we don't block the BLE and it just happens in the background
 				if(!scan_results){

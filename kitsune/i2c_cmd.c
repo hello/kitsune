@@ -578,18 +578,26 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 	unsigned char b[8];
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
-
-
-
 	vTaskDelay(10);
 	//environmental
 	b[0] = 0x05;
-	temp = (temp + 2500)/50;
-	humid /= 50;
-	b[1] = humid>>8;
-	b[2] = (humid&0xff);;
-	b[3] = temp>>8;
-	b[4] = (temp&0xff);
+
+	humid *= 10;
+	// see cc-000803-an-4-ccs811_programming_and_interfacing_guide.pdf page 19, 20
+	b[1] = ((humid % 1000) / 100) > 7 ? (humid/1000 + 1)<<1 : (humid/1000)<<1;
+	if(((humid % 1000) / 100) > 2 && (((humid) / 100) < 8))
+	{
+		b[1] |= 1;
+	}
+	b[2] = 0;
+
+	temp *= 10;
+	temp += 25000;
+	b[3] = ((temp % 1000) / 100) > 7 ? (temp / 1000 + 1) << 1 : (temp) << 1;
+	if (((temp % 1000) / 100) > 2 && (((temp % 1000) / 100) < 8)) {
+		b[3] |= 1;
+	}
+	b[4] = 0;
 	(I2C_IF_Write(0x5a, b, 5, 1));
 
 	b[0] = 2;
@@ -782,7 +790,7 @@ int get_ir( int * ir ) {
 	(I2C_IF_Write(0x39, b, 2, 1));
 	vTaskDelay(110);
 	get_rgb_prox( &w, &r, &g, &bl, &p );
-	*ir = w+r+g+bl;
+	*ir = (r+g+bl-w)/2;
 
 	b[0] = 0xAB;
 	b[1] = 0x00;
@@ -919,11 +927,13 @@ int get_system_volume() {
 	 if( fs_get(VOL_LOC, &sys_volume, sizeof(sys_volume), NULL) < 0 ) {
 		 sys_volume = 60;
 	 }
+
+	 return sys_volume;
 }
 int32_t set_system_volume(int new_volume) {
 	if( new_volume != sys_volume ) {
 		 sys_volume = new_volume;
-		 fs_save(VOL_LOC, sys_volume, sizeof(sys_volume));
+		 fs_save(VOL_LOC, &sys_volume, sizeof(sys_volume));
 	}
 	return set_volume(new_volume, portMAX_DELAY);
 }
