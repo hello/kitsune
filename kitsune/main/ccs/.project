@@ -1011,6 +1011,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/filetransfer.pb.h</locationURI>
 		</link>
 		<link>
+			<name>protobuf/keyword_stats.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/keyword_stats.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/keyword_stats.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/keyword_stats.pb.h</locationURI>
+		</link>
+		<link>
 			<name>protobuf/log.pb.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/log.pb.c</locationURI>
