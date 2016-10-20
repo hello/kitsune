@@ -425,7 +425,6 @@ extern volatile int sys_volume;
 #include "audio_types.h"
 #include "hlo_audio_tools.h"
 int32_t set_volume(int v, unsigned int dly);
-hlo_stream_t * mic_test_stream_open(void);
 #define BUF_SIZE 64
 hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 	hlo_stream_t * rstr = NULL;
@@ -536,10 +535,6 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 				case 'F':
 					global_filename(p+1);
 					rstr = fs_stream_open(path_buff, HLO_STREAM_WRITE);
-					break;
-				case 'm':
-				case 'M':
-					rstr = mic_test_stream_open();
 					break;
 				default:
 					rstr = random_stream_open();
