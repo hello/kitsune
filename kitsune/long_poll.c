@@ -115,7 +115,7 @@ static bool _on_message(pb_istream_t *stream, const pb_field_t *field, void **ar
 	if( message.has_voice_control || message.has_volume ) {
 		SenseState sense_state = {0};
 		sense_state.has_volume = true;
-		sense_state.volume = sys_volume;
+		sense_state.volume = sys_volume * 100 / 64;
 		sense_state.has_voice_control_enabled = true;
 		sense_state.voice_control_enabled = !disable_voice;
 
