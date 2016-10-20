@@ -70,10 +70,10 @@ static void _on_stop_audio( StopAudio * cmd ) {
 }
 
 extern volatile int sys_volume;
-int32_t set_system_volume(int v, unsigned int dly);
+int32_t set_system_volume(int v);
 
 static void _on_volume( Volume * cmd ) {
-	set_system_volume(cmd->volume * 64 / 100, 10000); //convert from percent to codec range)
+	set_system_volume(cmd->volume * 64 / 100); //convert from percent to codec range)
 }
 
 extern volatile bool disable_voice;
