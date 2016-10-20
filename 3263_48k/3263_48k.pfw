@@ -2259,7 +2259,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>Yes</value>
+              <value>No</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -2268,7 +2268,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>Yes</value>
+                  <value>No</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -2314,7 +2314,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>Yes</value>
+          <value>No</value>
         </design_property>
         <design_property>
           <name>Include_MultiDigital</name>
@@ -2325,7 +2325,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>Yes</value>
+              <value>No</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -2334,7 +2334,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>Yes</value>
+                  <value>No</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -2380,7 +2380,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>Yes</value>
+          <value>No</value>
         </design_property>
         <design_property>
           <name>Multi_I2S_Num_In_Channels</name>
@@ -91679,7 +91679,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -91688,7 +91688,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -91728,7 +91728,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst1_Q</name>
@@ -91797,7 +91797,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -91806,7 +91806,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -91846,7 +91846,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst2_On</name>
@@ -92151,7 +92151,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -92160,7 +92160,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -92200,7 +92200,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst2_Q</name>
@@ -92269,7 +92269,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -92278,7 +92278,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -92318,7 +92318,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst3_On</name>
@@ -92505,7 +92505,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -92514,7 +92514,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -92554,7 +92554,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst3_Gain</name>
@@ -92564,7 +92564,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -92573,7 +92573,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -92613,7 +92613,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst3_Bandwidth</name>
@@ -92623,7 +92623,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -92632,7 +92632,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -92672,7 +92672,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst3_Q</name>
@@ -92682,7 +92682,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -92691,7 +92691,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -92731,7 +92731,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst3_PB</name>
@@ -92741,7 +92741,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -92750,7 +92750,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -92790,7 +92790,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst4_On</name>
@@ -92977,7 +92977,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -92986,7 +92986,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -93026,7 +93026,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst4_Gain</name>
@@ -93036,7 +93036,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -93045,7 +93045,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -93085,7 +93085,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst4_Bandwidth</name>
@@ -93095,7 +93095,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -93104,7 +93104,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -93144,7 +93144,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst4_Q</name>
@@ -93154,7 +93154,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -93163,7 +93163,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -93203,7 +93203,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst4_PB</name>
@@ -93213,7 +93213,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -93222,7 +93222,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -93262,7 +93262,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst5_On</name>
@@ -93449,7 +93449,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -93458,7 +93458,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -93498,7 +93498,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst5_Gain</name>
@@ -93508,7 +93508,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -93517,7 +93517,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -93557,7 +93557,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst5_Bandwidth</name>
@@ -93567,7 +93567,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -93576,7 +93576,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -93616,7 +93616,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst5_Q</name>
@@ -93626,7 +93626,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -93635,7 +93635,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -93675,7 +93675,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst5_PB</name>
@@ -93685,7 +93685,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -93694,7 +93694,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -93734,7 +93734,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst6_On</name>
@@ -93921,7 +93921,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -93930,7 +93930,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -93970,7 +93970,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst6_Gain</name>
@@ -93980,7 +93980,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -93989,7 +93989,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -94029,7 +94029,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst6_Bandwidth</name>
@@ -94039,7 +94039,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -94048,7 +94048,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -94088,7 +94088,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst6_Q</name>
@@ -94098,7 +94098,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -94107,7 +94107,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -94147,7 +94147,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst6_PB</name>
@@ -94157,7 +94157,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -94166,7 +94166,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -94206,7 +94206,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst7_On</name>
@@ -94393,7 +94393,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -94402,7 +94402,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -94442,7 +94442,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst7_Gain</name>
@@ -94452,7 +94452,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -94461,7 +94461,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -94501,7 +94501,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst7_Bandwidth</name>
@@ -94511,7 +94511,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -94520,7 +94520,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -94560,7 +94560,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst7_Q</name>
@@ -94570,7 +94570,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -94579,7 +94579,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -94619,7 +94619,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst7_PB</name>
@@ -94629,7 +94629,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -94638,7 +94638,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -94678,7 +94678,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst8_On</name>
@@ -94865,7 +94865,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -94874,7 +94874,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -94914,7 +94914,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst8_Gain</name>
@@ -94924,7 +94924,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -94933,7 +94933,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -94973,7 +94973,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst8_Bandwidth</name>
@@ -94983,7 +94983,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -94992,7 +94992,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -95032,7 +95032,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst8_Q</name>
@@ -95042,7 +95042,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -95051,7 +95051,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -95091,7 +95091,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst8_PB</name>
@@ -95101,7 +95101,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -95110,7 +95110,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -95150,7 +95150,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst9_On</name>
@@ -95337,7 +95337,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -95346,7 +95346,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -95386,7 +95386,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst9_Gain</name>
@@ -95396,7 +95396,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -95405,7 +95405,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -95445,7 +95445,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst9_Bandwidth</name>
@@ -95455,7 +95455,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -95464,7 +95464,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -95504,7 +95504,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst9_Q</name>
@@ -95514,7 +95514,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -95523,7 +95523,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -95563,7 +95563,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst9_PB</name>
@@ -95573,7 +95573,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -95582,7 +95582,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -95622,7 +95622,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst10_On</name>
@@ -95809,7 +95809,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -95818,7 +95818,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -95858,7 +95858,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst10_Gain</name>
@@ -95868,7 +95868,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -95877,7 +95877,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -95917,7 +95917,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst10_Bandwidth</name>
@@ -95927,7 +95927,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -95936,7 +95936,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -95976,7 +95976,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst10_Q</name>
@@ -95986,7 +95986,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -95995,7 +95995,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -96035,7 +96035,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
         </design_property>
         <design_property>
           <name>Inst10_PB</name>
@@ -96045,7 +96045,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1.0</value>
+              <value>1</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -96054,7 +96054,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1.0</value>
+                  <value>1</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -96094,7 +96094,73 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1.0</value>
+          <value>1</value>
+        </design_property>
+        <design_property>
+          <name>TargetStream</name>
+          <qsize>32</qsize>
+          <qvalue>31</qvalue>
+          <type>Enum</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>Primary</value>
+            </rate_value_pair>
+          </values>
+          <configurations>
+            <configuration>
+              <config_name>main</config_name>
+              <config_values>
+                <rate_value_pair>
+                  <rate>RateAll</rate>
+                  <value>Primary</value>
+                </rate_value_pair>
+              </config_values>
+            </configuration>
+          </configurations>
+          <enumnames>
+            <string>Primary</string>
+            <string>Secondary</string>
+            <string>None</string>
+          </enumnames>
+          <enumvalues>
+            <int>0</int>
+            <int>1</int>
+            <int>2</int>
+          </enumvalues>
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <min_fix_val xsi:type="DapLongFixed">
+            <whole>-4</whole>
+            <fraction>0</fraction>
+          </min_fix_val>
+          <max_fix_val xsi:type="DapLongFixed">
+            <whole>3</whole>
+            <fraction>536870911</fraction>
+          </max_fix_val>
+          <min_qfix_val>0.0</min_qfix_val>
+          <max_qfix_val>0.0</max_qfix_val>
+          <readonly>false</readonly>
+          <hidden>false</hidden>
+          <propagate_property>false</propagate_property>
+          <instance_number>0</instance_number>
+          <channel_number>0</channel_number>
+          <input_channel_number>0</input_channel_number>
+          <output_channel_number>0</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>false</shared_between_configs>
+          <value>Primary</value>
         </design_property>
         <design_property>
           <name>SynchMode</name>
@@ -96160,62 +96226,6 @@ reg[120][0][49] = 0x40</value>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
           <value>Disabled</value>
-        </design_property>
-        <design_property>
-          <name>TargetStream</name>
-          <qsize>32</qsize>
-          <qvalue>31</qvalue>
-          <type>Enum</type>
-          <values>
-            <rate_value_pair>
-              <rate>RateAll</rate>
-              <value>Primary</value>
-            </rate_value_pair>
-          </values>
-          <configurations>
-            <configuration>
-              <config_name>main</config_name>
-              <config_values>
-                <rate_value_pair>
-                  <rate>RateAll</rate>
-                  <value>Primary</value>
-                </rate_value_pair>
-              </config_values>
-            </configuration>
-          </configurations>
-          <enumnames>
-            <string>Primary</string>
-            <string>Secondary</string>
-            <string>None</string>
-          </enumnames>
-          <enumvalues>
-            <int>0</int>
-            <int>1</int>
-            <int>2</int>
-          </enumvalues>
-          <min_int_val>-2147483648</min_int_val>
-          <max_int_val>2147483647</max_int_val>
-          <min_float_val>-1.7976931348623157E+308</min_float_val>
-          <max_float_val>1.7976931348623157E+308</max_float_val>
-          <readonly>false</readonly>
-          <hidden>false</hidden>
-          <propagate_property>false</propagate_property>
-          <instance_number>0</instance_number>
-          <channel_number>0</channel_number>
-          <input_channel_number>0</input_channel_number>
-          <output_channel_number>0</output_channel_number>
-          <int_delta_val>1</int_delta_val>
-          <dap_short_delta_val>
-            <whole>0</whole>
-            <fraction>1</fraction>
-          </dap_short_delta_val>
-          <dap_long_delta_val>
-            <whole>0</whole>
-            <fraction>1</fraction>
-          </dap_long_delta_val>
-          <delay_width>Delay24bit</delay_width>
-          <shared_between_configs>false</shared_between_configs>
-          <value>Primary</value>
         </design_property>
         <design_property>
           <name>InstanceId</name>
