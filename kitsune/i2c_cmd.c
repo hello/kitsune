@@ -920,12 +920,12 @@ static void codec_sw_reset(void);
  * On the codec, this gain has 117 levels between 0db to -78.3db
  * The input v to the function varies from 0-64.
  */
-volatile int sys_volume = 60;
+volatile int sys_volume = 64;
 
 #define VOL_LOC "/hello/vol"
 int get_system_volume() {
 	 if( fs_get(VOL_LOC, &sys_volume, sizeof(sys_volume), NULL) < 0 ) {
-		 sys_volume = 60;
+		 sys_volume = 64;
 	 }
 
 	 return sys_volume;
@@ -1130,7 +1130,7 @@ void codec_unmute_spkr(void)
 
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 		cmd[0] = 48;
-		cmd[1] = (SPK_VOLUME_18dB << 4);
+		cmd[1] = (SPK_VOLUME_12dB << 4);
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 		xSemaphoreGiveRecursive(i2c_smphr);
@@ -1440,6 +1440,7 @@ static int codec_after_init_test(void){
 	return 0;
 }
 
+#if BENJO_FIXES_THIS
 /******************************************************************************
  * MIC TEST CODE START
  ******************************************************************************/
@@ -1528,4 +1529,11 @@ int32_t mic_test_deviation(void)
 /******************************************************************************
  * MIC TEST CODE END
  ******************************************************************************/
+#else
+
+hlo_stream_t * mic_test_stream_open(void){ return NULL; }
+
+int32_t mic_test_deviation(void) {return 0; }
+
+#endif
 
