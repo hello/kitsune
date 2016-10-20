@@ -833,35 +833,5 @@ static uint8_t _mic_test_stop(void * unused){
 	return (--mic_count == 0);
 }
 
-int32_t mic_test_deviation(void);
-int Cmd_mic_test(int argc, char * argv[]){
-	hlo_filter f = hlo_filter_data_transfer;
-	int ret;
 
-#if 0
-	if(argc < 3){
-		LOGI("Usage: x in out [rate] [filter]\r\n");
-		LOGI("Press s to stop the transfer\r\n");
-	}
-	if(argc >= 4){
-		f = _filter_from_string(argv[3]);
-	}
-#endif
 
-	mic_count = 8;
-
-	hlo_stream_t * in = open_stream_from_path("$a",2);
-	hlo_stream_t * out = open_stream_from_path("$m",0);
-
-	if(in && out){
-		ret = f(in,out,NULL, _mic_test_stop);
-	}
-
-	// Compute average and deviation
-	int32_t deviation =  mic_test_deviation();
-
-	LOGI("Mic test completed with %d\r\n", ret);
-	hlo_stream_close(in);
-	hlo_stream_close(out);
-	return 0;
-}
