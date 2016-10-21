@@ -347,6 +347,11 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		}
 
 		if( nn_ctx.speech_pb.has_word && nn_ctx.speech_pb.word == Keyword_OK_SENSE) {
+			if( disable_voice || !wifi_status_get(HAS_IP) ) {
+				LOGI("voicetrignot %d %d\n", disable_voice, wifi_status_get(HAS_IP) );
+				ret = HLO_STREAM_ERROR;
+				break;
+			}
 			if( !light_open ) {
 				light_sensor_power(LOW_POWER);
 				keyword_net_pause_net_operation();
@@ -384,12 +389,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	}
 	hlo_stream_close(input);
 	light_sensor_power(HIGH_POWER);
-
-	if( disable_voice ) {
-		stop_led_animation(0, 33);
-		play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1, 18, 1);
-		LOGI("voicetrigbutdisabled\n");
-	}
 
 	if (ret < 0) {
 		if( ret != HLO_STREAM_EAGAIN ) {
