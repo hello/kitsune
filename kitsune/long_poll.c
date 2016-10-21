@@ -114,6 +114,8 @@ static bool _on_message(pb_istream_t *stream, const pb_field_t *field, void **ar
 	}
 	if( message.has_voice_control || message.has_volume ) {
 		SenseState sense_state = {0};
+		sense_state.sense_id.funcs.encode = encode_device_id_string;
+
 		sense_state.has_volume = true;
 		sense_state.volume = sys_volume * 100 / 64;
 		sense_state.has_voice_control_enabled = true;
