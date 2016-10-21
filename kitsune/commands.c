@@ -759,9 +759,9 @@ uint8_t get_alpha_from_light()
 		als = get_ambient_light_level(LPF_LIGHT);
 	}
 	//translate als to alpha
-	if(als > 400){
+	if(als >= 400){
 		alpha = 0xFF;
-	}else if(als > 50){
+	}else if(als >= 30){
 		alpha = 0xA0;
 	}else{
 		alpha = 0x10;
