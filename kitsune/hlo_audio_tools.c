@@ -23,7 +23,7 @@
 
 #include "wifi_cmd.h"
 #include "protobuf/state.pb.h"
-AudioState get_audio_state();
+bool audio_playing();
 
 #include "speech.pb.h"
 ////-------------------------------------------
@@ -45,6 +45,8 @@ static xSemaphoreHandle _statsMutex = NULL;
 static AudioEnergyStats_t _stats;
 
 int audio_sig_stop = 0;
+
+volatile bool disable_voice = false;
 
 static void StatsCallback(const AudioEnergyStats_t * pdata) {
 
@@ -272,7 +274,7 @@ static void _snooze_stop(void * ctx, Keyword_t keyword, int16_t value){
 }
 static void _stop_stop(void * ctx, Keyword_t keyword, int16_t value){
 	LOGI("STOP\r\n");
-	if( get_audio_state().playing_audio  ) {
+	if( audio_playing() ) {
 		LOGI("STOPPING\r\n");
 		cancel_alarm();
 		_voice_finish_keyword(ctx, keyword, value);
@@ -382,6 +384,12 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	}
 	hlo_stream_close(input);
 	light_sensor_power(HIGH_POWER);
+
+	if( disable_voice ) {
+		stop_led_animation(0, 33);
+		play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1, 18, 1);
+		LOGI("voicetrigbutdisabled\n");
+	}
 
 	if (ret < 0) {
 		if( ret != HLO_STREAM_EAGAIN ) {
@@ -825,35 +833,5 @@ static uint8_t _mic_test_stop(void * unused){
 	return (--mic_count == 0);
 }
 
-int32_t mic_test_deviation(void);
-int Cmd_mic_test(int argc, char * argv[]){
-	hlo_filter f = hlo_filter_data_transfer;
-	int ret;
 
-#if 0
-	if(argc < 3){
-		LOGI("Usage: x in out [rate] [filter]\r\n");
-		LOGI("Press s to stop the transfer\r\n");
-	}
-	if(argc >= 4){
-		f = _filter_from_string(argv[3]);
-	}
-#endif
 
-	mic_count = 8;
-
-	hlo_stream_t * in = open_stream_from_path("$a",2);
-	hlo_stream_t * out = open_stream_from_path("$m",0);
-
-	if(in && out){
-		ret = f(in,out,NULL, _mic_test_stop);
-	}
-
-	// Compute average and deviation
-	int32_t deviation =  mic_test_deviation();
-
-	LOGI("Mic test completed with %d\r\n", ret);
-	hlo_stream_close(in);
-	hlo_stream_close(out);
-	return 0;
-}

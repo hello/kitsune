@@ -12,6 +12,7 @@
 #include "sl_sync_include_after_simplelink_header.h"
 
 #include "messeji.pb.h"
+#include "state.pb.h"
 
 #include "audiotask.h"
 #include "audio_commands.pb.h"
@@ -67,12 +68,19 @@ static void _on_stop_audio( StopAudio * cmd ) {
 	//TODO use cmd->fade_out_duration_seconds; ?
 	AudioTask_StopPlayback();
 }
-int32_t set_volume(int v, unsigned int dly);
+
+extern volatile int sys_volume;
+int32_t set_system_volume(int v);
 
 static void _on_volume( Volume * cmd ) {
 	set_system_volume(cmd->volume * 64 / 100); //convert from percent to codec range)
 }
 
+extern volatile bool disable_voice;
+static void _on_voice_control( VoiceControl * cmd ) {
+	LOGI("voice disabled\n");
+	disable_voice = !cmd->enable;
+}
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
 static bool _on_message(pb_istream_t *stream, const pb_field_t *field, void **arg) {
@@ -100,6 +108,22 @@ static bool _on_message(pb_istream_t *stream, const pb_field_t *field, void **ar
 	}
 	if (message.has_stop_audio) {
 		_on_stop_audio(&message.stop_audio);
+	}
+	if(message.has_voice_control) {
+		_on_voice_control(&message.voice_control);
+	}
+	if( message.has_voice_control || message.has_volume ) {
+		SenseState sense_state = {0};
+		sense_state.sense_id.funcs.encode = encode_device_id_string;
+
+		sense_state.has_volume = true;
+		sense_state.volume = sys_volume * 100 / 64;
+		sense_state.has_voice_control_enabled = true;
+		sense_state.voice_control_enabled = !disable_voice;
+
+		NetworkTask_SendProtobuf(true, DATA_SERVER,
+						SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 0,
+						NULL, NULL, NULL, false);
 	}
 
 	vPortFree(message.sender_id.arg);

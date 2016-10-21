@@ -99,7 +99,9 @@
 #include "long_poll.h"
 #include "filedownloadmanager.h"
 
+#include "tensor/net_stats.h"
 #include "tensor/keyword_net.h"
+#include "protobuf/keyword_stats.pb.h"
 #include "octogram.h"
 
 #include "audiohelper.h"
@@ -115,6 +117,10 @@
 //******************************************************************************
 //			        FUNCTION DECLARATIONS
 //******************************************************************************
+//Benjo says -- this stuff are items I didn't want to drag in a header for
+extern uint8_t keyword_net_get_and_reset_stats(NetStats_t * stats);
+extern void set_encoders_with_data(KeywordStats * keyword_stats_item, NetStats_t * stats);
+extern int cmd_test_neural_net(int argc, char * argv[]);
 
 //******************************************************************************
 //			    GLOBAL VARIABLES
@@ -744,40 +750,23 @@ int get_ambient_light_level(ambient_light_source source){
 }
 uint8_t get_alpha_from_light()
 {
-	int adjust_max_light = 1000;
-	int adjust;
-
-#if 0
-	xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY);
-	if( _light_data.light > adjust_max_light ) {
-		adjust = adjust_max_light;
-	} else {
-		adjust = _light_data.light_mean;
-	}
-	xSemaphoreGiveRecursive(_light_data.light_smphr);
-
-#else
-	static TickType_t last_als = 0;
-	static int als = 0;
-	static uint8_t alpha = 0;
+	uint8_t alpha = 0;
+	static TickType_t last_als;
+	static int als;
 
 	if( xTaskGetTickCount() - last_als > 1000 ) {
 		last_als = xTaskGetTickCount();
 		als = get_ambient_light_level(LPF_LIGHT);
-
-		if( als > adjust_max_light ) {
-			adjust = adjust_max_light;
-		} else {
-			adjust = als;
-		}
-		alpha = 0xFF * adjust / adjust_max_light;
-		alpha = alpha < 10 ? 10 : alpha;
-
-		LOGI("%d, %d ALPHA %d\n",_light_data.light,als, alpha);
 	}
-
-#endif
-
+	//translate als to alpha
+	if(als >= 400){
+		alpha = 0xFF;
+	}else if(als >= 30){
+		alpha = 0xA0;
+	}else{
+		alpha = 0x10;
+	}
+	LOGI("ALS %d ALPHA %d\r\n", als, alpha);
 	return alpha;
 }
 
@@ -1154,7 +1143,7 @@ void thread_tx(void* unused) {
 #include "audio_types.h"
 extern volatile int led_duration;
 
-void sample_sensor_data(periodic_data* data)
+void sample_sensor_data(periodic_data* data,NetStats_t * keyword_net_stats)
 {
 	if(!data )
 	{
@@ -1217,6 +1206,14 @@ void sample_sensor_data(periodic_data* data)
 
 	//get audio -- this is thread safe
 	AudioTask_DumpOncePerMinuteStats(&aud_data);
+
+	//Benjo wrote this:  get keyword statistics -- this is thread safe
+	//IF we have memory allocated for this
+	if (keyword_net_stats && keyword_net_get_and_reset_stats(keyword_net_stats)) {
+
+		//if you got the stats, then set up all the protobuf encoders, which use "keyword_net_stats" as part of its memeory
+		set_encoders_with_data(&data->keyword_stats,keyword_net_stats);
+	}
 
 	if (aud_data.isValid) {
 		data->has_audio_num_disturbances = true;
@@ -1346,7 +1343,7 @@ int force_data_push()
 
     periodic_data data;
     memset(&data, 0, sizeof(periodic_data));
-    sample_sensor_data(&data);
+    sample_sensor_data(&data,NULL);
     xQueueSend(force_data_queue, (void* )&data, 0);
 
     return 0;
@@ -1356,6 +1353,7 @@ int Cmd_tasks(int argc, char *argv[]);
 int Cmd_inttemp(int argc, char *argv[]);
 void thread_sensor_poll(void* unused) {
 	periodic_data data = {0};
+	NetStats_t keyword_net_stats;
 	unsigned int count = 0;
 
 	while (1) {
@@ -1365,7 +1363,7 @@ void thread_sensor_poll(void* unused) {
 
 		wait_for_time(WAIT_FOREVER);
 
-		sample_sensor_data(&data);
+		sample_sensor_data(&data,&keyword_net_stats);
 
 		if( booted ) {
 			LOGI(	"collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d, inq %d\n",
@@ -1768,7 +1766,7 @@ void launch_tasks() {
 
 	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 2048 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
@@ -2085,7 +2083,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "x", Cmd_stream_transfer, ""},
 		{ "p", Cmd_AudioPlayback, ""},
 		{ "getoct",Cmd_get_octogram,""},
-		{ "mictest", Cmd_mic_test,""},
 #if 0
 		{ "mode", Cmd_mode, "" }, //set the ap/station mode
 
