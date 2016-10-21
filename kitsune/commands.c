@@ -1989,6 +1989,12 @@ int cmd_button(int argc, char *argv[]) {
 	LOGF("%d\n", check_button());
 	return 0;
 }
+
+int cmd_set_pcm_stream(int argc, char* argv[]){
+
+	pcm_set_ping_pong_incoming_stream_mode(atoi(argv[1])%4);
+	return 0;
+}
 int Cmd_readlight(int argc, char *argv[]);
 int cmd_tap(int argc, char * argv[]){
 	LOGI("User Tapped Sense\r\n");
@@ -2155,6 +2161,10 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"pn",cmd_audio_self_test,""},
 		{"tap", cmd_tap, ""},
 		{"flipped", cmd_flipped, ""},
+
+#if 1
+		{"setpcm", cmd_set_pcm_stream, ""},
+#endif
 
 		{ 0, 0, 0 } };
 
