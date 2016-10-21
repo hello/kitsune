@@ -370,7 +370,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 					break;
 				}
 			}
-
 			if (!nn_ctx.is_speaking) {
 				analytics_event("{speech_length:%d}", xTaskGetTickCount() - speech_detected_time);
 				break;
