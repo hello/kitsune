@@ -1,20 +1,57 @@
 #include "FreeRTOS.h"
+#include "audio_features_upload_task.h"
+
 #include "queue.h"
 #include "task.h"
 #include "semphr.h"
+
 #include <stdbool.h>
-#include "audio_features_upload_task.h"
 #include "protobuf/simple_matrix.pb.h"
 #include "proto_utils.h"
 #include "networktask.h"
-
-typedef struct {
-	const char * endpoint;
-} AudioFeaturesUploadTaskConfig_t;
+#include "endpoints.h"
+#include "hlo_circbuf_stream.h"
 
 static xQueueHandle _uploadqueue = NULL;
 
-const static AudioFeaturesUploadTaskConfig_t _config = {"/foobars"};
+static hlo_stream_t * _circstream = NULL;
+static volatile int _is_waiting_for_uploading = 0;
+
+#define CIRCULAR_BUFFER_SIZE_BYTES (8192)
+
+//meant to be called from the same thread that triggers the upload
+void audio_features_upload_task_buffer_bytes(void * data, uint32_t len) {
+	if (_is_waiting_for_uploading) {
+		return;
+	}
+
+	if (!_circstream) {
+		_circstream = hlo_circbuf_stream_open(CIRCULAR_BUFFER_SIZE_BYTES);
+	}
+
+	_circstream->impl.write(_circstream->ctx,data,len);
+
+}
+
+void audio_features_upload_trigger_async_upload(const char * id,const uint32_t num_cols,FeaturesPayloadType_t feats_type) {
+	AudioFeaturesUploadTaskMessage_t message;
+
+	if (_is_waiting_for_uploading) {
+		return;
+	}
+
+	_is_waiting_for_uploading = 1;
+
+	memset(&message,0,sizeof(message));
+
+	message.id = id;
+	message.num_cols = num_cols;
+	message.feats_type = feats_type;
+	message.stream = _circstream;
+
+	audio_features_upload_task_add_message(&message);
+}
+
 
 static bool encode_repeated_streaming_bytes(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     unsigned char buffer[256];
@@ -50,6 +87,10 @@ static bool encode_repeated_streaming_bytes(pb_ostream_t *stream, const pb_field
 
 	//close stream, always
 	hlo_stream->impl.close(hlo_stream->ctx);
+
+	//reset
+	_is_waiting_for_uploading = 0;
+	_circstream = NULL;
 
     return true;
 }
@@ -95,8 +136,7 @@ static void setup_protbuf(SimpleMatrix * mat,hlo_stream_t * bytestream, const ch
 
 }
 
-static void run(void * ctx) {
-	const AudioFeaturesUploadTaskConfig_t * config = ctx;
+void audio_features_upload_task(void * ctx) {
 
 	_uploadqueue = xQueueCreate(1,sizeof(AudioFeaturesUploadTaskMessage_t));
 
@@ -121,7 +161,7 @@ static void run(void * ctx) {
 			if (!NetworkTask_SendProtobuf(
 					true,
 					DATA_SERVER,
-					config->endpoint,
+					AUDIO_FEATURES_ENDPOINT,
 					SimpleMatrix_fields,
 					&mat,
 					0,
@@ -134,8 +174,4 @@ static void run(void * ctx) {
 			}
 		}
 	}
-}
-
-void audio_features_upload_task_create(void) {
-	xTaskCreate(run,"audio features upload",1024/4,(void *)&_config,2,NULL);
 }

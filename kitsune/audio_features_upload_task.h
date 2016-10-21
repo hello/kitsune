@@ -20,6 +20,6 @@ typedef struct {
 
 void audio_features_upload_task_add_message(const AudioFeaturesUploadTaskMessage_t * message);
 
-void audio_features_upload_task_create(void);
+void audio_features_upload_task(void * ctx);
 
 #endif //_AUDIO_FEATURES_UPLOAD_TASK_H_
