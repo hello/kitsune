@@ -11,7 +11,6 @@
 /* how much delta does it take to activate the fsm over noise floor */
 /* set to 2x observed max at idle on DVT 1p5 */
 #define DETECTION_THRESH 200
-#define DETECTION_NOISE_TH 50
 
 /* minimal frames require for the wave gesture */
 #define GESTURE_WAVE_MULTIPLIER (1)
@@ -72,24 +71,17 @@ int Cmd_get_gesture_count(int argc, char * argv[]) {
 static gesture_t _fsm(int in){
 	gesture_t ret = GESTURE_NONE;
 	int exceeded = 0;
-	static int acc;
 	//computes the average of last 3 frames of energy
 	//LOGI("%d\r\n", in);
 
-	if( in >= DETECTION_NOISE_TH ) {
-		(acc < DETECTION_THRESH) ? (acc += in) : (acc);
-		if(acc >= DETECTION_THRESH){
-			exceeded = 1;
-		}
-	}else{
-		acc /= 4;
+	if( in > DETECTION_THRESH ) {
+		exceeded = 1;
 	}
 
 	switch(self.fsm.state){
 	case GFSM_IDLE:
 		//any edge triggers edge up state
 		LOGI("->0\r\n");
-		acc = 0;
 		_transition_state(GFSM_IDLE_FORREALS);
 		ret = GESTURE_OUT;
 		++gesture_cnt;
