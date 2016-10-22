@@ -169,9 +169,6 @@ hlo_stream_t * fifo_stream_open(size_t capacity){
 	}
 
 }
-
-
-
 ////==========================================================
 //Random Stream
 void get_random(int num_rand_bytes, uint8_t *rand_data);
