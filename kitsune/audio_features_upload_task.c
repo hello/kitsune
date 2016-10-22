@@ -11,11 +11,14 @@
 #include "networktask.h"
 #include "endpoints.h"
 #include "hlo_circbuf_stream.h"
+#include "tensor/features_types.h"
 
 static xQueueHandle _uploadqueue = NULL;
 
 static hlo_stream_t * _circstream = NULL;
 static volatile int _is_waiting_for_uploading = 0;
+static char _id_buf[128];
+
 
 #define CIRCULAR_BUFFER_SIZE_BYTES (8192)
 
@@ -33,7 +36,7 @@ void audio_features_upload_task_buffer_bytes(void * data, uint32_t len) {
 
 }
 
-void audio_features_upload_trigger_async_upload(const char * id,const uint32_t num_cols,FeaturesPayloadType_t feats_type) {
+void audio_features_upload_trigger_async_upload(const char * net_id,const char * keyword,const uint32_t num_cols,FeaturesPayloadType_t feats_type) {
 	AudioFeaturesUploadTaskMessage_t message;
 
 	if (_is_waiting_for_uploading) {
@@ -44,7 +47,8 @@ void audio_features_upload_trigger_async_upload(const char * id,const uint32_t n
 
 	memset(&message,0,sizeof(message));
 
-	message.id = id;
+	message.net_id = net_id;
+	message.keyword = keyword;
 	message.num_cols = num_cols;
 	message.feats_type = feats_type;
 	message.stream = _circstream;
@@ -119,9 +123,15 @@ static SimpleMatrixDataType map_type(FeaturesPayloadType_t feats_type) {
 
 
 
-static void setup_protbuf(SimpleMatrix * mat,hlo_stream_t * bytestream, const char * id,const int num_cols,FeaturesPayloadType_t feats_type) {
+static void setup_protbuf(SimpleMatrix * mat,hlo_stream_t * bytestream, const char * net_id, const char * keyword,const int num_cols,FeaturesPayloadType_t feats_type) {
 	memset(mat,0,sizeof(SimpleMatrix));
-	mat->id.arg = (void *) id;
+
+
+	strncpy(_id_buf,net_id,sizeof(_id_buf));
+	strncat(_id_buf,"+",sizeof(_id_buf));
+	strncat(_id_buf,keyword,sizeof(_id_buf));
+
+	mat->id.arg = (void *) _id_buf;
 	mat->id.funcs.encode = _encode_string_fields;
 
 	mat->has_data_type = true;
@@ -153,7 +163,8 @@ void audio_features_upload_task(void * ctx) {
 			setup_protbuf(
 					&mat,
 					message.stream,
-					message.id,
+					message.net_id,
+					message.keyword,
 					message.num_cols,
 					message.feats_type);
 

@@ -179,7 +179,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 					callback_item->on_end(callback_item->context,(Keyword_t)i, callback_item->max_value);
 					
 					//trigger feats asynchronous upload
-					audio_features_upload_trigger_async_upload(keyword_enum_to_str((Keyword_t)i),NUM_MEL_BINS,feats_sint8);
+					audio_features_upload_trigger_async_upload(NEURAL_NET_MODEL, keyword_enum_to_str((Keyword_t)i),NUM_MEL_BINS,feats_sint8);
 
 					//log activation, has to be thread safe
                     if( xSemaphoreTake(context->stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
