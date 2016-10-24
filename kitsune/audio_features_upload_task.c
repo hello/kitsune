@@ -1,5 +1,6 @@
 #include "FreeRTOS.h"
 #include "audio_features_upload_task.h"
+#include "audio_features_upload_task_helpers.h"
 
 #include "queue.h"
 #include "task.h"
@@ -44,48 +45,8 @@ static xQueueHandle _uploadqueue = NULL; //initialized on creation of task
 static hlo_stream_t * _circstream = NULL;
 static volatile int _is_waiting_for_uploading = 0;
 static char _id_buf[128];
-static int _upload_count;
-static TickType_t _last_upload_time;
-static TickType_t _elapsed_time;
+static RateLimiter_t _ratelimiterdata = {MAX_UPLOADS_PER_PERIOD,TICKS_PER_UPLOAD,0,0,0};
 
-static bool is_rate_limited() {
-	const TickType_t tick =  xTaskGetTickCount();
-	const TickType_t dt = tick - _last_upload_time;
-
-	//if overflow of counter, or dt is just really large
-	if (dt > MAX_NUM_TICKS_TO_RESET) {
-		_elapsed_time = 0;
-		_last_upload_time = tick;
-		return true;
-	}
-
-	//update elapsed time
-	_elapsed_time += dt;
-
-	//if elapsed time is greater than one period
-	if (_elapsed_time >=  TICKS_PER_UPLOAD) {
-
-		//decrement upload count
-		_upload_count -= _elapsed_time / TICKS_PER_UPLOAD * MAX_UPLOADS_PER_PERIOD;
-
-		if (_upload_count < 0) {
-			_upload_count = 0;
-		}
-
-		//save remainder
-		_elapsed_time = _elapsed_time % TICKS_PER_UPLOAD;
-
-	}
-
-	_last_upload_time = tick;
-
-	if (_upload_count++ < MAX_UPLOADS_PER_PERIOD) {
-		return false;
-	}
-
-	return true;
-
-}
 
 //meant to be called from the same thread that triggers the upload
 void audio_features_upload_task_buffer_bytes(void * data, uint32_t len) {
@@ -106,7 +67,7 @@ void audio_features_upload_task_buffer_bytes(void * data, uint32_t len) {
 void audio_features_upload_trigger_async_upload(const char * net_id,const char * keyword,const uint32_t num_cols,FeaturesPayloadType_t feats_type) {
 	AudioFeaturesUploadTaskMessage_t message;
 
-	if (is_rate_limited()) {
+	if (is_rate_limited(xTaskGetTickCount(),&_ratelimiterdata)) {
 		return;
 	}
 
@@ -135,43 +96,7 @@ void audio_features_upload_trigger_async_upload(const char * net_id,const char *
 }
 
 
-static bool encode_repeated_streaming_bytes(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    unsigned char buffer[256];
-	hlo_stream_t * hlo_stream = *arg;
-    int bytes_read;
 
-    if(!hlo_stream) {
-        return false;
-    }
-
-    while (1) {
-    	bytes_read = hlo_stream_read(hlo_stream,buffer,sizeof(buffer));
-
-    	if (bytes_read <= 0) {
-    		break;
-    	}
-
-        //write string tag for delimited field
-        if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)) {
-            return false;
-        }
-
-        //write size
-    	if (!pb_encode_varint(stream, (uint64_t)bytes_read)) {
-    	    return false;
-    	}
-
-    	//write buffer
-    	if (!pb_write(stream, buffer, bytes_read)) {
-    		return false;
-    	}
-    }
-
-	//close stream, always
-    hlo_stream_close(hlo_stream);
-
-    return true;
-}
 
 static void net_response(const NetworkResponse_t * response, char * reply_buf, int reply_sz,void * context) {
 	_is_waiting_for_uploading = 0;

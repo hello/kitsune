@@ -1,48 +1,5 @@
 #include "hlo_circbuf_stream.h"
 #include <string.h>
-#include "pb.h"
-#include "pb_encode.h"
-
-bool encode_repeated_streaming_bytes(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    unsigned char buffer[256];
-	hlo_stream_t * hlo_stream = *arg;
-    int bytes_read = 0;
-
-    if(!hlo_stream) {
-        return false;
-    }
-
-    while (1) {
-    	bytes_read = hlo_stream->impl.read(hlo_stream->ctx,buffer,sizeof(buffer));
-
-    	if (bytes_read <= 0) {
-    		break;
-    	}
-
-        //write string tag for delimited field
-        if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)) {
-            return false;
-        }
-
-        //write size
-    	if (!pb_encode_varint(stream, (uint64_t)bytes_read)) {
-    	    return false;
-    	}
-
-    	//write buffer
-    	if (!pb_write(stream, buffer, bytes_read)) {
-    		return false;
-    	}
-    }
-
-	//close stream, always
-	hlo_stream->impl.close(hlo_stream->ctx);
-
-    return true;
-
-}
-
-
 
 static inline int circ_read_byte(hlo_circbuf_stream_t * ctx, uint8_t * buf){
 	*buf = ctx->buf[ctx->read_idx];

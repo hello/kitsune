@@ -31,6 +31,26 @@
 			<locationURI>PARENT-2-PROJECT_LOC/ack_set_entry.h</locationURI>
 		</link>
 		<link>
+			<name>audio_features_upload_task.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audio_features_upload_task.c</locationURI>
+		</link>
+		<link>
+			<name>audio_features_upload_task.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audio_features_upload_task.h</locationURI>
+		</link>
+		<link>
+			<name>audio_features_upload_task_helpers.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audio_features_upload_task_helpers.c</locationURI>
+		</link>
+		<link>
+			<name>audio_features_upload_task_helpers.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audio_features_upload_task_helpers.h</locationURI>
+		</link>
+		<link>
 			<name>ble_cmd.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/ble_cmd.c</locationURI>
@@ -749,16 +769,6 @@
 			<name>hlo/audio_codec_pps_driver.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audio_codec_pps_driver.h</locationURI>
-		</link>
-		<link>
-			<name>hlo/audio_features_upload_task.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audio_features_upload_task.c</locationURI>
-		</link>
-		<link>
-			<name>hlo/audio_features_upload_task.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audio_features_upload_task.h</locationURI>
 		</link>
 		<link>
 			<name>hlo/audio_types.h</name>
