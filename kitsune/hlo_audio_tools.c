@@ -348,21 +348,28 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		}
 
 		//workaround to refresh connection once time server responds
-		static bool _had_ip = false;
-		if( wifi_status_get(HAS_IP) && !_had_ip ) {
-			ret = HLO_STREAM_EAGAIN;
-			_had_ip = true;
-			break;
-		} else {
-			_had_ip = false;
-		}
-		static bool _had_time = false;
-		if( has_good_time() && !_had_time ) {
-			ret = HLO_STREAM_EAGAIN;
-			_had_time = true;
-			break;
-		} else {
-			_had_time = false;
+		static TickType_t _last_refresh_check = 0;
+		if( xTaskGetTickCount() - _last_refresh_check > 1000 ) {
+			static bool _had_ip = false;
+			bool have_ip = wifi_status_get(HAS_IP);
+			if( have_ip && !_had_ip ) {
+				LOGI("no ip refreshing\n");
+				ret = HLO_STREAM_EAGAIN;
+				_had_ip = true;
+				break;
+			}
+			_had_ip = have_ip;
+
+			static bool _had_time = false;
+			bool have_time = has_good_time();
+			if( have_time && !_had_time ) {
+				LOGI("no time refreshing\n");
+				ret = HLO_STREAM_EAGAIN;
+				_had_time = true;
+				break;
+			}
+			_had_time = have_time;
+			_last_refresh_check = xTaskGetTickCount();
 		}
 
 		if( nn_ctx.speech_pb.has_word && nn_ctx.speech_pb.word == Keyword_OK_SENSE) {
