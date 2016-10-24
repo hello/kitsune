@@ -14,6 +14,7 @@
 #include "crypto.h"
 #include "wifi_cmd.h"
 #include "i2c_cmd.h"
+#include "sys_time.h"
 
 #include "ble_proto.h"
 
@@ -346,8 +347,16 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 		}
 
+		//workaround to refresh connection once time server responds
+		static bool _had_time = false;
+		if( has_good_time() && !_had_time ) {
+			ret = HLO_STREAM_EAGAIN;
+			_had_time = true;
+			break;
+		}
+
 		if( nn_ctx.speech_pb.has_word && nn_ctx.speech_pb.word == Keyword_OK_SENSE) {
-			if( disable_voice || !wifi_status_get(HAS_IP) ) {
+			if( disable_voice || !wifi_status_get(HAS_IP) || !has_good_time() ) {
 				LOGI("voicetrignot %d %d\n", disable_voice, wifi_status_get(HAS_IP) );
 				ret = HLO_STREAM_ERROR;
 				break;
