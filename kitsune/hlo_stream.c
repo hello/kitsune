@@ -63,6 +63,20 @@ int hlo_stream_close(hlo_stream_t * stream){
 	}
 	return ret;
 }
+int hlo_stream_flush(hlo_stream_t * stream){
+	int ret = 0;
+	VERIFY_STREAM(stream);
+	HAS_IMPL_OR_FAIL(stream,flush);
+
+	LOCK(stream);
+	ret = stream->impl.flush(stream->ctx);
+	if(ret > 0){
+		stream->info.bytes_written += ret;
+	}
+	UNLOCK(stream);
+
+	return ret;
+}
 int hlo_stream_end(hlo_stream_t * stream){
 	int ret = 0;
 	VERIFY_STREAM(stream);
