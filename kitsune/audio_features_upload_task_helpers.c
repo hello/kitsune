@@ -35,7 +35,8 @@ bool is_rate_limited(RateLimiter_t * data,const uint32_t current_time) {
 
 	data->last_upload_time = current_time;
 
-	if (data->upload_count++ < data->max_uploads_per_period) {
+	if (data->upload_count < data->max_uploads_per_period) {
+        data->upload_count++;
 		return false;
 	}
 
