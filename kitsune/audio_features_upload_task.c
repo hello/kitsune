@@ -18,9 +18,17 @@ static xQueueHandle _uploadqueue = NULL;
 static hlo_stream_t * _circstream = NULL;
 static volatile int _is_waiting_for_uploading = 0;
 static char _id_buf[128];
+static int _upload_count;
+static TickType_t _last_upload_time;
+static TickType_t _elapsed_time;
 
 
 #define CIRCULAR_BUFFER_SIZE_BYTES (8192)
+#define MAX_NUM_TICKS_TO_RESET (1 << 30)
+
+//once per five minutes
+#define TICKS_PER_UPLOAD (300000)
+#define MAX_UPLOADS_PER_PERIOD (2)
 
 //meant to be called from the same thread that triggers the upload
 void audio_features_upload_task_buffer_bytes(void * data, uint32_t len) {
@@ -36,8 +44,51 @@ void audio_features_upload_task_buffer_bytes(void * data, uint32_t len) {
 
 }
 
+static bool is_ready_for_upload() {
+	const TickType_t tick =  xTaskGetTickCount();
+	const TickType_t dt = tick - _last_upload_time;
+
+	//if overflow of counter, or dt is just really large
+	if (dt > MAX_NUM_TICKS_TO_RESET) {
+		_elapsed_time = 0;
+		_last_upload_time = tick;
+		return false;
+	}
+
+	//update elapsed time
+	_elapsed_time += dt;
+
+	//if elapsed time is greater than one period
+	if (_elapsed_time >=  TICKS_PER_UPLOAD) {
+
+		//decrement upload count
+		_upload_count -= _elapsed_time / TICKS_PER_UPLOAD * MAX_UPLOADS_PER_PERIOD;
+
+		if (_upload_count < 0) {
+			_upload_count = 0;
+		}
+
+		//save remainder
+		_elapsed_time = _elapsed_time % TICKS_PER_UPLOAD;
+
+	}
+
+	_last_upload_time = tick;
+
+	if (_upload_count++ < MAX_UPLOADS_PER_PERIOD) {
+		return true;
+	}
+
+	return false;
+
+}
+
 void audio_features_upload_trigger_async_upload(const char * net_id,const char * keyword,const uint32_t num_cols,FeaturesPayloadType_t feats_type) {
 	AudioFeaturesUploadTaskMessage_t message;
+
+	if (!is_ready_for_upload()) {
+		return;
+	}
 
 	if (_is_waiting_for_uploading) {
 		return;
