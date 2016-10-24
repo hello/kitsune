@@ -13,8 +13,34 @@
 #include "hlo_circbuf_stream.h"
 #include "tensor/features_types.h"
 
-static xQueueHandle _uploadqueue = NULL;
 
+/**************************
+ *    STRUCT DEFS
+ */
+
+typedef struct {
+	hlo_stream_t * stream;
+	const char * keyword;
+	const char * net_id;
+	int num_cols;
+	FeaturesPayloadType_t feats_type;
+} AudioFeaturesUploadTaskMessage_t;
+
+/**************************
+ *    CONSTANTS
+ */
+
+//once per five minutes
+#define TICKS_PER_UPLOAD (300000)
+#define MAX_UPLOADS_PER_PERIOD (2)
+#define CIRCULAR_BUFFER_SIZE_BYTES (8192)
+#define MAX_NUM_TICKS_TO_RESET (1 << 30)
+
+
+/**************************
+ *    STATIC VARIABLES
+ */
+static xQueueHandle _uploadqueue = NULL; //initialized on creation of task
 static hlo_stream_t * _circstream = NULL;
 static volatile int _is_waiting_for_uploading = 0;
 static char _id_buf[128];
@@ -22,29 +48,7 @@ static int _upload_count;
 static TickType_t _last_upload_time;
 static TickType_t _elapsed_time;
 
-
-#define CIRCULAR_BUFFER_SIZE_BYTES (8192)
-#define MAX_NUM_TICKS_TO_RESET (1 << 30)
-
-//once per five minutes
-#define TICKS_PER_UPLOAD (300000)
-#define MAX_UPLOADS_PER_PERIOD (2)
-
-//meant to be called from the same thread that triggers the upload
-void audio_features_upload_task_buffer_bytes(void * data, uint32_t len) {
-	if (_is_waiting_for_uploading) {
-		return;
-	}
-
-	if (!_circstream) {
-		_circstream = hlo_circbuf_stream_open(CIRCULAR_BUFFER_SIZE_BYTES);
-	}
-
-	_circstream->impl.write(_circstream->ctx,data,len);
-
-}
-
-static bool is_ready_for_upload() {
+static bool is_rate_limited() {
 	const TickType_t tick =  xTaskGetTickCount();
 	const TickType_t dt = tick - _last_upload_time;
 
@@ -52,7 +56,7 @@ static bool is_ready_for_upload() {
 	if (dt > MAX_NUM_TICKS_TO_RESET) {
 		_elapsed_time = 0;
 		_last_upload_time = tick;
-		return false;
+		return true;
 	}
 
 	//update elapsed time
@@ -76,25 +80,39 @@ static bool is_ready_for_upload() {
 	_last_upload_time = tick;
 
 	if (_upload_count++ < MAX_UPLOADS_PER_PERIOD) {
-		return true;
+		return false;
 	}
 
-	return false;
+	return true;
 
 }
 
+//meant to be called from the same thread that triggers the upload
+void audio_features_upload_task_buffer_bytes(void * data, uint32_t len) {
+	if (_is_waiting_for_uploading) {
+		return;
+	}
+
+	if (!_circstream) {
+		_circstream = hlo_circbuf_stream_open(CIRCULAR_BUFFER_SIZE_BYTES);
+	}
+
+	hlo_stream_write(_circstream,data,len);
+
+}
+
+
+//triggers upload, called from same thread as "audio_features_upload_task_buffer_bytes"
 void audio_features_upload_trigger_async_upload(const char * net_id,const char * keyword,const uint32_t num_cols,FeaturesPayloadType_t feats_type) {
 	AudioFeaturesUploadTaskMessage_t message;
 
-	if (!is_ready_for_upload()) {
+	if (is_rate_limited()) {
 		return;
 	}
 
 	if (_is_waiting_for_uploading) {
 		return;
 	}
-
-	_is_waiting_for_uploading = 1;
 
 	memset(&message,0,sizeof(message));
 
@@ -104,21 +122,30 @@ void audio_features_upload_trigger_async_upload(const char * net_id,const char *
 	message.feats_type = feats_type;
 	message.stream = _circstream;
 
-	audio_features_upload_task_add_message(&message);
+	if (xQueueSend(_uploadqueue,&message,0) == pdFALSE) {
+		//log that queue was full
+		LOGI("audio_features_upload_task queue full\r\n");
+		return;
+	}
+
+	//otherwise if adding to queue succeeded, block further buffering and prepare for next time
+	//the stream will close itself (and thus free memory) when it's done
+	_circstream = NULL;
+	_is_waiting_for_uploading = 1;
 }
 
 
 static bool encode_repeated_streaming_bytes(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     unsigned char buffer[256];
 	hlo_stream_t * hlo_stream = *arg;
-    int bytes_read = 0;
+    int bytes_read;
 
     if(!hlo_stream) {
         return false;
     }
 
     while (1) {
-    	bytes_read = hlo_stream->impl.read(hlo_stream->ctx,buffer,sizeof(buffer));
+    	bytes_read = hlo_stream_read(hlo_stream,buffer,sizeof(buffer));
 
     	if (bytes_read <= 0) {
     		break;
@@ -141,24 +168,15 @@ static bool encode_repeated_streaming_bytes(pb_ostream_t *stream, const pb_field
     }
 
 	//close stream, always
-	hlo_stream->impl.close(hlo_stream->ctx);
-
-	//reset
-	_is_waiting_for_uploading = 0;
-	_circstream = NULL;
+    hlo_stream_close(hlo_stream);
 
     return true;
 }
 
 static void net_response(const NetworkResponse_t * response, char * reply_buf, int reply_sz,void * context) {
-
+	_is_waiting_for_uploading = 0;
 }
 
-void audio_features_upload_task_add_message(const AudioFeaturesUploadTaskMessage_t * message) {
-	if (!xQueueSend(_uploadqueue,message,0)) {
-		//log that queue was full
-	}
-}
 
 static SimpleMatrixDataType map_type(FeaturesPayloadType_t feats_type) {
 	switch (feats_type) {
