@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8) 
+cmake_minimum_required (VERSION 2.8)
 
 project(EmbeddedAlgLibrary)
 
@@ -9,14 +9,16 @@ add_definitions(-DUSED_ON_DESKTOP)
 add_definitions(-DDESKTOP)
 
 
-include_directories ("${PROJECT_SOURCE_DIR}")
-include_directories ("${PROJECT_SOURCE_DIR}/nanopb")
-include_directories ("${PROJECT_SOURCE_DIR}/protobuf")
+include_directories ("nanopb")
+include_directories ("protobuf")
+include_directories ("../unit-test")
 
 
 #compile our alg code
 add_library(EmbeddedAlg STATIC
 hellomath.c
+audio_features_upload_task_helpers.c
+hlo_stream.c
 tensor/net_stats.c
 nanopb/pb_decode.c
 nanopb/pb_encode.c

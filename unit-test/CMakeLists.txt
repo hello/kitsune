@@ -3,7 +3,6 @@ cmake_minimum_required (VERSION 2.8)
 PROJECT (EmbeddedAlgTests)
 
 set(CMAKE_INCLUDE_PATH ${PROJECT_SOURCE_DIR}/)
-#set(CMAKE_OSX_DEPLOYMENT_TARGET "10.12")
 
 find_package(Protobuf REQUIRED)
 include_directories ("${PROTOBUF_INCLUDE_DIRS}")
@@ -27,7 +26,8 @@ cpp_proto/keyword_stats.pb.cc
 add_executable(unit-test
                main.cpp 
 	       testmath.cpp
-           testnetstats.cpp)
+           testnetstats.cpp
+           testuploadfeats.cpp)
 
 target_link_libraries(unit-test gtest EmbeddedAlg cpp-protobuf-defs ${PROTOBUF_LIBRARY})
 
