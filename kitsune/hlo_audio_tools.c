@@ -14,6 +14,7 @@
 #include "crypto.h"
 #include "wifi_cmd.h"
 #include "i2c_cmd.h"
+#include "sys_time.h"
 
 #include "ble_proto.h"
 
@@ -346,8 +347,33 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 		}
 
+		//workaround to refresh connection once time server responds
+		static TickType_t _last_refresh_check = 0;
+		if( xTaskGetTickCount() - _last_refresh_check > 1000 ) {
+			static bool _had_ip = false;
+			bool have_ip = wifi_status_get(HAS_IP);
+			if( have_ip && !_had_ip ) {
+				LOGI("no ip refreshing\n");
+				ret = HLO_STREAM_EAGAIN;
+				_had_ip = true;
+				break;
+			}
+			_had_ip = have_ip;
+
+			static bool _had_time = false;
+			bool have_time = has_good_time();
+			if( have_time && !_had_time ) {
+				LOGI("no time refreshing\n");
+				ret = HLO_STREAM_EAGAIN;
+				_had_time = true;
+				break;
+			}
+			_had_time = have_time;
+			_last_refresh_check = xTaskGetTickCount();
+		}
+
 		if( nn_ctx.speech_pb.has_word && nn_ctx.speech_pb.word == Keyword_OK_SENSE) {
-			if( disable_voice || !wifi_status_get(HAS_IP) ) {
+			if( disable_voice || !wifi_status_get(HAS_IP) || !has_good_time() ) {
 				LOGI("voicetrignot %d %d\n", disable_voice, wifi_status_get(HAS_IP) );
 				ret = HLO_STREAM_ERROR;
 				break;
