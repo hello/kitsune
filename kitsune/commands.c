@@ -1783,7 +1783,7 @@ void launch_tasks() {
 	play_startup_sound();
 	display_pairing_animation();
 
-	xTaskCreate(AudioControlTask, "AudioControl",  17*1024 / 4, NULL, 2, NULL);
+	xTaskCreate(AudioControlTask, "AudioControl",  7*1024 / 4, NULL, 2, NULL);
 
 
 
