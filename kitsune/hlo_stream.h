@@ -99,6 +99,45 @@ hlo_stream_t * random_stream_open(void);
  */
 hlo_stream_t * debug_stream_open(void);
 
+
+/**
+ * blocking transfers of @buf_size bytes into/from the stream unless an error has occured.
+ * retries at @transfer_delay interval
+ */
+typedef enum{
+	INTO_STREAM = 0,
+	FROM_STREAM,
+}transfer_direction;
+
+int hlo_stream_transfer_all(
+		transfer_direction direction,
+		hlo_stream_t * target,
+		uint8_t * buf,
+		uint32_t buf_size,
+		uint32_t transfer_delay);
+
+/**
+ * same as @hlo_stream_transfer_all but tranfsers remainging bytes and returns when
+ *  @flush is true
+ */
+int hlo_stream_transfer_until(transfer_direction direction,
+							hlo_stream_t * stream,
+							uint8_t * buf,
+							uint32_t buf_size,
+							uint32_t transfer_delay,
+							bool * flush );
+
+/**
+ * blocking transfers of @buf_size bytes between the @src and @dst streams
+ * retries at @transfer_delay interval
+ */
+int hlo_stream_transfer_between(
+		hlo_stream_t * src,
+		hlo_stream_t * dst,
+		uint8_t * buf,
+		uint32_t buf_size,
+		uint32_t transfer_delay);
+
 #ifdef __cplusplus
 }
 #endif
