@@ -19,7 +19,11 @@ typedef struct  {
 
 bool is_rate_limited(RateLimiter_t * data,const uint32_t current_time);
 
-bool encode_repeated_streaming_bytes(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+//this one doesn't close the stream
+bool encode_repeated_streaming_bytes_and_mark_done(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+
+//this one does close the stream
+bool encode_repeated_streaming_bytes_and_close(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 #ifdef __cplusplus
 }

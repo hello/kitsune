@@ -105,7 +105,6 @@
 #include "octogram.h"
 
 #include "audiohelper.h"
-#include "audio_features_upload_task.h"
 
 #define ONLY_MID 0
 
@@ -1802,10 +1801,6 @@ void launch_tasks() {
 	display_pairing_animation();
 
 	xTaskCreate(AudioControlTask, "AudioControl",  17*1024 / 4, NULL, 2, NULL);
-
-	xTaskCreate(audio_features_upload_task,"audFeatsUp",1024/4,NULL,2,NULL);
-
-
 
 }
 
