@@ -45,7 +45,7 @@ void audio_features_upload_task_buffer_bytes(void * data, uint32_t len) {
 	}
 
 	if (!_circstream) {
-		LOGI("creating audio features circular buffer stream of size %d bytes\r\n",CIRCULAR_BUFFER_SIZE_BYTES);
+		LOGI("audio_features_upload -- creating audio features circular buffer stream of size %d bytes\r\n",CIRCULAR_BUFFER_SIZE_BYTES);
 		_circstream = hlo_circbuf_stream_open(CIRCULAR_BUFFER_SIZE_BYTES);
 	}
 
@@ -56,7 +56,7 @@ void audio_features_upload_task_buffer_bytes(void * data, uint32_t len) {
 static void net_response(const NetworkResponse_t * response, char * reply_buf, int reply_sz,void * context) {
 	hlo_stream_t * stream = (hlo_stream_t *)context;
 
-	LOGI("closing audio features stream\r\n");
+	LOGI("audio_features_upload -- closing audio features stream\r\n");
 
 	//close stream, no matter if anything was transfered
 	hlo_stream_close(stream);
@@ -125,7 +125,7 @@ void audio_features_upload_trigger_async_upload(const char * net_id,const char *
 
 	netmessage.structdata = &_mat;
 	netmessage.fields = SimpleMatrix_fields;
-	netmessage.endpoint = AUDIO_FEATURES_ENDPOINT;
+	netmessage.endpoint = AUDIO_KEYWORD_FEATURES_ENDPOINT;
 	netmessage.host = DATA_SERVER;
 	netmessage.response_callback = net_response;
 	netmessage.context = _circstream;
