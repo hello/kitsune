@@ -219,11 +219,11 @@ void DMAPingPongCompleteAppCB_opt()
 			}
 			else if(_pcm_ping_pong_incoming_stream_mode == PCM_PING_PONG_MODE_ALL_CHANNELS_HALF_RATE) {
 				int k=0;
-				for (i = 0; i< CB_TRANSFER_SZ/8 ; i++ ) {
-					pong[k++] = (pong[8*i+0]+pong[8*i+0+4]);
-					pong[k++] = (pong[8*i+1]+pong[8*i+1+4]);
-					pong[k++] = (pong[8*i+2]+pong[8*i+2+4]);
-					pong[k++] = (pong[8*i+3]+pong[8*i+3+4]);
+				for (i = 0; i< CB_TRANSFER_SZ/8 ; i++, k+=4 ) {
+					pong[k+0] = (pong[8*i+0]+pong[8*i+0+4]);
+					pong[k+1] = (pong[8*i+1]+pong[8*i+1+4]);
+					pong[k+2] = (pong[8*i+2]+pong[8*i+2+4]);
+					pong[k+3] = (pong[8*i+3]+pong[8*i+3+4]);
 				}
 
 				FillBuffer(pAudInBuf, (unsigned char*) pong, 2*k );
@@ -272,11 +272,11 @@ void DMAPingPongCompleteAppCB_opt()
 				}
 				else if(_pcm_ping_pong_incoming_stream_mode == PCM_PING_PONG_MODE_ALL_CHANNELS_HALF_RATE) {
 					int k=0;
-					for (i = 0; i< CB_TRANSFER_SZ/8 ; i++ ) {
-						ping[k++] = (ping[8*i]+ping[8*i+4]);
-						ping[k++] = (ping[8*i+1]+ping[8*i+1+4]);
-						ping[k++] = (ping[8*i+2]+ping[8*i+2+4]);
-						ping[k++] = (ping[8*i+3]+ping[8*i+3+4]);
+					for (i = 0; i< CB_TRANSFER_SZ/8 ; i++, k+=4 ) {
+						ping[k+0] = (ping[8*i+0]+ping[8*i+0+4]);
+						ping[k+1] = (ping[8*i+1]+ping[8*i+1+4]);
+						ping[k+2] = (ping[8*i+2]+ping[8*i+2+4]);
+						ping[k+3] = (ping[8*i+3]+ping[8*i+3+4]);
 					}
 
 					FillBuffer(pAudInBuf, (unsigned char*) ping, 2*k );
