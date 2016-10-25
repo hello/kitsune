@@ -28,8 +28,8 @@ bool is_rate_limited(RateLimiter_t * data,const uint32_t current_time) {
 			data->upload_count = 0;
 		}
 
-		//save remainder
-		data->elapsed_time = data->elapsed_time % data->ticks_per_upload;
+		//reset
+		data->elapsed_time = 0;
 
 	}
 

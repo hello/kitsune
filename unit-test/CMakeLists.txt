@@ -7,6 +7,7 @@ set(CMAKE_INCLUDE_PATH ${PROJECT_SOURCE_DIR}/)
 find_package(Protobuf REQUIRED)
 include_directories ("${PROTOBUF_INCLUDE_DIRS}")
 include_directories("../kitsune/nanopb")
+include_directories("./")
 
 #compile gtest
 add_subdirectory("../third_party/gtest" "${CMAKE_CURRENT_BINARY_DIR}/gtest" )
@@ -21,6 +22,7 @@ include_directories ("../kitsune/")
 #protobuf definition in C++
 add_library(cpp-protobuf-defs STATIC
 cpp_proto/keyword_stats.pb.cc
+cpp_proto/simple_matrix.pb.cc
 )
 
 add_executable(unit-test

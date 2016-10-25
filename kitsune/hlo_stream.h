@@ -4,6 +4,11 @@
 
 #ifndef HLO_STREAM_H
 #define HLO_STREAM_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -94,4 +99,9 @@ hlo_stream_t * random_stream_open(void);
  */
 hlo_stream_t * debug_stream_open(void);
 
+#ifdef __cplusplus
+}
+#endif
+    
+    
 #endif

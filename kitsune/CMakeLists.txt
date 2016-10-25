@@ -19,6 +19,7 @@ add_library(EmbeddedAlg STATIC
 hellomath.c
 audio_features_upload_task_helpers.c
 hlo_stream.c
+hlo_circbuf_stream.c
 tensor/net_stats.c
 nanopb/pb_decode.c
 nanopb/pb_encode.c
@@ -42,6 +43,7 @@ protobuf/ntp.pb.c
 protobuf/periodic.pb.c
 protobuf/provision.pb.c
 protobuf/response.pb.c
+protobuf/simple_matrix.pb.c
 protobuf/speech.pb.c
 protobuf/state.pb.c
 protobuf/streaming.pb.c

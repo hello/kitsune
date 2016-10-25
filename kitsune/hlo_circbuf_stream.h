@@ -1,5 +1,9 @@
 #include "hlo_stream.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ////==========================================================
 //circular buffer stream, no optimization, no thread safety
 typedef struct{
@@ -12,3 +16,8 @@ typedef struct{
 
 
 hlo_stream_t * hlo_circbuf_stream_open(size_t capacity);
+
+
+#ifdef __cplusplus
+}
+#endif
