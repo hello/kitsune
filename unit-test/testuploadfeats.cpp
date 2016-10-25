@@ -66,7 +66,7 @@ TEST_F(TestUploadFeats, TestBytestreamEncoding) {
     
     embedded::SimpleMatrix mat;
     memset(&mat,0,sizeof(mat));
-    mat.payload.funcs.encode = encode_repeated_streaming_bytes;
+    mat.payload.funcs.encode = encode_repeated_streaming_bytes_and_mark_done;
     mat.payload.arg = pstream;
     
 
@@ -91,6 +91,10 @@ TEST_F(TestUploadFeats, TestBytestreamEncoding) {
             ASSERT_EQ(cbuf[j],65 + (k++ % 26));
         }
     }
+    
+    ASSERT_TRUE(pstream->info.end);
+    
+    hlo_stream_close(pstream);
     
     
 }

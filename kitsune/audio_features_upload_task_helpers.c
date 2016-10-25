@@ -1,6 +1,5 @@
 #include "audio_features_upload_task_helpers.h"
 #include "hlo_stream.h"
-#include "hlo_pipe.h"
 #include "pb_encode.h"
 
 bool is_rate_limited(RateLimiter_t * data,const uint32_t current_time) {
