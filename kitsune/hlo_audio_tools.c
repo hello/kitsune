@@ -432,7 +432,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			get_hmac( hmac, hmac_payload_str );
 			ret = hlo_stream_transfer_all(INTO_STREAM, output, hmac, sizeof(hmac), 4);
 
-			if( ret <= 0 ) {
+			if( ret < 0 ) {
 				stop_led_animation(2, 33);
 				play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1, 18, 1);
 			} else {
