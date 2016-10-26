@@ -511,7 +511,7 @@ static int _check_bw(bw_stream_t * s, size_t t, int rv) {
 		LOGE("BW too low %d\n", _get_bw(s, t) );
 		stop_led_animation( 0, 33 );
 		play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1,18, 1);
-		return HLO_STREAM_EOF;
+		return HLO_STREAM_ERROR;
 	}
 	return rv;
 }
