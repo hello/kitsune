@@ -432,23 +432,27 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			get_hmac( hmac, hmac_payload_str );
 			ret = hlo_stream_transfer_all(INTO_STREAM, output, hmac, sizeof(hmac), 4);
 
-			output = hlo_stream_bw_limited( output, 1, 5000);
-			output = hlo_light_stream( output, false );
+			if( ret <= 0 ) {
+				stop_led_animation(2, 33);
+				play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1, 18, 1);
+			} else {
+				output = hlo_stream_bw_limited( output, 1, 5000);
+				output = hlo_light_stream( output, false );
 
-			AudioPlaybackDesc_t desc;
-			desc.context = NULL;
-			desc.durationInSeconds = INT32_MAX;
-			desc.to_fade_out_ms = desc.fade_in_ms = desc.fade_out_ms = 0;
-			desc.onFinished = NULL;
-			desc.rate = AUDIO_SAMPLE_RATE;
-			desc.stream = output;
-			desc.volume = sys_volume;
-			desc.p = hlo_filter_mp3_decoder;
-			ustrncpy(desc.source_name, "voice", sizeof(desc.source_name));
-			AudioTask_StartPlayback(&desc);
+				AudioPlaybackDesc_t desc;
+				desc.context = NULL;
+				desc.durationInSeconds = INT32_MAX;
+				desc.to_fade_out_ms = desc.fade_in_ms = desc.fade_out_ms = 0;
+				desc.onFinished = NULL;
+				desc.rate = AUDIO_SAMPLE_RATE;
+				desc.stream = output;
+				desc.volume = sys_volume;
+				desc.p = hlo_filter_mp3_decoder;
+				ustrncpy(desc.source_name, "voice", sizeof(desc.source_name));
+				AudioTask_StartPlayback(&desc);
 
-
-			LOGI("\r\n===========\r\n");
+				LOGI("\r\n===========\r\n");
+			}
 	}
 
 	hlo_stream_close(send_str);
