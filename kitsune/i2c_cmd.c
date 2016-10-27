@@ -593,7 +593,7 @@ int set_tvoc_env(int temp, unsigned int humid){
 
 	temp *= 10;
 	temp += 25000;
-	b[3] = ((temp % 1000) / 100) > 7 ? (temp / 1000 + 1) << 1 : (temp) << 1;
+	b[3] = ((temp % 1000) / 100) > 7 ? (temp / 1000 + 1) << 1 : (temp / 1000) << 1;
 	if (((temp % 1000) / 100) > 2 && (((temp % 1000) / 100) < 8)) {
 		b[3] |= 1;
 	}
