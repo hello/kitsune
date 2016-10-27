@@ -93,7 +93,7 @@ static void _sense_state_task(hlo_future_t * result, void * ctx){
 			_playing = sense_state.audio_state.playing_audio;
 
 			sense_state.has_volume = true;
-			sense_state.volume = sys_volume;
+			sense_state.volume = sys_volume * 100 / 64;
 			sense_state.has_voice_control_enabled = true;
 			sense_state.voice_control_enabled = !disable_voice;
 
@@ -128,7 +128,6 @@ static bool _queue_audio_playback_state(playstate_t is_playing, const AudioPlayb
 		ret.has_duration_seconds = true;
 		ret.duration_seconds = info->durationInSeconds;
 
-		//TODO is this even needed?
 		ret.has_volume_percent = true;
 		ret.volume_percent = info->volume * 100 / 60;
 
