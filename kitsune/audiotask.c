@@ -128,9 +128,9 @@ static bool _queue_audio_playback_state(playstate_t is_playing, const AudioPlayb
 		ret.has_duration_seconds = true;
 		ret.duration_seconds = info->durationInSeconds;
 
-		//TODO is this even needed?
+		//TODO duplicates volume?
 		ret.has_volume_percent = true;
-		ret.volume_percent = info->volume * 100 / 60;
+		ret.volume_percent = info->volume * 100 / 64;
 
 		ret.has_file_path = true;
 		ustrncpy(ret.file_path, info->source_name, sizeof(ret.file_path));
