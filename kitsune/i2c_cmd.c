@@ -568,15 +568,9 @@ int init_tvoc(int measmode) {
 	}
 
 	xSemaphoreGiveRecursive(i2c_smphr);
-
-
-
 	return 0;
 }
-int Cmd_set_tvenv(int argc, char * argv[]){
-	return set_tvoc_env(atoi(argv[1]), atoi(argv[2]));
-}
-int set_tvoc_env(int temp, unsigned int humid){
+static int set_tvoc_env(int temp, unsigned int humid){
 	unsigned char b[8];
 	LOGI("setting tv temp %d humid %d\r\n", temp, humid);
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
@@ -603,13 +597,13 @@ int set_tvoc_env(int temp, unsigned int humid){
 	xSemaphoreGiveRecursive(i2c_smphr);
 	return 0;
 }
+int Cmd_set_tvenv(int argc, char * argv[]){
+	return set_tvoc_env(atoi(argv[1]), atoi(argv[2]));
+}
 #define DBG_TVOC LOGI
 int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, unsigned int humid ) {
 	unsigned char b[8];
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
-
-	//vTaskDelay(10);
-	//environmental
 
 	b[0] = 2;
 	(I2C_IF_Write(0x5a, b, 1, 1));
