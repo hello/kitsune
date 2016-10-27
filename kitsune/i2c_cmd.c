@@ -604,6 +604,12 @@ int set_tvoc_env(int temp, unsigned int humid){
 	return 0;
 }
 #define DBG_TVOC LOGI
+int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, unsigned int humid ) {
+	unsigned char b[8];
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+
+	//vTaskDelay(10);
+	//environmental
 
 	b[0] = 2;
 	(I2C_IF_Write(0x5a, b, 1, 1));
@@ -637,6 +643,7 @@ int set_tvoc_env(int temp, unsigned int humid){
 
 	vTaskDelay(10);
 	xSemaphoreGiveRecursive(i2c_smphr);
+	set_tvoc_env(temp,humid);
 	return 0;
 }
 
