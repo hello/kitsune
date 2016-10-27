@@ -1785,8 +1785,6 @@ void launch_tasks() {
 
 	xTaskCreate(AudioControlTask, "AudioControl",  7*1024 / 4, NULL, 2, NULL);
 
-
-
 }
 
 int Cmd_boot(int argc, char *argv[]) {
