@@ -2052,6 +2052,7 @@ tCmdLineEntry g_sCmdTable[] = {
     {"inttemp", Cmd_inttemp, "" }, //internal temperature
 	{ "thp", Cmd_read_temp_hum_press,	"" },
 	{ "tv", Cmd_meas_TVOC,	"" },
+	{"tvenv", Cmd_set_tvenv, ""},
 
 	{ "uv", Cmd_read_uv, "" },
 	{ "light", Cmd_readlight, "" },

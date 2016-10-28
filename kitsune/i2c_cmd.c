@@ -568,24 +568,18 @@ int init_tvoc(int measmode) {
 	}
 
 	xSemaphoreGiveRecursive(i2c_smphr);
-
-
-
 	return 0;
 }
-#define DBG_TVOC LOGI
-int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, unsigned int humid ) {
+static int set_tvoc_env(int temp, unsigned int humid){
 	unsigned char b[8];
+	LOGI("setting tv temp %d humid %d\r\n", temp, humid);
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
-
-	vTaskDelay(10);
-	//environmental
 	b[0] = 0x05;
 
 	humid *= 10;
 	// see cc-000803-an-4-ccs811_programming_and_interfacing_guide.pdf page 19, 20
 	b[1] = ((humid % 1000) / 100) > 7 ? (humid/1000 + 1)<<1 : (humid/1000)<<1;
-	if(((humid % 1000) / 100) > 2 && (((humid) / 100) < 8))
+	if(((humid % 1000) / 100) > 2 && (((humid % 1000) / 100) < 8))
 	{
 		b[1] |= 1;
 	}
@@ -593,12 +587,23 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 
 	temp *= 10;
 	temp += 25000;
-	b[3] = ((temp % 1000) / 100) > 7 ? (temp / 1000 + 1) << 1 : (temp) << 1;
+	b[3] = ((temp % 1000) / 100) > 7 ? (temp / 1000 + 1) << 1 : (temp / 1000) << 1;
 	if (((temp % 1000) / 100) > 2 && (((temp % 1000) / 100) < 8)) {
 		b[3] |= 1;
 	}
 	b[4] = 0;
 	(I2C_IF_Write(0x5a, b, 5, 1));
+	vTaskDelay(10);
+	xSemaphoreGiveRecursive(i2c_smphr);
+	return 0;
+}
+int Cmd_set_tvenv(int argc, char * argv[]){
+	return set_tvoc_env(atoi(argv[1]), atoi(argv[2]));
+}
+#define DBG_TVOC LOGI
+int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, unsigned int humid ) {
+	unsigned char b[8];
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
 	b[0] = 2;
 	(I2C_IF_Write(0x5a, b, 1, 1));
@@ -632,6 +637,7 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 
 	vTaskDelay(10);
 	xSemaphoreGiveRecursive(i2c_smphr);
+	set_tvoc_env(temp,humid);
 	return 0;
 }
 
