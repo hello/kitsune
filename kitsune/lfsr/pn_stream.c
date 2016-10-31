@@ -58,7 +58,7 @@
 #define IMPULSE_LENGTH         (50)
 #define CORR_SEARCH_WINDOW    (PN_LEN_SAMPLES + IMPULSE_LENGTH)
 #define CORR_SEARCH_START_IDX (0)
-#define DETECTION_THRESHOLD   (2e5)
+#define DETECTION_THRESHOLD   (1e6)
 #define INDEX_DIFFERENCE_FAIL_CRITERIA  (6)
 #define NUM_DETECT            (1)
 
@@ -234,9 +234,6 @@ uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t *
 	int32_t i;
 	int32_t corrnumber;
 
-	uint32_t ndetect = 0;
-	uint8_t found_peak = 0;
-
 	int32_t istart;
 	int32_t iend;
 	int32_t current_value;
@@ -248,6 +245,8 @@ uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t *
 
 	int32_t corr_result[CORR_SEARCH_WINDOW];
 
+	int32_t max = INT32_MIN;
+	bool found_peak = false;
 
 	for (corridx = 0,corrnumber = CORR_SEARCH_START_IDX; corrnumber < CORR_SEARCH_WINDOW + CORR_SEARCH_START_IDX; corrnumber++,corridx++) {
 		int64_t temp64;
@@ -264,45 +263,35 @@ uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t *
 			corr_result[corridx] = (int32_t)temp64;
 		}
 
-
 		if (ABS(corr_result[corridx]) >= _threshold_for_starting_peak_detection ) {
+			if (ABS(corr_result[corridx]) > max ) {
+				if (corridx < IMPULSE_LENGTH/2) {
+						 //skip ahead
+						 corridx = IMPULSE_LENGTH;
+						 corrnumber = CORR_SEARCH_START_IDX + IMPULSE_LENGTH;
+						continue;
+				}
+				max = ABS(corr_result[corridx]);
 
-			ndetect++;
-
-			if (corridx < IMPULSE_LENGTH/2) {
-                                //skip ahead
-                                corridx = IMPULSE_LENGTH;
-                                corrnumber = CORR_SEARCH_START_IDX + IMPULSE_LENGTH;
-				continue;
-			}
-
-			if (ndetect >= NUM_DETECT && !found_peak) {
-				DISP("found above threshold at i=%d\r\n",corrnumber);
 				istart = corridx - 16;
 				ifoundrise = corridx;
-				found_peak = 1;
 			}
+			found_peak = true;
 		}
-
-		MAP_WatchdogIntClear(WDT_BASE);
 	}
 
 	if (istart < 0) {
 		istart = 0;
 	}
-	DISP("{%d\r\n", ndetect);
-
 	//if no peaks were found, then quit
-	if (!found_peak) {
+	if (!found_peak ) {
 		DISP("{CHANNEL=%d,TEST_STATUS : FAIL, REASON= NO_PEAK_FOUND}\r\n", channel);
-		return 0;
+		//return 0;
 	}
-	if( ndetect > 200 ) {
-		DISP("{CHANNEL=%d,TEST_STATUS : FAIL, REASON= TOO_MUCH_PEAK %d}\r\n", channel, ndetect);
-		return 0;
-	}
+	//DISP("found above threshold at i=%d\r\n",corrnumber);
+	DISP("{CHANNEL=%d,MAX %d, IDX %d}\r\n", channel, max, corridx);
 
-	iend = istart + 128;
+	iend = istart + 256;
 
 	if (iend >= CORR_SEARCH_WINDOW) {
 		iend = CORR_SEARCH_WINDOW;
@@ -335,13 +324,15 @@ uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t *
 	//debug print correlation if requested
 	if (print_correlation) {
 
+		iend = istart + 64;
+
 		DISP("istart=%d, iend=%d\r\n",print_start,iend);
 
 
 		for (i = print_start; i < iend; i++) {
 			int d = corr_result[i];
-			d+=6e5;
-			d/=5e4;
+			d+=5e6;
+			d/=2e5;
 			DISP("%d ", d);
 			if( d < 0 ) {
 				d = 0;
@@ -349,7 +340,7 @@ uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t *
 				d = 50;
 			}
 			int s;
-			for( s = 0; s < 51; ++s ) {
+			for( s = 0; s < 50; s++ ) {
 				if( s == d ) {
 					DISP("x");
 				} else {
@@ -357,13 +348,13 @@ uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t *
 				}
 			}
 
-			if( i == istart ) {
-				DISP("<--");
-			}
-//			DISP("%d\r\n",corr_result[i]);
 			vTaskDelay(5);
-			DISP("\n");
+			DISP("\t%d",corr_result[i]);
 
+			if( i == istart ) {
+				DISP("\t<--");
+			}
+			DISP("\n");
 		}
 		int s;
 		for( s = 0; s < 51; ++s ) {
@@ -371,7 +362,9 @@ uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t *
 		}
 		DISP("\n");
 	}
-
+	if( istart > CORR_SEARCH_WINDOW ) {
+		DISP("{CHANNEL=%d,TEST_STATUS : FAIL, REASON= LATE_PEAK}\r\n", channel);
+	}
 
 	result->peak_indices[channel] = istart;
 	result->peak_values[channel] = max_value;
@@ -493,11 +486,7 @@ void pn_write_task( void * params ) {
 void pn_read_task( void * params ) {
 	hlo_stream_transfer_t * p = (hlo_stream_transfer_t *)params;
 
-	DISP("pn_read_task started\r\n");
-
 	hlo_filter_data_transfer(p->input,p->output,p->ctx,NULL);
-
-	DISP("pn_read_task completed\r\n");
 
 	vTaskDelete(NULL);
 	return;
