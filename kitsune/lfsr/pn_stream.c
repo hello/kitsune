@@ -302,24 +302,13 @@ uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t *
 		return 0;
 	}
 
-	iend = istart + 256;
+	iend = istart + 128;
 
 	if (iend >= CORR_SEARCH_WINDOW) {
 		iend = CORR_SEARCH_WINDOW;
 	}
 
-	//debug print correlation if requested
-	if (print_correlation) {
-
-		DISP("istart=%d, iend=%d\r\n",istart,iend);
-
-
-		for (i = istart; i < iend; i++) {
-			DISP("%d\r\n",corr_result[i]);
-			vTaskDelay(5);
-		}
-		DISP("\r\n");
-	}
+	int print_start = istart;
 
 
 	//find peak magnitude and index
@@ -335,13 +324,54 @@ uint8_t correlate(TestResult_t * result,const int16_t * samples, const int16_t *
 			max_value = current_value;
 			istart = i;
 		}
-		else if (last_sign != sign) {
+		if (last_sign != sign) {
 			break;
 		}
 
 		last_sign = sign;
 
 	}
+
+	//debug print correlation if requested
+	if (print_correlation) {
+
+		DISP("istart=%d, iend=%d\r\n",print_start,iend);
+
+
+		for (i = print_start; i < iend; i++) {
+			int d = corr_result[i];
+			d+=6e5;
+			d/=5e4;
+			DISP("%d ", d);
+			if( d < 0 ) {
+				d = 0;
+			} else if( d > 50 ) {
+				d = 50;
+			}
+			int s;
+			for( s = 0; s < 51; ++s ) {
+				if( s == d ) {
+					DISP("x");
+				} else {
+					DISP(" ");
+				}
+			}
+
+			if( i == istart ) {
+				DISP("<--");
+			}
+//			DISP("%d\r\n",corr_result[i]);
+			vTaskDelay(5);
+			DISP("\n");
+
+		}
+		int s;
+		for( s = 0; s < 51; ++s ) {
+			DISP("=");
+		}
+		DISP("\n");
+	}
+
 
 	result->peak_indices[channel] = istart;
 	result->peak_values[channel] = max_value;
@@ -423,7 +453,7 @@ void pn_write_task( void * params ) {
 		ret = correlate(&results,samples,pn_sequence,p->print_correlation,ichannel);
 
 		if (!ret) {
-			DISP("channel %d failed to correlate",ichannel);
+			DISP("channel %d failed to correlate\n",ichannel);
 		}
 
 	}
