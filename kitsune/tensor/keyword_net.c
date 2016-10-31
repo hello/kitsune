@@ -13,7 +13,11 @@
 #include "arm_const_structs.h"
 #include "fft.h"
 
-#define NEURAL_NET_MODEL "model_nov07_lstm_med_adam_okay_sense_stop_snooze_tiny_end0_1108_ep046.c" 
+//about ten second, just has to be spaced far enough back that the keyword interaction is well under way
+#define NUM_COUNTS_AFTER_KEYWORD_TO_UPLOAD (666)
+
+#define NEURAL_NET_MODEL "model_nov07_lstm_med_adam_okay_sense_stop_snooze_tiny_end0_1108_ep046.c"
+
 #include NEURAL_NET_MODEL
 const static char * k_net_id = NEURAL_NET_MODEL;
 
@@ -42,6 +46,8 @@ typedef struct {
 
     NetStats_t stats;
 
+    uint32_t post_keyword_countdown;
+    Keyword_t last_buffered_keyword;
 } KeywordNetContext_t;
 
 static KeywordNetContext_t _context;
@@ -181,9 +187,10 @@ static void feats_callback(void * p, Weight_t * feats) {
 					//do callback
 					callback_item->on_end(callback_item->context,(Keyword_t)i, callback_item->max_value);
 					
-                                        //TEMPORARILY COMMENTED OUT UNTIL UPLOAD DEADLOCK SOLUTION IS IMPLEMENTED
-					//trigger feats asynchronous upload
-					//audio_features_upload_trigger_async_upload(NEURAL_NET_MODEL, keyword_enum_to_str((Keyword_t)i),NUM_MEL_BINS,feats_sint8);
+					//stop the buffering so when we upload the buffer it's at the right place
+					if (audio_features_upload_set_finished_buffering()) {
+						context->last_buffered_keyword = (Keyword_t)i;
+					}
 
 					//log activation, has to be thread safe
                     if( xSemaphoreTake(_stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
@@ -198,7 +205,20 @@ static void feats_callback(void * p, Weight_t * feats) {
 				//reset
 				callback_item->active_count = 0;
 				callback_item->max_value = 0;
+
+				//set countdown
+				context->post_keyword_countdown = NUM_COUNTS_AFTER_KEYWORD_TO_UPLOAD;
 			}
+		}
+	}
+
+	//take action after post-keyword countdown (to keep it from interfering with voice interactions with the server)
+	if (context->post_keyword_countdown > 0) {
+		context->post_keyword_countdown--;
+
+		if (context->post_keyword_countdown == 0) {
+			//trigger feats asynchronous upload if countdown is completed
+			audio_features_upload_trigger_async_upload(NEURAL_NET_MODEL, keyword_enum_to_str(context->last_buffered_keyword),NUM_MEL_BINS,feats_sint8);
 		}
 	}
 

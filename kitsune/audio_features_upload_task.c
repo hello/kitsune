@@ -33,6 +33,7 @@
  */
 static hlo_stream_t * _circstream = NULL;
 static volatile int _is_waiting_for_uploading = 0;
+static volatile int _is_finished_buffering = 0;
 static char _id_buf[128];
 static RateLimiter_t _ratelimiterdata = {MAX_UPLOADS_PER_PERIOD,TICKS_PER_UPLOAD,0,0,0};
 static SimpleMatrix _mat;
@@ -40,9 +41,10 @@ static SimpleMatrix _mat;
 
 //meant to be called from the same thread that triggers the upload
 void audio_features_upload_task_buffer_bytes(void * data, uint32_t len) {
-	if (_is_waiting_for_uploading) {
+	if (_is_waiting_for_uploading || _is_finished_buffering) {
 		return;
 	}
+
 
 	if (!_circstream) {
 		LOGI("audio_features_upload -- creating audio features circular buffer stream of size %d bytes\r\n",CIRCULAR_BUFFER_SIZE_BYTES);
@@ -66,6 +68,8 @@ static void net_response(const NetworkResponse_t * response, char * reply_buf, i
 
 	//set that we are ready to upload again
 	_is_waiting_for_uploading = 0;
+	_is_finished_buffering = 0;
+
 
 }
 
@@ -103,6 +107,16 @@ static void setup_protbuf(SimpleMatrix * mat,hlo_stream_t * bytestream, const ch
 	mat->payload.arg = bytestream;
 
 
+}
+
+bool audio_features_upload_set_finished_buffering(void) {
+	if (_is_finished_buffering) {
+		return false;
+	}
+
+	_is_finished_buffering = 1;
+
+	return true;
 }
 
 //triggers upload, called from same thread as "audio_features_upload_task_buffer_bytes"
