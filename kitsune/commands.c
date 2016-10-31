@@ -615,7 +615,7 @@ void thread_alarm(void * unused) {
 				desc.stream = fs_stream_open_media(file_name,INT32_MAX);
 				ustrncpy(desc.source_name, file_name, sizeof(desc.source_name));
 				desc.durationInSeconds = alarm.ring_duration_in_second;
-				desc.volume = sys_volume;
+				desc.volume = 64;
 				desc.onFinished = thread_alarm_on_finished;
 				desc.rate = AUDIO_SAMPLE_RATE;
 				desc.context = &alarm_led_id;
