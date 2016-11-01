@@ -59,7 +59,7 @@
 #define CORR_SEARCH_WINDOW    (PN_LEN_SAMPLES + IMPULSE_LENGTH)
 #define CORR_SEARCH_START_IDX (0)
 #define DETECTION_THRESHOLD   (2e5)
-#define INDEX_DIFFERENCE_FAIL_CRITERIA  (16)
+#define INDEX_DIFFERENCE_FAIL_CRITERIA  (6)
 #define NUM_DETECT            (1)
 
 #define WRITE_BUF_SKIP_BYTES (1 * TX_BUFFER_SIZE)
@@ -492,6 +492,8 @@ void pn_read_task( void * params ) {
 	return;
 }
 
+extern void reset_audio();
+
 int cmd_audio_self_test(int argc, char* argv[]) {
 	//give me my bits!
 	hlo_stream_transfer_t outgoing_path; //out to speaker
@@ -500,6 +502,12 @@ int cmd_audio_self_test(int argc, char* argv[]) {
 	uint8_t disable_playback = 0;
 	uint8_t test_impulse = 0;
 	uint8_t print_correlation = 0;
+
+	static bool first = true;
+	if( !first ) {
+		reset_audio();
+	}
+	first = false;
 
 	pn_stream_init();
 

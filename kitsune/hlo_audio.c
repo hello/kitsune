@@ -50,6 +50,18 @@ static void _reset_codec(void){
 	// Program codec
 	codec_init();
 }
+
+void reset_audio() {
+	Audio_Stop();
+	DeinitAudioCapture();
+	DeinitAudioPlayback();
+	_reset_codec();
+	InitAudioTxRx(AUDIO_SAMPLE_RATE);
+	InitAudioCapture();
+	InitAudioPlayback();
+	Audio_Start();
+}
+
 ////------------------------------
 // playback stream driver
 
