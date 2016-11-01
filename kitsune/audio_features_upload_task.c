@@ -28,6 +28,9 @@
 #define CIRCULAR_BUFFER_SIZE_BYTES (8192)
 #define MAX_NUM_TICKS_TO_RESET (1 << 30)
 
+#define QUEUE_LENGTH (1)
+#define DELAY_TIME (10000)
+#define POLL_PERIOD (1000)
 
 /**************************
  *    STATIC VARIABLES
@@ -37,6 +40,7 @@ static volatile int _is_waiting_for_uploading = 0;
 static char _id_buf[128];
 static RateLimiter_t _ratelimiterdata = {MAX_UPLOADS_PER_PERIOD,TICKS_PER_UPLOAD,0,0,0};
 static SimpleMatrix _mat;
+static volatile int _current_delay;
 
 //delayed send queue
 static xQueueHandle _delayed_send_queue = NULL;
@@ -119,8 +123,7 @@ static void setup_protbuf(SimpleMatrix * mat,hlo_stream_t * bytestream, const ch
 
 }
 
-#define QUEUE_LENGTH (1)
-#define DELAY_TIME (10000)
+
 void audio_features_upload_task(void * not_used) {
 
 	_delayed_send_queue = xQueueCreate(QUEUE_LENGTH,sizeof(NetworkTaskServerSendMessage_t));
@@ -128,11 +131,18 @@ void audio_features_upload_task(void * not_used) {
 	NetworkTaskServerSendMessage_t message;
 
 	for (; ;) {
-		if (xQueueReceive( _delayed_send_queue, &message, portMAX_DELAY ) == pdTRUE) {
-			LOGI("audio_features_upload -- waiting to send\r\n");
 
-			vTaskDelay(DELAY_TIME);
+		//polls until there is a message and delay is 0
+		vTaskDelay(POLL_PERIOD);
 
+		_current_delay -= POLL_PERIOD;
+
+		if (_current_delay > 0) {
+			continue;
+		}
+
+		//if no delay, and there is a message
+		if (_current_delay <= 0 && xQueueReceive( _delayed_send_queue, &message, 0 ) == pdTRUE) {
 			LOGI("audio_features_upload -- sending\r\n");
 
 			//relay
@@ -152,6 +162,8 @@ void audio_features_upload_task(void * not_used) {
 //triggers upload, called from same thread as "audio_features_upload_task_buffer_bytes"
 void audio_features_upload_trigger_async_upload(const char * net_id,const char * keyword,const uint32_t num_cols,FeaturesPayloadType_t feats_type) {
 	NetworkTaskServerSendMessage_t netmessage;
+
+	_current_delay = DELAY_TIME; //reset the delay time
 
 	if (is_rate_limited(&_ratelimiterdata,xTaskGetTickCount())) {
 		LOGI("audio_features_upload -- rate limited, ignoring upload request");
