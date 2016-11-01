@@ -165,13 +165,13 @@ void audio_features_upload_trigger_async_upload(const char * net_id,const char *
 
 	_current_delay = DELAY_TIME; //reset the delay time
 
-	if (is_rate_limited(&_ratelimiterdata,xTaskGetTickCount())) {
-		LOGI("audio_features_upload -- rate limited, ignoring upload request");
+	if (_is_waiting_for_uploading) {
+		LOGI("audio_features_upload -- upload already in the pipe, ignoring upload request");
 		return;
 	}
 
-	if (_is_waiting_for_uploading) {
-		LOGI("audio_features_upload -- upload already in the pipe, ignoring upload request");
+	if (is_rate_limited(&_ratelimiterdata,xTaskGetTickCount())) {
+		LOGI("audio_features_upload -- rate limited, ignoring upload request");
 		return;
 	}
 
