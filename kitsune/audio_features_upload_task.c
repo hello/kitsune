@@ -120,6 +120,7 @@ static void setup_protbuf(SimpleMatrix * mat,hlo_stream_t * bytestream, const ch
 	mat->payload.funcs.encode = encode_repeated_streaming_bytes_and_mark_done;
 	mat->payload.arg = bytestream;
 
+	mat->device_id.funcs.encode = encode_device_id_string;
 
 }
 
