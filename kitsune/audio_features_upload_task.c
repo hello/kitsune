@@ -1,6 +1,7 @@
 #include "FreeRTOS.h"
 #include "audio_features_upload_task.h"
 #include "audio_features_upload_task_helpers.h"
+#include <queue.h>
 
 #include <stdbool.h>
 #include "protobuf/simple_matrix.pb.h"
@@ -37,6 +38,9 @@ static char _id_buf[128];
 static RateLimiter_t _ratelimiterdata = {MAX_UPLOADS_PER_PERIOD,TICKS_PER_UPLOAD,0,0,0};
 static SimpleMatrix _mat;
 
+//delayed send queue
+static xQueueHandle _delayed_send_queue = NULL;
+
 
 //meant to be called from the same thread that triggers the upload
 void audio_features_upload_task_buffer_bytes(void * data, uint32_t len) {
@@ -53,19 +57,29 @@ void audio_features_upload_task_buffer_bytes(void * data, uint32_t len) {
 
 }
 
-static void net_response(const NetworkResponse_t * response, char * reply_buf, int reply_sz,void * context) {
-	hlo_stream_t * stream = (hlo_stream_t *)context;
-
-	LOGI("audio_features_upload -- closing audio features stream\r\n");
-
+static void cleanup(hlo_stream_t * stream) {
 	//close stream, no matter if anything was transfered
-	hlo_stream_close(stream);
+	if (stream) {
+
+		LOGI("audio_features_upload -- closing audio features stream\r\n");
+
+		hlo_stream_close(stream);
+	}
 
 	//set stream ready for being re-opened
 	_circstream = NULL;
 
 	//set that we are ready to upload again
 	_is_waiting_for_uploading = 0;
+
+	LOGI("audio_features_upload -- reset state\r\n");
+
+}
+
+static void net_response(const NetworkResponse_t * response, char * reply_buf, int reply_sz,void * context) {
+	hlo_stream_t * stream = (hlo_stream_t *)context;
+
+	cleanup(stream);
 
 }
 
@@ -105,15 +119,47 @@ static void setup_protbuf(SimpleMatrix * mat,hlo_stream_t * bytestream, const ch
 
 }
 
+#define QUEUE_LENGTH (1)
+#define DELAY_TIME (10000)
+void audio_features_upload_task(void * not_used) {
+
+	_delayed_send_queue = xQueueCreate(QUEUE_LENGTH,sizeof(NetworkTaskServerSendMessage_t));
+
+	NetworkTaskServerSendMessage_t message;
+
+	for (; ;) {
+		if (xQueueReceive( _delayed_send_queue, &message, portMAX_DELAY ) == pdTRUE) {
+			LOGI("audio_features_upload -- waiting to send\r\n");
+
+			vTaskDelay(DELAY_TIME);
+
+			LOGI("audio_features_upload -- sending\r\n");
+
+			//relay
+			if (NetworkTask_AddMessageToQueue(&message) == pdFALSE) {
+				LOGE("audio_features_upload -- UNABLE TO ADD TO NETWORK QUEUE\r\n");
+
+				cleanup((hlo_stream_t *)  message.context);
+
+				return;
+			}
+		}
+
+	}
+}
+
+
 //triggers upload, called from same thread as "audio_features_upload_task_buffer_bytes"
 void audio_features_upload_trigger_async_upload(const char * net_id,const char * keyword,const uint32_t num_cols,FeaturesPayloadType_t feats_type) {
 	NetworkTaskServerSendMessage_t netmessage;
 
 	if (is_rate_limited(&_ratelimiterdata,xTaskGetTickCount())) {
+		LOGI("audio_features_upload -- rate limited, ignoring upload request");
 		return;
 	}
 
 	if (_is_waiting_for_uploading) {
+		LOGI("audio_features_upload -- upload already in the pipe, ignoring upload request");
 		return;
 	}
 
@@ -130,12 +176,12 @@ void audio_features_upload_trigger_async_upload(const char * net_id,const char *
 	netmessage.response_callback = net_response;
 	netmessage.context = _circstream;
 
-	if (NetworkTask_AddMessageToQueue(&netmessage) == pdFALSE) {
+	if (xQueueSend(_delayed_send_queue,&netmessage,0) == pdFALSE) {
 		LOGE("audio_features_upload -- UNABLE TO ADD TO NETWORK QUEUE\r\n");
 		return;
 	}
 
-	LOGI("audio_features_upload -- added to network queue\r\n");
+	LOGI("audio_features_upload -- added to delay queue\r\n");
 
 	//toggle state if adding message to queue was successful
 	_is_waiting_for_uploading = 1;
