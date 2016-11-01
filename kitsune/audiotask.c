@@ -113,6 +113,26 @@ static void _sense_state_task(hlo_future_t * result, void * ctx){
 		}
 	}
 }
+
+uint8_t _codec_read(uint8_t book, uint8_t page, uint8_t reg);
+static void _spk_otp_task(hlo_future_t * result, void * ctx){
+
+	while(1){
+
+		if(audio_playing()) {
+
+			LOGI("SPK OTP:\n");
+			LOGI("--[0][0][45]: %X ---", _codec_read(0,0,45));
+			LOGI("--[0][0][46]: %X --- \r\n", _codec_read(0,0,46));
+
+//			if(_codec_read(0,0,45) || _codec_read(0,0,46)){
+//				// reset speaker
+//			}
+		}
+
+		vTaskDelay(15*60*1000UL);
+	}
+}
 #include "state.pb.h"
 typedef enum {
 	PLAYING,
@@ -184,6 +204,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 			v->current++;
 			vTaskDelay(v->ramp_up_ms);
 		}else{
+
 			vTaskDelay(10);
 			continue;
 		}
@@ -281,6 +302,9 @@ void AudioPlaybackTask(void * data) {
 
 	hlo_future_t * state_update_task = hlo_future_create_task_bg(_sense_state_task, NULL, 1024);
 	assert(state_update_task);
+
+	hlo_future_t * spk_otp_task = hlo_future_create_task_bg(_spk_otp_task, NULL, 1024);
+	assert(spk_otp_task);
 
 	while(1){
 		AudioMessage_t  m;
