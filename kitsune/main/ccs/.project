@@ -1021,6 +1021,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_data.pb.h</locationURI>
 		</link>
 		<link>
+			<name>protobuf/audio_features_control.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_features_control.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/audio_features_control.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_features_control.pb.h</locationURI>
+		</link>
+		<link>
 			<name>protobuf/file_manifest.pb.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/file_manifest.pb.c</locationURI>

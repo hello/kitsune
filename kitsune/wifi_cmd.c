@@ -57,6 +57,7 @@ int sl_mode = ROLE_INVALID;
 
 #include "limits.h"
 #include "hw_ver.h"
+#include "audio_features_upload_task.h"
 
 int32_t set_volume(int v, unsigned int dly);
 int send_top(char *, int);
@@ -1985,6 +1986,8 @@ extern int data_queue_batch_size;
 extern int pill_queue_batch_size;
 static void _on_response_protobuf( SyncResponse* response_protobuf)
 {
+	bool enabled_audio_features_upload;
+
     if (response_protobuf->has_alarm) 
     {
     	if(response_protobuf->has_ring_time_ack){
@@ -2014,9 +2017,13 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     	mcu_reset();
     }
 
-    if (response_protobuf->has_audio_control) {
-//    	LOGI("Start Audio Capture\r\n");
+    enabled_audio_features_upload = false;
+    if (response_protobuf->has_audio_features_control) {
+    	if (response_protobuf->audio_features_control.has_enable_keyword_features && response_protobuf->audio_features_control.enable_keyword_features) {
+    		enabled_audio_features_upload = true;
+    	}
     }
+    audio_features_upload_set_upload_status(enabled_audio_features_upload);
 
     if( response_protobuf->has_batch_size ) {
     	data_queue_batch_size = response_protobuf->batch_size;
