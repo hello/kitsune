@@ -41,10 +41,10 @@ static char _id_buf[128];
 static RateLimiter_t _ratelimiterdata = {MAX_UPLOADS_PER_PERIOD,TICKS_PER_UPLOAD,0,0,0};
 static SimpleMatrix _mat;
 static volatile int _current_delay;
+static volatile int _disabled_uploads = 1;
 
 //delayed send queue
 static xQueueHandle _delayed_send_queue = NULL;
-
 
 //meant to be called from the same thread that triggers the upload
 void audio_features_upload_task_buffer_bytes(void * data, uint32_t len) {
@@ -59,6 +59,10 @@ void audio_features_upload_task_buffer_bytes(void * data, uint32_t len) {
 
 	hlo_stream_write(_circstream,data,len);
 
+}
+
+void audio_features_upload_set_upload_status(bool enabled) {
+	_disabled_uploads = !enabled;
 }
 
 static void cleanup(hlo_stream_t * stream) {
@@ -126,7 +130,6 @@ static void setup_protbuf(SimpleMatrix * mat,hlo_stream_t * bytestream, const ch
 
 
 void audio_features_upload_task(void * not_used) {
-
 	_delayed_send_queue = xQueueCreate(QUEUE_LENGTH,sizeof(NetworkTaskServerSendMessage_t));
 
 	NetworkTaskServerSendMessage_t message;
@@ -165,6 +168,11 @@ void audio_features_upload_trigger_async_upload(const char * net_id,const char *
 	NetworkTaskServerSendMessage_t netmessage;
 
 	_current_delay = DELAY_TIME; //reset the delay time
+
+	if (_disabled_uploads) {
+		LOGI("audio_features_upload -- uploads are disabled, ignoring upload request\r\n");
+		return;
+	}
 
 	if (_is_waiting_for_uploading) {
 		LOGI("audio_features_upload -- upload already in the pipe, ignoring upload request\r\n");
