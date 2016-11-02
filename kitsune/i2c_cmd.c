@@ -943,6 +943,7 @@ int32_t set_system_volume(int new_volume) {
 }
 
 int32_t set_volume(int v, unsigned int dly) {
+	LOGI("v %d\n", v);
 
 	char send_stop = 1;
 	unsigned char cmd[2];

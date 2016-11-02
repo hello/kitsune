@@ -50,6 +50,18 @@ static void _reset_codec(void){
 	// Program codec
 	codec_init();
 }
+
+void reset_audio() {
+	Audio_Stop();
+	DeinitAudioCapture();
+	DeinitAudioPlayback();
+	_reset_codec();
+	InitAudioTxRx(AUDIO_SAMPLE_RATE);
+	InitAudioCapture();
+	InitAudioPlayback();
+	Audio_Start();
+}
+
 ////------------------------------
 // playback stream driver
 
@@ -72,12 +84,7 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 		if(!xSemaphoreTake(playback_isr_sem,1000)){
 			LOGI("ISR Failed\r\n");
 #if 1
-			Audio_Stop();
-			_reset_codec();
-			InitAudioTxRx(AUDIO_SAMPLE_RATE);
-			InitAudioPlayback();
-			set_volume(sys_volume, portMAX_DELAY);
-			Audio_Start();
+			reset_audio();
 			return 0;
 #else
 			return HLO_STREAM_ERROR;
@@ -115,11 +122,7 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 		if(!xSemaphoreTake(record_isr_sem,1000)){
 			LOGI("ISR Failed\r\n");
 #if 1
-			Audio_Stop();
-			_reset_codec();
-			InitAudioTxRx(AUDIO_SAMPLE_RATE);
-			InitAudioCapture();
-			Audio_Start();
+			reset_audio();
 			return 0;
 #else
 //			mcu_reset();
