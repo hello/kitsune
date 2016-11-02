@@ -229,6 +229,8 @@ void keyword_net_initialize(void) {
 
 __attribute__((section(".ramcode")))
 void keyword_net_deinitialize(void) {
+	vPortFree(_context.stats_mutex);
+
 	tinytensor_features_deinitialize();
 
 	tinytensor_free_states(&_context.state,&_context.net);
@@ -236,7 +238,6 @@ void keyword_net_deinitialize(void) {
 
 __attribute__((section(".ramcode")))
 void keyword_net_register_callback(void * target_context, Keyword_t keyword, int16_t threshold,uint32_t min_duration,KeywordCallback_t on_start, KeywordCallback_t on_end) {
-
 	_context.callbacks[keyword].on_start = on_start;
 	_context.callbacks[keyword].on_end = on_end;
 	_context.callbacks[keyword].context = target_context;

@@ -399,7 +399,7 @@ BME280_U32_t bme280_compensate_H_int32(BME280_S32_t adc_H) {
 	return (100*(BME280_U32_t)(v_x1_u32r >> 12))>>10;
 }
 #endif
-#define DBG_BME(...)
+#define DBG_BME LOGI
 uint32_t BME_i2c;
 int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 	unsigned char cmd;
@@ -418,9 +418,7 @@ int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 	b[1] = 0b10110101;
 	(I2C_IF_Write(BME_i2c, b, 2, 1));
 
-	xSemaphoreGiveRecursive(i2c_smphr);
 	vTaskDelay(95);
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
 	b[0] = 1;
 	b[2] = b[1] = 0;
@@ -432,9 +430,7 @@ int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 		if (b[0] == 0 || b[0] == 4 ) break;
 		DBG_BME("%x %x %x\n", b[0],b[1],b[2] );
 
-		xSemaphoreGiveRecursive(i2c_smphr);
 		vTaskDelay(5);
-		assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 	}
 	cmd = 0xf7;
 	(I2C_IF_Write(BME_i2c, &cmd, 1, 1));
@@ -619,6 +615,8 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 		unsigned char temp = b[4];
 		b[4] = b[5];
 		b[5] = temp;
+
+		LOGE("OLD VOC\n");
 	}
 	if( b[4] & 0x01 ) {
 		LOGE("TVOC error %x ", b[5] );
@@ -945,6 +943,7 @@ int32_t set_system_volume(int new_volume) {
 }
 
 int32_t set_volume(int v, unsigned int dly) {
+	LOGI("v %d\n", v);
 
 	char send_stop = 1;
 	unsigned char cmd[2];
