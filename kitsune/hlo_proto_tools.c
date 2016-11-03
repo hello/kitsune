@@ -95,7 +95,7 @@ hlo_future_t * buffer_from_MorpheusCommand(MorpheusCommand * src){
 #include "hlo_pipe.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
-#define DBG_PBSTREAM(...)
+#define DBG_PBSTREAM LOGI
 #define PB_FRAME_SIZE 1024
 
 typedef struct{
@@ -166,10 +166,11 @@ int hlo_pb_encode( hlo_stream_t * stream, const pb_field_t * fields, void * stru
 	success = success && pb_encode(&pb_ostream,fields,structdata);
 
 	DBG_PBSTREAM("PBSS %d %d %d\n", state.stream_state, success, ret );
-	if( state.stream_state > 0 ) {
-		return success==true ? 0 : -1;
+	if( state.stream_state > 0 && success ) {
+		return state.stream_state;
+	} else {
+		return HLO_STREAM_ERROR;
 	}
-	return state.stream_state;
 }
 int hlo_pb_decode( hlo_stream_t * stream, const pb_field_t * fields, void * structdata ){
 	uint32_t count;
@@ -190,10 +191,11 @@ int hlo_pb_decode( hlo_stream_t * stream, const pb_field_t * fields, void * stru
 	pb_istream.bytes_left = count;
 	success = success && pb_decode(&pb_istream,fields,structdata);
 	DBG_PBSTREAM("PBRS %d %d\n", state.stream_state, success );
-	if( state.stream_state > 0 ) {
-		return success==true ? 0 : -1;
+	if( state.stream_state > 0 && success ) {
+		return state.stream_state;
+	} else {
+		return HLO_STREAM_ERROR;
 	}
-	return state.stream_state;
 }
 
 //====================================================================
