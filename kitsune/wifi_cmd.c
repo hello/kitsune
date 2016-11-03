@@ -89,6 +89,7 @@ void mcu_reset()
     MAP_PRCMHibernateEnter();
 }
 
+volatile int nwp_reset_cnt;
 #define SL_STOP_TIMEOUT                 (30)
 long nwp_reset() {
 	long r;
@@ -97,7 +98,10 @@ long nwp_reset() {
 	r = sl_Stop(0xFF);
     wifi_status_set(0xFFFFFFFF, true);
     r = sl_Start(NULL, NULL, NULL);
+	nwp_reset_cnt++;
+
 	sl_exit_critical_region();
+
 	return r;
 }
 

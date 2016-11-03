@@ -29,6 +29,7 @@ typedef struct{
 	security_type sec;
 	unsigned long ip;
 	char host[HOST_LEN];
+	int reset_cnt;
 }hlo_sock_ctx_t;
 
 #define DBG_SOCKSTREAM(...)
@@ -145,6 +146,7 @@ static int _close_sock(void * ctx){
 	//nwp_reset();
 	return 0;
 }
+extern volatile int nwp_reset_cnt;
 static int _read_sock(void * ctx, void * buf, size_t size){
 	hlo_sock_ctx_t * sock_ctx = (hlo_sock_ctx_t*)ctx;
 
@@ -152,6 +154,12 @@ static int _read_sock(void * ctx, void * buf, size_t size){
 		if( !_start_connection(sock_ctx)) {
 			return HLO_STREAM_ERROR;
 		}
+	}
+
+	if( sock_ctx->reset_cnt != nwp_reset_cnt ) {
+		sock_ctx->reset_cnt = nwp_reset_cnt;
+		LOGE("read oldsocket %d %d\n", sock_ctx->reset_cnt, nwp_reset_cnt);
+		return HLO_STREAM_ERROR;
 	}
 
 	DBG_SOCKSTREAM("LISTENING %d\n", size);
@@ -175,6 +183,11 @@ static int _write_sock(void * ctx, const void * buf, size_t size){
 		}
 	}
 
+	if( sock_ctx->reset_cnt != nwp_reset_cnt ) {
+		sock_ctx->reset_cnt = nwp_reset_cnt;
+		LOGE("write oldsocket %d %d\n", sock_ctx->reset_cnt, nwp_reset_cnt);
+		return HLO_STREAM_ERROR;
+	}
 	DBG_SOCKSTREAM("SENDING %d\n", size);
 	rv = send(sock_ctx->sock, buf, size, 0);
 	DBG_SOCKSTREAM("SENT %d\n", rv);
@@ -192,6 +205,8 @@ hlo_stream_t * hlo_sock_stream(const char * host, security_type secure){
 	hlo_sock_ctx_t * sock_ctx;
 	sock_ctx = pvPortMalloc(sizeof(*sock_ctx));
 	assert(sock_ctx);
+
+	sock_ctx->reset_cnt = nwp_reset_cnt;
 
 	memset(sock_ctx, 0, sizeof(*sock_ctx));
 	memcpy( sock_ctx->host, host, HOST_LEN );
