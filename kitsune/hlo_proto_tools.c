@@ -95,7 +95,7 @@ hlo_future_t * buffer_from_MorpheusCommand(MorpheusCommand * src){
 #include "hlo_pipe.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
-#define DBG_PBSTREAM(...)
+#define DBG_PBSTREAM LOGI
 #define PB_FRAME_SIZE 1024
 
 typedef struct{

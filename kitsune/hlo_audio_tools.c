@@ -304,6 +304,7 @@ extern volatile int sys_volume;
 int32_t set_volume(int v, unsigned int dly);
 #define AUDIO_NET_RATE (AUDIO_SAMPLE_RATE/1024)
 
+
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
 	int ret = 0;
@@ -362,7 +363,10 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				send_str = hlo_stream_bw_limited( send_str, AUDIO_NET_RATE/8, 5000);
 				light_open = true;
 
-				hlo_pb_encode(send_str, SpeechRequest_fields, &nn_ctx.speech_pb);
+				ret = hlo_pb_encode(send_str, SpeechRequest_fields, &nn_ctx.speech_pb);
+				if( ret < 0 ) {
+					break;
+				}
 
 				speech_detected_time = xTaskGetTickCount();
 			} else {
