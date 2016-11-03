@@ -167,9 +167,10 @@ int hlo_pb_encode( hlo_stream_t * stream, const pb_field_t * fields, void * stru
 
 	DBG_PBSTREAM("PBSS %d %d %d\n", state.stream_state, success, ret );
 	if( state.stream_state > 0 ) {
-		return success==true ? 0 : -1;
+		return success==true ? state.stream_state : HLO_STREAM_ERROR;
+	} else {
+		return HLO_STREAM_ERROR;
 	}
-	return state.stream_state;
 }
 int hlo_pb_decode( hlo_stream_t * stream, const pb_field_t * fields, void * structdata ){
 	uint32_t count;
@@ -191,9 +192,10 @@ int hlo_pb_decode( hlo_stream_t * stream, const pb_field_t * fields, void * stru
 	success = success && pb_decode(&pb_istream,fields,structdata);
 	DBG_PBSTREAM("PBRS %d %d\n", state.stream_state, success );
 	if( state.stream_state > 0 ) {
-		return success==true ? 0 : -1;
+		return success==true ? state.stream_state : HLO_STREAM_ERROR;
+	} else {
+		return HLO_STREAM_ERROR;
 	}
-	return state.stream_state;
 }
 
 //====================================================================
