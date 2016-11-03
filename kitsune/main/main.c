@@ -383,6 +383,7 @@ void main()
 
   //
   // Start the task scheduler
+  //
   vTaskStartScheduler();
 }
 
