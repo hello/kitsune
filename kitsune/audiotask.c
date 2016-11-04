@@ -220,7 +220,7 @@ static uint8_t fadeout_sig(void * ctx) {
 	return 0;
 }
 
-
+extern volatile int last_set_volume;
 
 ////-------------------------------------------
 //playback sample app
@@ -261,6 +261,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	if( vol_ramp && ret > 0 ) {
 		//join async worker
 		vol.target = 0;
+		vol.current = last_set_volume; //handles fade out if the system volume has changed during the last playback
 		ret = transfer_function(fs, spkr, vol_task, fadeout_sig);
 	}
 
