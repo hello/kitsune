@@ -941,9 +941,11 @@ int32_t set_system_volume(int new_volume) {
 	}
 	return set_volume(new_volume, portMAX_DELAY);
 }
+volatile int last_set_volume = 0;
 
 int32_t set_volume(int v, unsigned int dly) {
 	LOGI("v %d\n", v);
+	last_set_volume = v;
 
 	char send_stop = 1;
 	unsigned char cmd[2];
