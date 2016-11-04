@@ -636,7 +636,7 @@ void analytics_event_task(void * params){
 upload:
 			log.unix_time = time;
 			DISP("Analytics: %s\r\n", block);
-#if 0
+#if 1
 			if( !NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
 					sense_log_fields, &log, 0, NULL, NULL, NULL, false) ) {
 				LOGI("Analytics failed to upload\n");
