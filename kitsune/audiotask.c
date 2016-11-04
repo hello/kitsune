@@ -93,7 +93,7 @@ static void _sense_state_task(hlo_future_t * result, void * ctx){
 			_playing = sense_state.audio_state.playing_audio;
 
 			sense_state.has_volume = true;
-			sense_state.volume = sys_volume * 100 / 64;
+			sense_state.volume = sys_volume;
 			sense_state.has_voice_control_enabled = true;
 			sense_state.voice_control_enabled = !disable_voice;
 
@@ -128,8 +128,9 @@ static bool _queue_audio_playback_state(playstate_t is_playing, const AudioPlayb
 		ret.has_duration_seconds = true;
 		ret.duration_seconds = info->durationInSeconds;
 
+		//TODO duplicates volume?
 		ret.has_volume_percent = true;
-		ret.volume_percent = info->volume * 100 / 60;
+		ret.volume_percent = info->volume * 100 / 64;
 
 		ret.has_file_path = true;
 		ustrncpy(ret.file_path, info->source_name, sizeof(ret.file_path));
@@ -219,7 +220,7 @@ static uint8_t fadeout_sig(void * ctx) {
 	return 0;
 }
 
-
+extern volatile int last_set_volume;
 
 ////-------------------------------------------
 //playback sample app
@@ -260,6 +261,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	if( vol_ramp && ret > 0 ) {
 		//join async worker
 		vol.target = 0;
+		vol.current = last_set_volume; //handles fade out if the system volume has changed during the last playback
 		ret = transfer_function(fs, spkr, vol_task, fadeout_sig);
 	}
 

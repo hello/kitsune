@@ -463,8 +463,11 @@ static void _process_pill_heartbeat( MorpheusCommand* command)
             LOGI("PILL UPTIME %d\n", command->pill_data.uptime);
         }
 
-        if (command->pill_data.has_firmware_version) {
-            LOGI("PILL FirmwareVersion %d\n", command->pill_data.firmware_version);
+        if (command->pill_data.has_firmware_build) {
+            LOGI("PILL FirmwareVersion %d\n", command->pill_data.firmware_build);
+        }
+        if (command->pill_data.has_protocol_version) {
+            LOGI("PILL ProtocolVersion %d\n", command->pill_data.protocol_version);
         }
     }
 	

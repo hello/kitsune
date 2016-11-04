@@ -615,7 +615,7 @@ void thread_alarm(void * unused) {
 				desc.stream = fs_stream_open_media(file_name,INT32_MAX);
 				ustrncpy(desc.source_name, file_name, sizeof(desc.source_name));
 				desc.durationInSeconds = alarm.ring_duration_in_second;
-				desc.volume = sys_volume;
+				desc.volume = 64;
 				desc.onFinished = thread_alarm_on_finished;
 				desc.rate = AUDIO_SAMPLE_RATE;
 				desc.context = &alarm_led_id;
@@ -1770,7 +1770,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
-	long_poll_task_init( 2560 / 4 );
+	long_poll_task_init( 3072 / 4 );
 	downloadmanagertask_init(3072 / 4);
 #endif
 
@@ -1783,9 +1783,7 @@ void launch_tasks() {
 	play_startup_sound();
 	display_pairing_animation();
 
-	xTaskCreate(AudioControlTask, "AudioControl",  17*1024 / 4, NULL, 2, NULL);
-
-
+	xTaskCreate(AudioControlTask, "AudioControl",  7*1024 / 4, NULL, 2, NULL);
 
 }
 
@@ -2060,6 +2058,7 @@ tCmdLineEntry g_sCmdTable[] = {
     {"inttemp", Cmd_inttemp, "" }, //internal temperature
 	{ "thp", Cmd_read_temp_hum_press,	"" },
 	{ "tv", Cmd_meas_TVOC,	"" },
+	{"tvenv", Cmd_set_tvenv, ""},
 
 	{ "uv", Cmd_read_uv, "" },
 	{ "light", Cmd_readlight, "" },

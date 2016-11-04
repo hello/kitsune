@@ -14,6 +14,7 @@
 #include "crypto.h"
 #include "wifi_cmd.h"
 #include "i2c_cmd.h"
+#include "sys_time.h"
 
 #include "ble_proto.h"
 
@@ -33,13 +34,13 @@ bool audio_playing();
 #include "tensor/tinytensor_math_defs.h"
 
 #define OKAY_SENSE_THRESHOLD     TOFIX(0.9)
-#define OKAY_SENSE_MIN_DURATION  3
+#define OKAY_SENSE_MIN_DURATION  1
 
-#define SNOOZE_THRESHOLD      TOFIX(0.70)
+#define SNOOZE_THRESHOLD      TOFIX(0.5)
 #define SNOOZE_MIN_DURATION   1
 
-#define STOP_THRESHOLD        TOFIX(0.90)
-#define STOP_MIN_DURATION     3
+#define STOP_THRESHOLD        TOFIX(0.5)
+#define STOP_MIN_DURATION     1
 
 static xSemaphoreHandle _statsMutex = NULL;
 static AudioEnergyStats_t _stats;
@@ -303,6 +304,7 @@ extern volatile int sys_volume;
 int32_t set_volume(int v, unsigned int dly);
 #define AUDIO_NET_RATE (AUDIO_SAMPLE_RATE/1024)
 
+
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
 	int ret = 0;
@@ -346,8 +348,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 		}
 
+
 		if( nn_ctx.speech_pb.has_word && nn_ctx.speech_pb.word == Keyword_OK_SENSE) {
-			if( disable_voice || !wifi_status_get(HAS_IP) ) {
+			if( disable_voice || !wifi_status_get(HAS_IP) || !has_good_time() ) {
 				LOGI("voicetrignot %d %d\n", disable_voice, wifi_status_get(HAS_IP) );
 				ret = HLO_STREAM_ERROR;
 				break;
@@ -360,7 +363,10 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				send_str = hlo_stream_bw_limited( send_str, AUDIO_NET_RATE/8, 5000);
 				light_open = true;
 
-				hlo_pb_encode(send_str, SpeechRequest_fields, &nn_ctx.speech_pb);
+				ret = hlo_pb_encode(send_str, SpeechRequest_fields, &nn_ctx.speech_pb);
+				if( ret < 0 ) {
+					break;
+				}
 
 				speech_detected_time = xTaskGetTickCount();
 			} else {
@@ -370,14 +376,37 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 					break;
 				}
 			}
-
 			if (!nn_ctx.is_speaking) {
 				analytics_event("{speech_length:%d}", xTaskGetTickCount() - speech_detected_time);
 				break;
 			}
-
 		} else {
 			keyword_net_resume_net_operation();
+
+			//workaround to refresh connection once time server responds
+			static TickType_t _last_refresh_check = 0;
+			if( xTaskGetTickCount() - _last_refresh_check > 1000 ) {
+				static bool _had_ip = false;
+				bool have_ip = wifi_status_get(HAS_IP);
+				if( have_ip && !_had_ip ) {
+					LOGI("no ip refreshing\n");
+					ret = HLO_STREAM_EAGAIN;
+					_had_ip = true;
+					break;
+				}
+				_had_ip = have_ip;
+
+				static bool _had_time = false;
+				bool have_time = has_good_time();
+				if( have_time && !_had_time ) {
+					LOGI("no time refreshing\n");
+					ret = HLO_STREAM_EAGAIN;
+					_had_time = true;
+					break;
+				}
+				_had_time = have_time;
+				_last_refresh_check = xTaskGetTickCount();
+			}
 		}
 
 		BREAK_ON_SIG(signal);
@@ -407,23 +436,31 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			get_hmac( hmac, hmac_payload_str );
 			ret = hlo_stream_transfer_all(INTO_STREAM, output, hmac, sizeof(hmac), 4);
 
-			output = hlo_stream_bw_limited( output, 1, 5000);
-			output = hlo_light_stream( output, false );
+			if( ret < 0 ) {
+				stop_led_animation(2, 33);
+				play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1, 18, 1);
 
-			AudioPlaybackDesc_t desc;
-			desc.context = NULL;
-			desc.durationInSeconds = INT32_MAX;
-			desc.to_fade_out_ms = desc.fade_in_ms = desc.fade_out_ms = 0;
-			desc.onFinished = NULL;
-			desc.rate = AUDIO_SAMPLE_RATE;
-			desc.stream = output;
-			desc.volume = sys_volume;
-			desc.p = hlo_filter_mp3_decoder;
-			ustrncpy(desc.source_name, "voice", sizeof(desc.source_name));
-			AudioTask_StartPlayback(&desc);
+				if(output) {
+					hlo_stream_close(output);
+				}
+			} else {
+				output = hlo_stream_bw_limited( output, 1, 5000);
+				output = hlo_light_stream( output, false );
 
+				AudioPlaybackDesc_t desc;
+				desc.context = NULL;
+				desc.durationInSeconds = INT32_MAX;
+				desc.to_fade_out_ms = desc.fade_in_ms = desc.fade_out_ms = 0;
+				desc.onFinished = NULL;
+				desc.rate = AUDIO_SAMPLE_RATE;
+				desc.stream = output;
+				desc.volume = sys_volume;
+				desc.p = hlo_filter_mp3_decoder;
+				ustrncpy(desc.source_name, "voice", sizeof(desc.source_name));
+				AudioTask_StartPlayback(&desc);
 
-			LOGI("\r\n===========\r\n");
+				LOGI("\r\n===========\r\n");
+			}
 	}
 
 	hlo_stream_close(send_str);

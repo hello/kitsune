@@ -1,101 +1,13 @@
 #include "hlo_pipe.h"
 #include "task.h"
 #include "uart_logger.h"
-
-#define DBG_FRAMEPIPE(...)
-
-int hlo_stream_transfer_until(transfer_direction direction,
-							hlo_stream_t * stream,
-							uint8_t * buf,
-							uint32_t buf_size,
-							uint32_t transfer_delay,
-							bool * flush ) {
-
-	int ret, idx = 0;
-	while(idx < buf_size){
-		if(direction == INTO_STREAM){
-			ret = hlo_stream_write(stream, buf+idx, buf_size - idx);
-		}else{
-			ret = hlo_stream_read(stream, buf+idx, buf_size - idx);
-		}
-		if( ret > 0 ) {
-			idx += ret;
-		}
-		if(( flush && *flush )||(ret == HLO_STREAM_EOF)){
-			DBG_FRAMEPIPE("  END %d %d \n\n", idx, ret);
-			if( idx ){
-				return idx;
-			}else{
-				return ret;
-			}
-		}else if(ret < 0){
-			return ret;
-		}else{
-			if(idx == buf_size){
-				return idx;
-			}
-			if(ret == 0){
-				vTaskDelay(transfer_delay);
-			}
-		}
-	}
-	return HLO_STREAM_ERROR;
-}
-
-int hlo_stream_transfer_all(transfer_direction direction,
-							hlo_stream_t * stream,
-							uint8_t * buf,
-							uint32_t buf_size,
-							uint32_t transfer_delay){
-	return hlo_stream_transfer_until( direction, stream, buf, buf_size, transfer_delay, NULL);
-}
-int hlo_stream_transfer_between_ext(
-		hlo_stream_t * src,
-		hlo_stream_t * dst,
-		uint8_t * buf,
-		uint32_t buf_size,
-		uint32_t transfer_size,
-		uint32_t transfer_delay){
-	int transfer_count = 0;
-	while( transfer_size > transfer_count ) {
-		int ret = hlo_stream_transfer_all(FROM_STREAM, src, buf,buf_size, transfer_delay);
-		if(ret < 0){
-			return ret;
-		}
-		ret = hlo_stream_transfer_all(INTO_STREAM, dst, buf,ret,transfer_delay);
-		if(ret < 0){
-			return ret;
-		}
-		transfer_count += ret;
-	}
-	return transfer_count;
-}
-int hlo_stream_transfer_between_until(
-		hlo_stream_t * src,
-		hlo_stream_t * dst,
-		uint8_t * buf,
-		uint32_t buf_size,
-		uint32_t transfer_delay,
-		bool * flush){
-	int ret = hlo_stream_transfer_until(FROM_STREAM, src, buf,buf_size, transfer_delay, flush);
-	if(ret < 0){
-		return ret;
-	}
-	return hlo_stream_transfer_until(INTO_STREAM, dst, buf,ret,transfer_delay, flush);
-}
-int hlo_stream_transfer_between(
-		hlo_stream_t * src,
-		hlo_stream_t * dst,
-		uint8_t * buf,
-		uint32_t buf_size,
-		uint32_t transfer_delay){
-	return hlo_stream_transfer_between_until(src,dst,buf,buf_size,transfer_delay,NULL);
-}
-
 #include "sl_sync_include_after_simplelink_header.h"
 #include "crypto.h"
 #include "hlo_proto_tools.h"
 #include "streaming.pb.h"
+
+#define DBG_FRAMEPIPE(...)
+
 
 int get_aes(uint8_t * dst);
 

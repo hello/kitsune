@@ -3,6 +3,7 @@
 #include "tinytensor_memory.h"
 #include "tinytensor_math_defs.h"
 #include "uart_logger.h"
+#include "audio_features_upload_task.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -12,7 +13,7 @@
 #include "arm_const_structs.h"
 #include "fft.h"
 
-#define NEURAL_NET_MODEL "model_aug30_lstm_med_dist_okay_sense_stop_snooze_tiny_fa8_1014_ep105.c"
+#define NEURAL_NET_MODEL "model_aug30_lstm_med_dist_okay_sense_stop_snooze_tiny_end0_1022_state_ep250.c" 
 #include NEURAL_NET_MODEL
 const static char * k_net_id = NEURAL_NET_MODEL;
 
@@ -46,6 +47,27 @@ typedef struct {
 
 static KeywordNetContext_t _context;
 
+const static char * k_okay_sense = "okay_sense";
+const static char * k_stop = "stop";
+const static char * k_snooze = "snooze";
+const static char * k_okay = "okay";
+const static char * k_unknown = "unkown";
+
+static const char * keyword_enum_to_str(const Keyword_t keyword) {
+	switch (keyword) {
+	case okay_sense:
+		return k_okay_sense;
+	case stop:
+		return k_stop;
+	case snooze:
+		return k_snooze;
+	case okay:
+		return k_okay;
+	default:
+		return k_unknown;
+	}
+}
+
 static void speech_detect_callback(void * context, SpeechTransition_t transition) {
 	KeywordNetContext_t * p = (KeywordNetContext_t *)context;
 
@@ -72,6 +94,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 	KeywordNetContext_t * context = (KeywordNetContext_t *)p;
 	Tensor_t * out;
 	Tensor_t temp_tensor;
+	int8_t melfeats8[NUM_MEL_BINS];
 	uint32_t i;
 	int j;
 	DECLCHKCYC
@@ -79,6 +102,12 @@ static void feats_callback(void * p, Weight_t * feats) {
 	if (!_is_net_running) {
 		return;
 	}
+
+	for (i = 0; i < NUM_MEL_BINS; i++) {
+		melfeats8[i] = feats[i] >> (QFIXEDPOINT - 7);
+	}
+
+	audio_features_upload_task_buffer_bytes(melfeats8,NUM_MEL_BINS);
 
 	temp_tensor.dims[0] = 1;
 	temp_tensor.dims[1] = 1;
@@ -152,6 +181,10 @@ static void feats_callback(void * p, Weight_t * feats) {
 					//do callback
 					callback_item->on_end(callback_item->context,(Keyword_t)i, callback_item->max_value);
 					
+                                        //TEMPORARILY COMMENTED OUT UNTIL UPLOAD DEADLOCK SOLUTION IS IMPLEMENTED
+					//trigger feats asynchronous upload
+					//audio_features_upload_trigger_async_upload(NEURAL_NET_MODEL, keyword_enum_to_str((Keyword_t)i),NUM_MEL_BINS,feats_sint8);
+
 					//log activation, has to be thread safe
                     if( xSemaphoreTake(context->stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
 						net_stats_record_activation(&context->stats,(Keyword_t)i,context->counter);
@@ -196,6 +229,8 @@ void keyword_net_initialize(void) {
 
 __attribute__((section(".ramcode")))
 void keyword_net_deinitialize(void) {
+	vPortFree(_context.stats_mutex);
+
 	tinytensor_features_deinitialize();
 
 	tinytensor_free_states(&_context.state,&_context.net);
@@ -203,7 +238,6 @@ void keyword_net_deinitialize(void) {
 
 __attribute__((section(".ramcode")))
 void keyword_net_register_callback(void * target_context, Keyword_t keyword, int16_t threshold,uint32_t min_duration,KeywordCallback_t on_start, KeywordCallback_t on_end) {
-
 	_context.callbacks[keyword].on_start = on_start;
 	_context.callbacks[keyword].on_end = on_end;
 	_context.callbacks[keyword].context = target_context;

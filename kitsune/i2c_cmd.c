@@ -399,7 +399,7 @@ BME280_U32_t bme280_compensate_H_int32(BME280_S32_t adc_H) {
 	return (100*(BME280_U32_t)(v_x1_u32r >> 12))>>10;
 }
 #endif
-#define DBG_BME(...)
+#define DBG_BME LOGI
 uint32_t BME_i2c;
 int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 	unsigned char cmd;
@@ -418,9 +418,7 @@ int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 	b[1] = 0b10110101;
 	(I2C_IF_Write(BME_i2c, b, 2, 1));
 
-	xSemaphoreGiveRecursive(i2c_smphr);
 	vTaskDelay(95);
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
 	b[0] = 1;
 	b[2] = b[1] = 0;
@@ -432,9 +430,7 @@ int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 		if (b[0] == 0 || b[0] == 4 ) break;
 		DBG_BME("%x %x %x\n", b[0],b[1],b[2] );
 
-		xSemaphoreGiveRecursive(i2c_smphr);
 		vTaskDelay(5);
-		assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 	}
 	cmd = 0xf7;
 	(I2C_IF_Write(BME_i2c, &cmd, 1, 1));
@@ -568,24 +564,18 @@ int init_tvoc(int measmode) {
 	}
 
 	xSemaphoreGiveRecursive(i2c_smphr);
-
-
-
 	return 0;
 }
-#define DBG_TVOC LOGI
-int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, unsigned int humid ) {
+static int set_tvoc_env(int temp, unsigned int humid){
 	unsigned char b[8];
+	LOGI("setting tv temp %d humid %d\r\n", temp, humid);
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
-
-	vTaskDelay(10);
-	//environmental
 	b[0] = 0x05;
 
 	humid *= 10;
 	// see cc-000803-an-4-ccs811_programming_and_interfacing_guide.pdf page 19, 20
 	b[1] = ((humid % 1000) / 100) > 7 ? (humid/1000 + 1)<<1 : (humid/1000)<<1;
-	if(((humid % 1000) / 100) > 2 && (((humid) / 100) < 8))
+	if(((humid % 1000) / 100) > 2 && (((humid % 1000) / 100) < 8))
 	{
 		b[1] |= 1;
 	}
@@ -593,12 +583,23 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 
 	temp *= 10;
 	temp += 25000;
-	b[3] = ((temp % 1000) / 100) > 7 ? (temp / 1000 + 1) << 1 : (temp) << 1;
+	b[3] = ((temp % 1000) / 100) > 7 ? (temp / 1000 + 1) << 1 : (temp / 1000) << 1;
 	if (((temp % 1000) / 100) > 2 && (((temp % 1000) / 100) < 8)) {
 		b[3] |= 1;
 	}
 	b[4] = 0;
 	(I2C_IF_Write(0x5a, b, 5, 1));
+	vTaskDelay(10);
+	xSemaphoreGiveRecursive(i2c_smphr);
+	return 0;
+}
+int Cmd_set_tvenv(int argc, char * argv[]){
+	return set_tvoc_env(atoi(argv[1]), atoi(argv[2]));
+}
+#define DBG_TVOC LOGI
+int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, unsigned int humid ) {
+	unsigned char b[8];
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
 	b[0] = 2;
 	(I2C_IF_Write(0x5a, b, 1, 1));
@@ -614,6 +615,8 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 		unsigned char temp = b[4];
 		b[4] = b[5];
 		b[5] = temp;
+
+		LOGE("OLD VOC\n");
 	}
 	if( b[4] & 0x01 ) {
 		LOGE("TVOC error %x ", b[5] );
@@ -632,6 +635,7 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 
 	vTaskDelay(10);
 	xSemaphoreGiveRecursive(i2c_smphr);
+	set_tvoc_env(temp,humid);
 	return 0;
 }
 
@@ -937,8 +941,11 @@ int32_t set_system_volume(int new_volume) {
 	}
 	return set_volume(new_volume, portMAX_DELAY);
 }
+volatile int last_set_volume = 0;
 
 int32_t set_volume(int v, unsigned int dly) {
+	LOGI("v %d\n", v);
+	last_set_volume = v;
 
 	char send_stop = 1;
 	unsigned char cmd[2];

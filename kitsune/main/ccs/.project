@@ -31,6 +31,26 @@
 			<locationURI>PARENT-2-PROJECT_LOC/ack_set_entry.h</locationURI>
 		</link>
 		<link>
+			<name>audio_features_upload_task.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audio_features_upload_task.c</locationURI>
+		</link>
+		<link>
+			<name>audio_features_upload_task.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audio_features_upload_task.h</locationURI>
+		</link>
+		<link>
+			<name>audio_features_upload_task_helpers.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audio_features_upload_task_helpers.c</locationURI>
+		</link>
+		<link>
+			<name>audio_features_upload_task_helpers.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audio_features_upload_task_helpers.h</locationURI>
+		</link>
+		<link>
 			<name>ble_cmd.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/ble_cmd.c</locationURI>
@@ -846,6 +866,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio_tools.h</locationURI>
 		</link>
 		<link>
+			<name>hlo/hlo_circbuf_stream.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_circbuf_stream.c</locationURI>
+		</link>
+		<link>
+			<name>hlo/hlo_circbuf_stream.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_circbuf_stream.h</locationURI>
+		</link>
+		<link>
 			<name>hlo/hlo_http.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_http.c</locationURI>
@@ -1099,6 +1129,16 @@
 			<name>protobuf/response.pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/response.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/simple_matrix.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/simple_matrix.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/simple_matrix.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/simple_matrix.pb.h</locationURI>
 		</link>
 		<link>
 			<name>protobuf/speech.pb.c</name>
