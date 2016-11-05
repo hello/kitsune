@@ -399,7 +399,7 @@ BME280_U32_t bme280_compensate_H_int32(BME280_S32_t adc_H) {
 	return (100*(BME280_U32_t)(v_x1_u32r >> 12))>>10;
 }
 #endif
-#define DBG_BME LOGI
+#define DBG_BME(...)
 uint32_t BME_i2c;
 int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 	unsigned char cmd;
