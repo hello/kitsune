@@ -1204,6 +1204,7 @@ void sample_sensor_data(periodic_data* data,NetStats_t * keyword_net_stats)
 		data->has_dust = false;  // if Semaphore take failed, don't upload
 	}
 
+#if 0
 	//get audio -- this is thread safe
 	AudioTask_DumpOncePerMinuteStats(&aud_data);
 
@@ -1233,6 +1234,7 @@ void sample_sensor_data(periodic_data* data,NetStats_t * keyword_net_stats)
 		}
 		//LOGI("Uploading audio %u %u %u\r\n",data->audio_num_disturbances, data->audio_peak_background_energy_db, data->audio_peak_disturbance_energy_db );
 	}
+#endif
 
 	// copy over light values
 	if (xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY)) {
