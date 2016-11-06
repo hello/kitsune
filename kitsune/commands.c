@@ -1204,10 +1204,9 @@ void sample_sensor_data(periodic_data* data,NetStats_t * keyword_net_stats)
 		data->has_dust = false;  // if Semaphore take failed, don't upload
 	}
 
-#if 0
 	//get audio -- this is thread safe
 	AudioTask_DumpOncePerMinuteStats(&aud_data);
-
+#if 0
 	//Benjo wrote this:  get keyword statistics -- this is thread safe
 	//IF we have memory allocated for this
 	if (keyword_net_stats && keyword_net_get_and_reset_stats(keyword_net_stats)) {
@@ -1215,6 +1214,7 @@ void sample_sensor_data(periodic_data* data,NetStats_t * keyword_net_stats)
 		//if you got the stats, then set up all the protobuf encoders, which use "keyword_net_stats" as part of its memeory
 		set_encoders_with_data(&data->keyword_stats,keyword_net_stats);
 	}
+#endif
 
 	if (aud_data.isValid) {
 		data->has_audio_num_disturbances = true;
@@ -1234,7 +1234,6 @@ void sample_sensor_data(periodic_data* data,NetStats_t * keyword_net_stats)
 		}
 		//LOGI("Uploading audio %u %u %u\r\n",data->audio_num_disturbances, data->audio_peak_background_energy_db, data->audio_peak_disturbance_energy_db );
 	}
-#endif
 
 	// copy over light values
 	if (xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY)) {
