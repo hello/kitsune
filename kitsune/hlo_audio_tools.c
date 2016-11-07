@@ -420,11 +420,13 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	light_sensor_power(HIGH_POWER);
 
 	if (ret < 0) {
-		if( ret != HLO_STREAM_EAGAIN ) {
-			stop_led_animation(2, 33);
-		}
-		if (ret == HLO_STREAM_ERROR) {
-			play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1, 18, 1);
+		if( !disable_voice ) {
+			if( ret != HLO_STREAM_EAGAIN ) {
+				stop_led_animation(2, 33);
+			}
+			if (ret == HLO_STREAM_ERROR) {
+				play_led_animation_solid(LED_MAX, LED_MAX, 0, 0, 1, 18, 1);
+			}
 		}
 		if(output) {
 			hlo_stream_close(output);
