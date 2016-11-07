@@ -1206,7 +1206,7 @@ void sample_sensor_data(periodic_data* data,NetStats_t * keyword_net_stats)
 
 	//get audio -- this is thread safe
 	AudioTask_DumpOncePerMinuteStats(&aud_data);
-#if 0
+#if 1
 	//Benjo wrote this:  get keyword statistics -- this is thread safe
 	//IF we have memory allocated for this
 	if (keyword_net_stats && keyword_net_get_and_reset_stats(keyword_net_stats)) {
