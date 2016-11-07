@@ -350,8 +350,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 
 		if( nn_ctx.speech_pb.has_word && nn_ctx.speech_pb.word == Keyword_OK_SENSE) {
-			if( disable_voice || !wifi_status_get(HAS_IP) || !has_good_time() ) {
-				LOGI("voicetrignot %d %d\n", disable_voice, wifi_status_get(HAS_IP) );
+			if( disable_voice || !wifi_status_get(HAS_IP) ) {
+				LOGW("voicetrignot %d %d %d\n", disable_voice, wifi_status_get(HAS_IP) );
 				ret = HLO_STREAM_ERROR;
 				break;
 			}
