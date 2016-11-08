@@ -18,8 +18,8 @@ static void encode_MorpheusCommand(hlo_future_t * result, void * context){
 		goto end;
 	}
 	command->version = PROTOBUF_VERSION;
-	command->has_protocol_version = true;
-	command->protocol_version = FIRMWARE_VERSION_INTERNAL;
+	command->has_firmware_version = true;
+	command->firmware_version = FIRMWARE_VERSION_INTERNAL;
 
 	ble_proto_assign_encode_funcs(command);
 
