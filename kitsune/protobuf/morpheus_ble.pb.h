@@ -146,8 +146,8 @@ typedef struct _MorpheusCommand {
     pb_callback_t wifiName;
     pb_callback_t wifiSSID;
     pb_callback_t wifiPassword;
-    bool has_protocol_version;
-    int32_t protocol_version;
+    bool has_firmware_version;
+    int32_t firmware_version;
     pb_callback_t wifi_scan_result;
     bool has_security_type;
     wifi_endpoint_sec_type security_type;
