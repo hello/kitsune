@@ -122,7 +122,7 @@ static const reg_value REG_Section_program[] = {
     {  0x7F,0x78},
 #endif
 //			# reg[120][0][50] = 0x88                     ; Interpolation Ratio is 8, FIFO = Enabled
-    { 50,0x88},
+    { 50,0x8},
     {  0x7F,0x64},
 //			# reg[100][0][50] = 0xa4                     ; Decimation Ratio is 4, CIC AutoNorm = Enabled, FIFO = Enabled
     { 50,0xA4},
@@ -233,7 +233,7 @@ static const reg_value REG_Section_program2[] = {
 //			# reg[0][4][1]  = 0                          ; ASI1 Audio Interface = I2S
     {  1,0x00},
 //			# reg[0][4][10] = 0                          ; ASI1 Audio Interface WCLK and BCLK
-    { 10,0x00},
+  //  { 10,0x00},
 //			# reg[0][4][8]  = 0x50                       ; ASI1 Left DAC Datapath = Left Data, ASI1 Right DAC Datapath = Right Data
     {  8, (1 << 6) |  (1 << 4) }, // 0x50}, // TODO DKH
 //			# reg[0][4][23] = 0x05 ; ASI2_IN_CH<L1,R1> = miniDSP_A_out_ch<L2,R2>
@@ -316,15 +316,9 @@ static const reg_value REG_Section_program2[] = {
     {  1,0x00},
 //			# reg[0][4][4] = 0x40        ;reg[0][4][12] = 0x81                           ; ASI1 master, BCLK = 6.144Mhz;reg[0][4][13] = 0x80                           ; ASI1_WDIV = 128; For 4 channel digmic,
     {  4,0x40},
-//			# reg[0][4][4] = 0x40;reg[0][4][12] = 0x81                           ; ASI1 master, BCLK = 6.144Mhz;reg[0][4][13] = 0x80                           ; ASI1_WDIV = 128
-    {  4,0x40},
     {  0,0x00},
-
-
-//			# reg[0][0][82] = 0
-    { 82,0x00},
 //			# reg[0][0][65] = 0
-    { 65,0x00},
+//     { 65,0x00},
 //			# reg[0][0][68] = 127
     { 68,0x7F},
 //			# reg[0][0][69] = 0
@@ -8438,7 +8432,7 @@ static const reg_value miniDSP_D_reg_values[] = {
     { 77,0x22},
     { 78,0xF4},
     { 79,0x00},
-    { 80,0x40},
+    { 80,0x00},
     { 81,0x00},
     { 82,0x00},
     { 83,0x00},
@@ -8758,7 +8752,7 @@ static const reg_value miniDSP_D_reg_values[] = {
     { 21,0x22},
     { 22,0xF4},
     { 23,0x00},
-    { 24,0x40},
+    { 24,0x00},
     { 25,0x00},
     { 26,0x00},
     { 27,0x00},

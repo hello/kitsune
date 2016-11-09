@@ -208,7 +208,7 @@
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1408</value>
+              <value>2112</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -217,7 +217,7 @@
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1408</value>
+                  <value>2112</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -257,7 +257,7 @@
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1408</value>
+          <value>2112</value>
         </design_property>
         <design_property>
           <name>miniDSP_A_Memory</name>
@@ -450,7 +450,7 @@
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>1408</value>
+              <value>2112</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -459,7 +459,7 @@
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>1408</value>
+                  <value>2112</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -499,7 +499,7 @@
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>1408</value>
+          <value>2112</value>
         </design_property>
         <design_property>
           <name>FrameworkType</name>
@@ -2259,7 +2259,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>No</value>
+              <value>Yes</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -2268,7 +2268,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>No</value>
+                  <value>Yes</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -2314,7 +2314,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>No</value>
+          <value>Yes</value>
         </design_property>
         <design_property>
           <name>Include_MultiDigital</name>
@@ -2325,7 +2325,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>No</value>
+              <value>Yes</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -2334,7 +2334,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>No</value>
+                  <value>Yes</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -2380,7 +2380,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>No</value>
+          <value>Yes</value>
         </design_property>
         <design_property>
           <name>Multi_I2S_Num_In_Channels</name>
@@ -2636,9 +2636,9 @@ reg[120][0][49] = 0x40</value>
       <current_target>AIC3263</current_target>
       <target_type>TypeC</target_type>
       <framework_type>AIC3263App8x4x</framework_type>
-      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_cycles>2112</minidsp_a_cycles>
       <minidsp_a_memory>1536</minidsp_a_memory>
-      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_cycles>2112</minidsp_d_cycles>
       <minidsp_d_memory>3072</minidsp_d_memory>
       <CycleChecked>false</CycleChecked>
       <sample_rate>32000</sample_rate>
@@ -5876,9 +5876,9 @@ reg[120][0][49] = 0x40</value>
       <current_target>AIC3263</current_target>
       <target_type>TypeC</target_type>
       <framework_type>AIC3263App8x4x</framework_type>
-      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_cycles>2112</minidsp_a_cycles>
       <minidsp_a_memory>1536</minidsp_a_memory>
-      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_cycles>2112</minidsp_d_cycles>
       <minidsp_d_memory>3072</minidsp_d_memory>
       <CycleChecked>false</CycleChecked>
       <sample_rate>32000</sample_rate>
@@ -6334,9 +6334,9 @@ reg[120][0][49] = 0x40</value>
       <current_target>AIC3263</current_target>
       <target_type>TypeC</target_type>
       <framework_type>AIC3263App8x4x</framework_type>
-      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_cycles>2112</minidsp_a_cycles>
       <minidsp_a_memory>1536</minidsp_a_memory>
-      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_cycles>2112</minidsp_d_cycles>
       <minidsp_d_memory>3072</minidsp_d_memory>
       <CycleChecked>false</CycleChecked>
       <sample_rate>32000</sample_rate>
@@ -6792,9 +6792,9 @@ reg[120][0][49] = 0x40</value>
       <current_target>AIC3263</current_target>
       <target_type>TypeC</target_type>
       <framework_type>AIC3263App8x4x</framework_type>
-      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_cycles>2112</minidsp_a_cycles>
       <minidsp_a_memory>1536</minidsp_a_memory>
-      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_cycles>2112</minidsp_d_cycles>
       <minidsp_d_memory>3072</minidsp_d_memory>
       <CycleChecked>false</CycleChecked>
       <sample_rate>32000</sample_rate>
@@ -7200,9 +7200,9 @@ reg[120][0][49] = 0x40</value>
       <current_target>AIC3263</current_target>
       <target_type>TypeC</target_type>
       <framework_type>AIC3263App8x4x</framework_type>
-      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_cycles>2112</minidsp_a_cycles>
       <minidsp_a_memory>1536</minidsp_a_memory>
-      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_cycles>2112</minidsp_d_cycles>
       <minidsp_d_memory>3072</minidsp_d_memory>
       <CycleChecked>false</CycleChecked>
       <sample_rate>32000</sample_rate>
@@ -7616,9 +7616,9 @@ reg[120][0][49] = 0x40</value>
       <current_target>AIC3263</current_target>
       <target_type>TypeC</target_type>
       <framework_type>AIC3263App8x4x</framework_type>
-      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_cycles>2112</minidsp_a_cycles>
       <minidsp_a_memory>1536</minidsp_a_memory>
-      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_cycles>2112</minidsp_d_cycles>
       <minidsp_d_memory>3072</minidsp_d_memory>
       <CycleChecked>false</CycleChecked>
       <sample_rate>32000</sample_rate>
@@ -8216,7 +8216,7 @@ reg[120][0][49] = 0x40</value>
             <whole>3</whole>
             <fraction>536870911</fraction>
           </max_fix_val>
-          <min_qfix_val>-63.5</min_qfix_val>
+          <min_qfix_val>-63.50000000000000710542735760100185871124267578125</min_qfix_val>
           <max_qfix_val>24.0</max_qfix_val>
           <readonly>false</readonly>
           <hidden>false</hidden>
@@ -8940,7 +8940,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>-0.999725341796875</value>
+              <value>-0.99972534179687511102230246251565404236316680908203125</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -8949,7 +8949,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>-0.999725341796875</value>
+                  <value>-0.99972534179687511102230246251565404236316680908203125</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -8988,7 +8988,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>-0.999725341796875</value>
+          <value>-0.99972534179687511102230246251565404236316680908203125</value>
         </runtime_property>
         <runtime_property>
           <name>HPF_d1</name>
@@ -10291,9 +10291,9 @@ reg[120][0][49] = 0x40</value>
       <current_target>AIC3263</current_target>
       <target_type>TypeC</target_type>
       <framework_type>AIC3263App8x4x</framework_type>
-      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_cycles>2112</minidsp_a_cycles>
       <minidsp_a_memory>1536</minidsp_a_memory>
-      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_cycles>2112</minidsp_d_cycles>
       <minidsp_d_memory>3072</minidsp_d_memory>
       <CycleChecked>false</CycleChecked>
       <sample_rate>32000</sample_rate>
@@ -10699,9 +10699,9 @@ reg[120][0][49] = 0x40</value>
       <current_target>AIC3263</current_target>
       <target_type>TypeC</target_type>
       <framework_type>AIC3263App8x4x</framework_type>
-      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_cycles>2112</minidsp_a_cycles>
       <minidsp_a_memory>1536</minidsp_a_memory>
-      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_cycles>2112</minidsp_d_cycles>
       <minidsp_d_memory>3072</minidsp_d_memory>
       <CycleChecked>false</CycleChecked>
       <sample_rate>32000</sample_rate>
@@ -11687,7 +11687,7 @@ reg[120][0][49] = 0x40</value>
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>-0.00501191616058349609375</value>
+              <value>-0.005011916160583496961111737988403547205962240695953369140625</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -11696,7 +11696,7 @@ reg[120][0][49] = 0x40</value>
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>-0.00501191616058349609375</value>
+                  <value>-0.005011916160583496961111737988403547205962240695953369140625</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -11735,7 +11735,7 @@ reg[120][0][49] = 0x40</value>
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>-0.00501191616058349609375</value>
+          <value>-0.005011916160583496961111737988403547205962240695953369140625</value>
         </runtime_property>
         <runtime_property>
           <name>Att_Gain</name>
@@ -12070,9 +12070,9 @@ reg[120][0][49] = 0x40</value>
       <current_target>AIC3263</current_target>
       <target_type>TypeC</target_type>
       <framework_type>AIC3263App8x4x</framework_type>
-      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_cycles>2112</minidsp_a_cycles>
       <minidsp_a_memory>1536</minidsp_a_memory>
-      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_cycles>2112</minidsp_d_cycles>
       <minidsp_d_memory>3072</minidsp_d_memory>
       <CycleChecked>false</CycleChecked>
       <sample_rate>32000</sample_rate>
@@ -17395,7 +17395,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate32</rate>
-              <value>-0.98074710369110107421875</value>
+              <value>-0.98074710369110118524105246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate44</rate>
@@ -17403,7 +17403,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate48</rate>
-              <value>-0.98712313175201416015625</value>
+              <value>-0.98712313175201427117855246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate88</rate>
@@ -17448,7 +17448,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate32</rate>
-                  <value>-0.98074710369110107421875</value>
+                  <value>-0.98074710369110118524105246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate44</rate>
@@ -17456,7 +17456,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate48</rate>
-                  <value>-0.98712313175201416015625</value>
+                  <value>-0.98712313175201427117855246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate88</rate>
@@ -17836,7 +17836,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate32</rate>
-              <value>-0.961864948272705078125</value>
+              <value>-0.96186494827270518914730246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate44</rate>
@@ -17844,7 +17844,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate48</rate>
-              <value>-0.9744122028350830078125</value>
+              <value>-0.97441220283508311883480246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate88</rate>
@@ -17889,7 +17889,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate32</rate>
-                  <value>-0.961864948272705078125</value>
+                  <value>-0.96186494827270518914730246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate44</rate>
@@ -17897,7 +17897,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate48</rate>
-                  <value>-0.9744122028350830078125</value>
+                  <value>-0.97441220283508311883480246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate88</rate>
@@ -27605,9 +27605,9 @@ reg[120][0][49] = 0x40</value>
       <current_target>AIC3263</current_target>
       <target_type>TypeC</target_type>
       <framework_type>AIC3263App8x4x</framework_type>
-      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_cycles>2112</minidsp_a_cycles>
       <minidsp_a_memory>1536</minidsp_a_memory>
-      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_cycles>2112</minidsp_d_cycles>
       <minidsp_d_memory>3072</minidsp_d_memory>
       <CycleChecked>false</CycleChecked>
       <sample_rate>32000</sample_rate>
@@ -32930,7 +32930,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate32</rate>
-              <value>-0.98074710369110107421875</value>
+              <value>-0.98074710369110118524105246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate44</rate>
@@ -32938,7 +32938,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate48</rate>
-              <value>-0.98712313175201416015625</value>
+              <value>-0.98712313175201427117855246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate88</rate>
@@ -32983,7 +32983,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate32</rate>
-                  <value>-0.98074710369110107421875</value>
+                  <value>-0.98074710369110118524105246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate44</rate>
@@ -32991,7 +32991,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate48</rate>
-                  <value>-0.98712313175201416015625</value>
+                  <value>-0.98712313175201427117855246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate88</rate>
@@ -33371,7 +33371,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate32</rate>
-              <value>-0.961864948272705078125</value>
+              <value>-0.96186494827270518914730246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate44</rate>
@@ -33379,7 +33379,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate48</rate>
-              <value>-0.9744122028350830078125</value>
+              <value>-0.97441220283508311883480246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate88</rate>
@@ -33424,7 +33424,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate32</rate>
-                  <value>-0.961864948272705078125</value>
+                  <value>-0.96186494827270518914730246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate44</rate>
@@ -33432,7 +33432,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate48</rate>
-                  <value>-0.9744122028350830078125</value>
+                  <value>-0.97441220283508311883480246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate88</rate>
@@ -43140,9 +43140,9 @@ reg[120][0][49] = 0x40</value>
       <current_target>AIC3263</current_target>
       <target_type>TypeC</target_type>
       <framework_type>AIC3263App8x4x</framework_type>
-      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_cycles>2112</minidsp_a_cycles>
       <minidsp_a_memory>1536</minidsp_a_memory>
-      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_cycles>2112</minidsp_d_cycles>
       <minidsp_d_memory>3072</minidsp_d_memory>
       <CycleChecked>false</CycleChecked>
       <sample_rate>32000</sample_rate>
@@ -48465,7 +48465,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate32</rate>
-              <value>-0.98074710369110107421875</value>
+              <value>-0.98074710369110118524105246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate44</rate>
@@ -48473,7 +48473,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate48</rate>
-              <value>-0.98712313175201416015625</value>
+              <value>-0.98712313175201427117855246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate88</rate>
@@ -48518,7 +48518,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate32</rate>
-                  <value>-0.98074710369110107421875</value>
+                  <value>-0.98074710369110118524105246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate44</rate>
@@ -48526,7 +48526,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate48</rate>
-                  <value>-0.98712313175201416015625</value>
+                  <value>-0.98712313175201427117855246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate88</rate>
@@ -48906,7 +48906,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate32</rate>
-              <value>-0.961864948272705078125</value>
+              <value>-0.96186494827270518914730246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate44</rate>
@@ -48914,7 +48914,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate48</rate>
-              <value>-0.9744122028350830078125</value>
+              <value>-0.97441220283508311883480246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate88</rate>
@@ -48959,7 +48959,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate32</rate>
-                  <value>-0.961864948272705078125</value>
+                  <value>-0.96186494827270518914730246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate44</rate>
@@ -48967,7 +48967,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate48</rate>
-                  <value>-0.9744122028350830078125</value>
+                  <value>-0.97441220283508311883480246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate88</rate>
@@ -58675,9 +58675,9 @@ reg[120][0][49] = 0x40</value>
       <current_target>AIC3263</current_target>
       <target_type>TypeC</target_type>
       <framework_type>AIC3263App8x4x</framework_type>
-      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_cycles>2112</minidsp_a_cycles>
       <minidsp_a_memory>1536</minidsp_a_memory>
-      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_cycles>2112</minidsp_d_cycles>
       <minidsp_d_memory>3072</minidsp_d_memory>
       <CycleChecked>false</CycleChecked>
       <sample_rate>32000</sample_rate>
@@ -59629,9 +59629,9 @@ reg[120][0][49] = 0x40</value>
       <current_target>AIC3263</current_target>
       <target_type>TypeC</target_type>
       <framework_type>AIC3263App8x4x</framework_type>
-      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_cycles>2112</minidsp_a_cycles>
       <minidsp_a_memory>1536</minidsp_a_memory>
-      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_cycles>2112</minidsp_d_cycles>
       <minidsp_d_memory>3072</minidsp_d_memory>
       <CycleChecked>false</CycleChecked>
       <sample_rate>32000</sample_rate>
@@ -66575,7 +66575,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate32</rate>
-              <value>-0.17149960994720458984375</value>
+              <value>-0.1714996099472046175993256156289135105907917022705078125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate44</rate>
@@ -66583,7 +66583,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate48</rate>
-              <value>-0.2403371334075927734375</value>
+              <value>-0.2403371334075928011930756156289135105907917022705078125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate88</rate>
@@ -66628,7 +66628,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate32</rate>
-                  <value>-0.17149960994720458984375</value>
+                  <value>-0.1714996099472046175993256156289135105907917022705078125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate44</rate>
@@ -66636,7 +66636,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate48</rate>
-                  <value>-0.2403371334075927734375</value>
+                  <value>-0.2403371334075928011930756156289135105907917022705078125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate88</rate>
@@ -66722,7 +66722,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate32</rate>
-              <value>-0.7970173358917236328125</value>
+              <value>-0.79701733589172374383480246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate44</rate>
@@ -66730,7 +66730,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate48</rate>
-              <value>-0.36193382740020751953125</value>
+              <value>-0.361933827400207575042401231257827021181583404541015625</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate88</rate>
@@ -66775,7 +66775,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate32</rate>
-                  <value>-0.7970173358917236328125</value>
+                  <value>-0.79701733589172374383480246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate44</rate>
@@ -66783,7 +66783,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate48</rate>
-                  <value>-0.36193382740020751953125</value>
+                  <value>-0.361933827400207575042401231257827021181583404541015625</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate88</rate>
@@ -66869,7 +66869,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate32</rate>
-              <value>-0.171499585749785410371259786188602447509765625</value>
+              <value>-0.1714995857497854381268354018175159581005573272705078125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate44</rate>
@@ -66877,7 +66877,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate48</rate>
-              <value>-0.2403370573441776514300727285444736480712890625</value>
+              <value>-0.2403370573441776791856483441733871586620807647705078125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate88</rate>
@@ -66922,7 +66922,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate32</rate>
-                  <value>-0.171499585749785410371259786188602447509765625</value>
+                  <value>-0.1714995857497854381268354018175159581005573272705078125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate44</rate>
@@ -66930,7 +66930,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate48</rate>
-                  <value>-0.2403370573441776514300727285444736480712890625</value>
+                  <value>-0.2403370573441776791856483441733871586620807647705078125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate88</rate>
@@ -89864,9 +89864,9 @@ reg[120][0][49] = 0x40</value>
       <current_target>AIC3263</current_target>
       <target_type>TypeC</target_type>
       <framework_type>AIC3263App8x4x</framework_type>
-      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_cycles>2112</minidsp_a_cycles>
       <minidsp_a_memory>1536</minidsp_a_memory>
-      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_cycles>2112</minidsp_d_cycles>
       <minidsp_d_memory>3072</minidsp_d_memory>
       <CycleChecked>false</CycleChecked>
       <sample_rate>32000</sample_rate>
@@ -90280,9 +90280,9 @@ reg[120][0][49] = 0x40</value>
       <current_target>AIC3263</current_target>
       <target_type>TypeC</target_type>
       <framework_type>AIC3263App8x4x</framework_type>
-      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_cycles>2112</minidsp_a_cycles>
       <minidsp_a_memory>1536</minidsp_a_memory>
-      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_cycles>2112</minidsp_d_cycles>
       <minidsp_d_memory>3072</minidsp_d_memory>
       <CycleChecked>false</CycleChecked>
       <sample_rate>32000</sample_rate>
@@ -90696,9 +90696,9 @@ reg[120][0][49] = 0x40</value>
       <current_target>AIC3263</current_target>
       <target_type>TypeC</target_type>
       <framework_type>AIC3263App8x4x</framework_type>
-      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_cycles>2112</minidsp_a_cycles>
       <minidsp_a_memory>1536</minidsp_a_memory>
-      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_cycles>2112</minidsp_d_cycles>
       <minidsp_d_memory>3072</minidsp_d_memory>
       <CycleChecked>false</CycleChecked>
       <sample_rate>32000</sample_rate>
@@ -91112,9 +91112,9 @@ reg[120][0][49] = 0x40</value>
       <current_target>AIC3263</current_target>
       <target_type>TypeC</target_type>
       <framework_type>AIC3263App8x4x</framework_type>
-      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_cycles>2112</minidsp_a_cycles>
       <minidsp_a_memory>1536</minidsp_a_memory>
-      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_cycles>2112</minidsp_d_cycles>
       <minidsp_d_memory>3072</minidsp_d_memory>
       <CycleChecked>false</CycleChecked>
       <sample_rate>32000</sample_rate>
@@ -96437,7 +96437,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate32</rate>
-              <value>-0.790460109710693359375</value>
+              <value>-0.79046010971069347039730246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate44</rate>
@@ -96445,7 +96445,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate48</rate>
-              <value>-0.82065880298614501953125</value>
+              <value>-0.82065880298614513055355246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate88</rate>
@@ -96490,7 +96490,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate32</rate>
-                  <value>-0.790460109710693359375</value>
+                  <value>-0.79046010971069347039730246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate44</rate>
@@ -96498,7 +96498,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate48</rate>
-                  <value>-0.82065880298614501953125</value>
+                  <value>-0.82065880298614513055355246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate88</rate>
@@ -96878,7 +96878,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate32</rate>
-              <value>-0.8425858020782470703125</value>
+              <value>-0.84258580207824718133480246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate44</rate>
@@ -96886,7 +96886,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate48</rate>
-              <value>-0.8924121856689453125</value>
+              <value>-0.89241218566894542352230246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate88</rate>
@@ -96931,7 +96931,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate32</rate>
-                  <value>-0.8425858020782470703125</value>
+                  <value>-0.84258580207824718133480246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate44</rate>
@@ -96939,7 +96939,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate48</rate>
-                  <value>-0.8924121856689453125</value>
+                  <value>-0.89241218566894542352230246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate88</rate>
@@ -97230,7 +97230,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate32</rate>
-              <value>-0.47742307186126708984375</value>
+              <value>-0.477423071861267145354901231257827021181583404541015625</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate44</rate>
@@ -97238,7 +97238,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate48</rate>
-              <value>-0.57146739959716796875</value>
+              <value>-0.57146739959716807977230246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate88</rate>
@@ -97283,7 +97283,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate32</rate>
-                  <value>-0.47742307186126708984375</value>
+                  <value>-0.477423071861267145354901231257827021181583404541015625</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate44</rate>
@@ -97291,7 +97291,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate48</rate>
-                  <value>-0.57146739959716796875</value>
+                  <value>-0.57146739959716807977230246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate88</rate>
@@ -97671,7 +97671,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate32</rate>
-              <value>-0.5833785533905029296875</value>
+              <value>-0.58337855339050304070980246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate44</rate>
@@ -97679,7 +97679,7 @@ reg[120][0][49] = 0x40</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate48</rate>
-              <value>-0.70570468902587890625</value>
+              <value>-0.70570468902587901727230246251565404236316680908203125</value>
             </rate_value_pair>
             <rate_value_pair>
               <rate>Rate88</rate>
@@ -97724,7 +97724,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate32</rate>
-                  <value>-0.5833785533905029296875</value>
+                  <value>-0.58337855339050304070980246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate44</rate>
@@ -97732,7 +97732,7 @@ reg[120][0][49] = 0x40</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate48</rate>
-                  <value>-0.70570468902587890625</value>
+                  <value>-0.70570468902587901727230246251565404236316680908203125</value>
                 </rate_value_pair>
                 <rate_value_pair>
                   <rate>Rate88</rate>
@@ -106647,9 +106647,9 @@ reg[120][0][49] = 0x40</value>
       <current_target>AIC3263</current_target>
       <target_type>TypeC</target_type>
       <framework_type>AIC3263App8x4x</framework_type>
-      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_cycles>2112</minidsp_a_cycles>
       <minidsp_a_memory>1536</minidsp_a_memory>
-      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_cycles>2112</minidsp_d_cycles>
       <minidsp_d_memory>3072</minidsp_d_memory>
       <CycleChecked>false</CycleChecked>
       <sample_rate>32000</sample_rate>
@@ -106860,7 +106860,7 @@ reg[120][0][49] = 0x40</value>
       </points>
       <points>
         <X>191.999985</X>
-        <Y>215.999969</Y>
+        <Y>215.999985</Y>
       </points>
       <line_color>Black</line_color>
       <line_width>2</line_width>
@@ -106880,7 +106880,7 @@ reg[120][0][49] = 0x40</value>
       <to_port>Model.Mono_Mixer_1.Ch3_In</to_port>
       <points>
         <X>215.999985</X>
-        <Y>227.999969</Y>
+        <Y>227.999985</Y>
       </points>
       <points>
         <X>335.999969</X>
@@ -106932,7 +106932,7 @@ reg[120][0][49] = 0x40</value>
       </points>
       <points>
         <X>335.999969</X>
-        <Y>251.999969</Y>
+        <Y>251.999985</Y>
       </points>
       <line_color>Black</line_color>
       <line_width>2</line_width>
@@ -106956,7 +106956,7 @@ reg[120][0][49] = 0x40</value>
       </points>
       <points>
         <X>791.999939</X>
-        <Y>83.99999</Y>
+        <Y>83.9999924</Y>
       </points>
       <line_color>Black</line_color>
       <line_width>2</line_width>
@@ -106980,7 +106980,7 @@ reg[120][0][49] = 0x40</value>
       </points>
       <points>
         <X>791.999939</X>
-        <Y>95.99999</Y>
+        <Y>95.9999924</Y>
       </points>
       <line_color>Black</line_color>
       <line_width>2</line_width>
@@ -107000,7 +107000,7 @@ reg[120][0][49] = 0x40</value>
       <to_port>Model.Multi_Channel_Digital_Out_1.Ch4_In</to_port>
       <points>
         <X>215.999985</X>
-        <Y>215.999969</Y>
+        <Y>215.999985</Y>
       </points>
       <points>
         <X>791.999939</X>
@@ -107024,7 +107024,7 @@ reg[120][0][49] = 0x40</value>
       <to_port>Model.Split_7.Ch1_In</to_port>
       <points>
         <X>119.999992</X>
-        <Y>503.999939</Y>
+        <Y>503.999969</Y>
       </points>
       <points>
         <X>59.9999962</X>
@@ -107096,7 +107096,7 @@ reg[120][0][49] = 0x40</value>
       <to_port>Model.cearEchoCanceller_1.Ch1_In</to_port>
       <points>
         <X>143.999985</X>
-        <Y>503.999939</Y>
+        <Y>503.999969</Y>
       </points>
       <points>
         <X>264</X>
@@ -107168,7 +107168,7 @@ reg[120][0][49] = 0x40</value>
       <to_port>Model.iDSP_A_D_1.Ch1_In</to_port>
       <points>
         <X>359.999969</X>
-        <Y>251.999969</Y>
+        <Y>251.999985</Y>
       </points>
       <points>
         <X>443.999969</X>

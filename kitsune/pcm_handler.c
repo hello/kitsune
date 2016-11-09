@@ -115,7 +115,7 @@ extern xSemaphoreHandle record_isr_sem;
 extern xSemaphoreHandle playback_isr_sem;;
 
 
-volatile int _pcm_ping_pong_incoming_stream_mode = PCM_PING_PONG_MODE_SINGLE_CHANNEL_FULL_RATE;
+volatile int _pcm_ping_pong_incoming_stream_mode = PCM_PING_PONG_MODE_ALL_CHANNELS_FULL_RATE;
 
 //*****************************************************************************
 //
