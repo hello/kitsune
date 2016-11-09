@@ -198,11 +198,6 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 			set_volume(v->current, 0);
 			vTaskDelay(5);
 			xSemaphoreGiveRecursive(i2c_smphr);
-
-		}else{
-			//set volume failed, instantly exit out of this async worker.
-			AudioTask_StopPlayback();
-			hlo_future_write(result, NULL, 0, -1);
 		}
 	}
 	AudioTask_StopPlayback();
