@@ -2155,7 +2155,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"pn",cmd_audio_self_test,""},
 		{"tap", cmd_tap, ""},
 		{"flipped", cmd_flipped, ""},
-
+		{"pingpong",Cmd_set_ping_pong_mode,""},
 		{ 0, 0, 0 } };
 
 

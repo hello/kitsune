@@ -33,7 +33,7 @@
 #define NUM_CHANNELS (4)
 #define PN_LEN_SAMPLES PN_LEN_10
 #define PN_INIT pn_init_with_mask_10
-#define PN_AMPLITUDE (8*1024)
+#define PN_AMPLITUDE (2*1024)
 
 #define ABS(x)  ( (x) < 0 ? -(x) : (x) )
 
@@ -435,9 +435,7 @@ void pn_write_task( void * params ) {
 
 	for (ichannel = 0; ichannel < NUM_CHANNELS; ichannel++) {
 
-		if (ichannel == AEC_CHANNEL) {
-			continue;
-		}
+
 
 		for (i = 0; i < WRITE_LEN_SAMPLES; i++) {
 			samples[i] = ctx.samples[i*NUM_CHANNELS + ichannel];
@@ -457,9 +455,6 @@ void pn_write_task( void * params ) {
 	for (ichannel = 0; ichannel < NUM_CHANNELS; ichannel++) {
 		uint32_t channel_index =  results.peak_indices[ichannel];
 
-		if (ichannel == AEC_CHANNEL) {
-			continue;
-		}
 
 		if( results.peak_indices[ichannel] > maxidx ) {
 			maxidx = results.peak_indices[ichannel];
