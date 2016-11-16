@@ -149,6 +149,17 @@ void pcm_set_ping_pong_incoming_stream_mode(const int mode) {
 }
 
 
+int Cmd_set_ping_pong_mode(int argc, char *argv[]) {
+	if (argc <= 1) {
+		return 0;
+	}
+
+	pcm_set_ping_pong_incoming_stream_mode(atoi(argv[1]));
+
+	return 0;
+
+}
+
 /* << 20 because I2SIntStatus() shifts DMA_RIS contents by 20.
  */
 #define MCASP_WR_DMA_DONE_INT_STS_ACTIVE ((1UL << 11) << 20)
