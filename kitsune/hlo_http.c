@@ -607,10 +607,17 @@ static int _close_get_session(void * ctx){
 	vPortFree(session);
 	return code;
 }
+static int _close_get_session_keep_base(void * ctx){
+	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+	int code = session->code;
+	LOGI("GET returned code %d\r\n", session->code);
+	http_free(&session->rt);
+	vPortFree(session);
+	return code;
+}
 //====================================================================
 //Base implementation of get
 //
-
 hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
 		.write = NULL,
@@ -832,4 +839,16 @@ hlo_stream_t * hlo_http_post(const char * url, const char * content_type){
 		LOGE("Malformed URL %s\r\n", url);
 	}
 	return NULL;
+}
+int hlo_http_keep_alive(hlo_stream_t * stream, const char * host, const char * endpoint){
+	hlo_http_context_t * session = (hlo_http_context_t*)stream->ctx;
+	hlo_stream_t * s = hlo_http_get_opt(session->sockstream, host, endpoint);
+	s->impl.close = _close_get_session_keep_base; //override close behavior to prevent closing underying socket
+	uint8_t dummy[32];
+	int ret;
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, s, dummy, sizeof(dummy),2)) > 0){
+		//do things
+	}
+	int code = hlo_stream_close(s);
+	return code;
 }
