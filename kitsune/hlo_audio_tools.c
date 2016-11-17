@@ -411,9 +411,17 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 		BREAK_ON_SIG(signal);
 		if(!nn_ctx.speech_pb.has_word &&
-				xTaskGetTickCount() - begin > 4*60*1000 ) {
-			ret = HLO_STREAM_EAGAIN;
-			break;
+				xTaskGetTickCount() - begin > 10*1000 ) {
+			begin = xTaskGetTickCount();
+			//ret = HLO_STREAM_EAGAIN;
+			int code = hlo_http_keep_alive(output, get_speech_server(), SPEECH_KEEPALIVE_ENDPOINT);
+			if( code != 200){
+				ret = HLO_STREAM_EAGAIN;
+				break;
+			}else{
+				LOGI("Stream alive!\r\n");
+				continue;
+			}
 		}
 	}
 	hlo_stream_close(input);
