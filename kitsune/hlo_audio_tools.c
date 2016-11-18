@@ -303,7 +303,7 @@ static void _speech_detect_callback(void * context, SpeechTransition_t transitio
 extern volatile int sys_volume;
 int32_t set_volume(int v, unsigned int dly);
 #define AUDIO_NET_RATE (AUDIO_SAMPLE_RATE/1024)
-#define BASE_KEEPALIVE_INTERVAL (5 * 1000)
+#define BASE_KEEPALIVE_INTERVAL (30 * 1000)
 #define KEEPALIVE_INTERVAL_RANGE (60 * 1000)
 
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
