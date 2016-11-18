@@ -429,11 +429,11 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 					int code = hlo_http_keep_alive(output, get_speech_server(), SPEECH_KEEPALIVE_ENDPOINT);
 					//int code = 0;
 					if( code != 200){
-						LOGW("Unable to reach Voice server.  Restarting...");
+						LOGW("Unable to reach Voice server.  Retry...");
 						ret = HLO_STREAM_EAGAIN;
 						break;
 					}else{
-						LOGI("Voice server alive. Checking in %d seconds!\r\n", keepalive_interval / 1000);
+						LOGI("Voice server alive. Checking again in %d seconds!\r\n", keepalive_interval / 1000);
 					}
 				}
 			}//end connection health check
