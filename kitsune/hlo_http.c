@@ -17,7 +17,7 @@
 //====================================================================
 //Protected API Declaration
 //
-hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint);
+hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint, bool close_base);
 hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str);
 //====================================================================
 //socket stream implementation
@@ -32,6 +32,7 @@ typedef struct{
 }hlo_sock_ctx_t;
 
 #define DBG_SOCKSTREAM(...)
+
 extern void set_backup_dns();
 static unsigned long _get_ip(const char * host){
 	unsigned long ip = 0;
@@ -618,12 +619,22 @@ static int _close_get_session_keep_base(void * ctx){
 //====================================================================
 //Base implementation of get
 //
-hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint){
-	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
-		.write = NULL,
-		.read = _get_content,
-		.close = _close_get_session,
-	};
+hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint, bool close_base){
+	hlo_stream_vftbl_t functions;
+	if(close_base){
+		functions = (hlo_stream_vftbl_t){
+				.write = NULL,
+				.read = _get_content,
+				.close = _close_get_session,
+			};
+
+	}else{
+		functions = (hlo_stream_vftbl_t){
+				.write = NULL,
+				.read = _get_content,
+				.close = _close_get_session_keep_base,
+			};
+	}
 	hlo_stream_t * ret = _new_stream(sock, &functions, HLO_STREAM_READ);
 	if( !ret ) {
 		return NULL;
@@ -648,7 +659,8 @@ hlo_stream_t * hlo_http_get(const char * url){
 		return hlo_http_get_opt(
 				hlo_sock_stream(desc.host, (desc.protocol == HTTP)?0:1),
 				desc.host,
-				desc.path);
+				desc.path,
+				true);
 	}else{
 		LOGE("Malformed URL %s\r\n", url);
 	}
@@ -841,12 +853,14 @@ hlo_stream_t * hlo_http_post(const char * url, const char * content_type){
 	return NULL;
 }
 int hlo_http_keep_alive(hlo_stream_t * stream, const char * host, const char * endpoint){
-	hlo_http_context_t * session = (hlo_http_context_t*)stream->ctx;
-	hlo_stream_t * s = hlo_http_get_opt(session->sockstream, host, endpoint);
-	s->impl.close = _close_get_session_keep_base; //override close behavior to prevent closing underying socket
+	hlo_http_context_t * session = (hlo_http_context_t*)(stream->ctx);
+	hlo_stream_t * s = hlo_http_get_opt(session->sockstream, host, endpoint, false);
+	if(!s){
+		return HLO_STREAM_ERROR;
+	}
 	uint8_t dummy[32];
 	int ret;
-	while( (ret = hlo_stream_transfer_all(FROM_STREAM, s, dummy, sizeof(dummy),2)) > 0){
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, s, dummy, sizeof(dummy),2)) >= 0){
 		//do things
 	}
 	int code = hlo_stream_close(s);
