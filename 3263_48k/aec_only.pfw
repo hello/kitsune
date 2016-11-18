@@ -7048,7 +7048,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>20.0</value>
+              <value>10.0</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -7057,7 +7057,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>20.0</value>
+                  <value>10.0</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -7096,7 +7096,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>20.0</value>
+          <value>10.0</value>
         </runtime_property>
         <runtime_property>
           <name>Left_Fine_Gain</name>
@@ -7253,7 +7253,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>0.0076770782470703125</value>
+              <value>0.00512599945068359375</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -7262,7 +7262,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>0.0076770782470703125</value>
+                  <value>0.00512599945068359375</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -7301,7 +7301,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>0.0076770782470703125</value>
+          <value>0.00512599945068359375</value>
         </runtime_property>
         <runtime_property>
           <name>1minus2alpha</name>
@@ -7312,7 +7312,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>0.984645843505859375</value>
+              <value>0.9897480010986328125</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -7321,7 +7321,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>0.984645843505859375</value>
+                  <value>0.9897480010986328125</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -7360,7 +7360,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>0.984645843505859375</value>
+          <value>0.9897480010986328125</value>
         </runtime_property>
         <runtime_property>
           <name>Energy_Time_Constant_ms</name>
@@ -7371,7 +7371,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>2_ms</value>
+              <value>3_ms</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -7380,7 +7380,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>2_ms</value>
+                  <value>3_ms</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -7469,7 +7469,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>2_ms</value>
+          <value>3_ms</value>
         </runtime_property>
         <runtime_property>
           <name>AGC_Target_Level</name>
