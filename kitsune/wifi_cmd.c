@@ -2016,22 +2016,14 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     }
 
     if (response_protobuf->has_audio_features_control) {
+    	//only set boolean if this field exists in the protobuf
     	bool enabled_audio_features_upload = false;
 
-    	DISP("has_audio_features_control=TRUE\r\n");
     	if (response_protobuf->audio_features_control.has_enable_keyword_features && response_protobuf->audio_features_control.enable_keyword_features) {
     		enabled_audio_features_upload = true;
-        	DISP("enabled_audio_features_upload=TRUE\r\n");
-    	}
-    	else {
-        	DISP("enabled_audio_features_upload=FALSE\r\n");
     	}
 
-    	//only set boolean if this field exists in the protobuf
         audio_features_upload_set_upload_status(enabled_audio_features_upload);
-    }
-    else {
-    	DISP("has_audio_features_control=FALSE\r\n");
     }
 
     if( response_protobuf->has_batch_size ) {

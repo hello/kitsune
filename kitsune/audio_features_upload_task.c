@@ -154,11 +154,8 @@ void audio_features_upload_task(void * not_used) {
 				LOGE("audio_features_upload -- UNABLE TO ADD TO NETWORK QUEUE\r\n");
 
 				cleanup((hlo_stream_t *)  message.context);
-
-				return;
 			}
 		}
-
 	}
 }
 
