@@ -419,6 +419,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			keepalive_interval = BASE_KEEPALIVE_INTERVAL + (rand() % KEEPALIVE_INTERVAL_RANGE);
 			int code = hlo_http_keep_alive(output, get_speech_server(), SPEECH_KEEPALIVE_ENDPOINT);
 			if( code != 200){
+				LOGW("Audio connection dead.  Restarting...");
 				ret = HLO_STREAM_EAGAIN;
 				break;
 			}else{
