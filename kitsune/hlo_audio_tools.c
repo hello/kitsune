@@ -308,7 +308,12 @@ int32_t set_volume(int v, unsigned int dly);
 #define AUDIO_NET_RATE (AUDIO_SAMPLE_RATE/1024)
 #define BASE_KEEPALIVE_INTERVAL (30 * 1000)
 #define KEEPALIVE_INTERVAL_RANGE (60 * 1000)
-
+uint32_t _next_keepalive_interval(uint32_t base, uint32_t range){
+	if (range == 0){
+		return base;
+	}
+	return base +  (rand() % KEEPALIVE_INTERVAL_RANGE);
+}
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
 	int ret = 0;
@@ -344,8 +349,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	hlo_stream_t * send_str = hmac_payload_str;
 
 	uint32_t begin = xTaskGetTickCount();
-	uint32_t keepalive_interval = BASE_KEEPALIVE_INTERVAL;	//30 on boot to clear out the first command, change this if the server gets overloaded.
-															//?????
+	uint32_t keepalive_interval = _next_keepalive_interval(BASE_KEEPALIVE_INTERVAL, KEEPALIVE_INTERVAL_RANGE);
 	uint32_t speech_detected_time;
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, NUM_SAMPLES_TO_RUN_FFT*2, 4)) > 0 ){
@@ -421,7 +425,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				//check server reachable
 				if(xTaskGetTickCount() - begin > keepalive_interval){
 					begin = xTaskGetTickCount();
-					keepalive_interval = BASE_KEEPALIVE_INTERVAL + (rand() % KEEPALIVE_INTERVAL_RANGE);
+					keepalive_interval =  _next_keepalive_interval(BASE_KEEPALIVE_INTERVAL, KEEPALIVE_INTERVAL_RANGE);
 					int code = hlo_http_keep_alive(output, get_speech_server(), SPEECH_KEEPALIVE_ENDPOINT);
 					//int code = 0;
 					if( code != 200){
