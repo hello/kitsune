@@ -389,6 +389,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			//workaround to refresh connection once time server responds
 			static TickType_t _last_refresh_check = 0;
 			if( xTaskGetTickCount() - _last_refresh_check > 1000 ) {
+				//check ip changed
 				static bool _had_ip = false;
 				bool have_ip = wifi_status_get(HAS_IP);
 				if( have_ip && !_had_ip ) {
@@ -399,6 +400,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				}
 				_had_ip = have_ip;
 
+				//check time
 				static bool _had_time = false;
 				bool have_time = has_good_time();
 				if( have_time && !_had_time ) {
@@ -409,24 +411,25 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				}
 				_had_time = have_time;
 				_last_refresh_check = xTaskGetTickCount();
-			}
+
+				//check server reachable
+				if(xTaskGetTickCount() - begin > keepalive_interval){
+					begin = xTaskGetTickCount();
+					keepalive_interval = BASE_KEEPALIVE_INTERVAL + (rand() % KEEPALIVE_INTERVAL_RANGE);
+					int code = hlo_http_keep_alive(output, get_speech_server(), SPEECH_KEEPALIVE_ENDPOINT);
+					//int code = 0;
+					if( code != 200){
+						LOGW("Unable to reach Voice server.  Restarting...");
+						ret = HLO_STREAM_EAGAIN;
+						break;
+					}else{
+						LOGI("Voice server alive. Checking in %d seconds!\r\n", keepalive_interval / 1000);
+					}
+				}
+			}//end connection health check
 		}
 
 		BREAK_ON_SIG(signal);
-		if(!nn_ctx.speech_pb.has_word &&
-				xTaskGetTickCount() - begin > keepalive_interval ) {
-			begin = xTaskGetTickCount();
-			keepalive_interval = BASE_KEEPALIVE_INTERVAL + (rand() % KEEPALIVE_INTERVAL_RANGE);
-			int code = hlo_http_keep_alive(output, get_speech_server(), SPEECH_KEEPALIVE_ENDPOINT);
-			if( code != 200){
-				LOGW("Audio connection dead.  Restarting...");
-				ret = HLO_STREAM_EAGAIN;
-				break;
-			}else{
-				LOGI("Audio connection alive. Checking in %d seconds!\r\n", keepalive_interval / 1000);
-				continue;
-			}
-		}
 	}
 	hlo_stream_close(input);
 	light_sensor_power(HIGH_POWER);
