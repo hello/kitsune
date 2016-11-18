@@ -39,7 +39,7 @@ static volatile int _is_waiting_for_uploading = 0;
 static char _id_buf[128];
 static RateLimiter_t _ratelimiterdata = {MAX_UPLOADS_PER_PERIOD,TICKS_PER_UPLOAD,0,0,0};
 static SimpleMatrix _mat;
-static volatile int _disabled_uploads = 0;
+static volatile bool _disabled_uploads = true;
 
 //delayed send queue
 static xQueueHandle _delayed_send_queue = NULL;
