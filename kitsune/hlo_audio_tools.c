@@ -226,10 +226,13 @@ typedef struct{
 	uint16_t reserved;
 	uint32_t timeout;
 	uint8_t is_speaking;
+	uint32_t keyword_begin_time;
 }nn_keyword_ctx_t;
 
 static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	LOGI("KEYWORD BEGIN\n");
+	nn_keyword_ctx_t * p = (nn_keyword_ctx_t*)ctx;
+	p->keyword_begin_time = xTaskGetTickCount();
 }
 
 bool cancel_alarm();
@@ -377,6 +380,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)compressed, sizeof(compressed), 4);
 				if( ret < 0 ) {
 					break;
+				}else if(nn_ctx.keyword_begin_time){
+					analytics_event("{speech_connect_latency:%d}", xTaskGetTickCount() - nn_ctx.keyword_begin_time);
+					nn_ctx.keyword_begin_time = 0;
 				}
 			}
 			if (!nn_ctx.is_speaking) {
