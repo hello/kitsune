@@ -232,7 +232,6 @@ typedef struct{
 static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	LOGI("KEYWORD BEGIN\n");
 	nn_keyword_ctx_t * p = (nn_keyword_ctx_t*)ctx;
-	p->keyword_begin_time = xTaskGetTickCount();
 }
 
 bool cancel_alarm();
@@ -253,6 +252,7 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	tinytensor_features_force_voice_activity_detection();
 	p->is_speaking = true;
 	p->speech_pb.has_word = true;
+	p->keyword_begin_time = xTaskGetTickCount();
 
 	switch (keyword ) {
 	case okay_sense:
