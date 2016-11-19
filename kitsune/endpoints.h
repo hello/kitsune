@@ -25,6 +25,7 @@ char * get_speech_server(void);
 #define DEV_SPEECH_SERVER "dev-speech.hello.is"
 
 #define SPEECH_ENDPOINT "/v2/upload/audio"
+#define SPEECH_KEEPALIVE_ENDPOINT "/v2/ping"
 
 #define MESSEJI_ENDPOINT "/receive"
 
