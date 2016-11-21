@@ -421,7 +421,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				}
 				_had_time = have_time;
 				_last_refresh_check = xTaskGetTickCount();
-
+#if 0
 				//check server reachable
 				if(xTaskGetTickCount() - begin > keepalive_interval){
 					begin = xTaskGetTickCount();
@@ -436,6 +436,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 						LOGI("Voice server alive. Checking again in %d seconds!\r\n", keepalive_interval / 1000);
 					}
 				}
+#endif
 			}//end connection health check
 		}
 

@@ -49,7 +49,8 @@ void set_background_energy(const int16_t fr[], const int16_t fi[], int16_t log2s
 #define START_SPEECH_THRESHOLD (4000)
 #define STOP_SPEECH_THRESHOLD (1000)
 
-#define NUM_NONSPEECH_FRAMES_TO_TURN_OFF   (33)
+#define NUM_NONSPEECH_FRAMES_TO_BEGIN      (33)
+#define NUM_NONSPEECH_FRAMES_TO_TURN_OFF   (22)
 #define NUM_SPEECH_FRAMES_TO_TURN_ON       (2)
 #define MAX_DURATION_OF_VAD                (10 * 66)
 //hanning window
@@ -83,7 +84,6 @@ typedef struct {
     
     uint32_t speech_detector_counter;
     uint32_t num_speech_frames;
-    int32_t num_nonspeech_frames;
     uint8_t is_speech;
     uint32_t num_frames_vad_turned_on;
 
@@ -152,7 +152,7 @@ void tinytensor_features_get_mel_bank(int16_t * melbank,const int16_t * fr, cons
 
 void tinytensor_features_force_voice_activity_detection(void) {
 	_this.is_speech = 1;
-	_this.num_nonspeech_frames = -100;
+	_this.num_speech_frames = NUM_NONSPEECH_FRAMES_TO_BEGIN;
 }
 
 #define SPEECH_BIN_START (4)
@@ -194,14 +194,12 @@ static void do_voice_activity_detection(int16_t * fr,int16_t * fi,int16_t input_
     log_energy_frac -= _this.log_speech_lpf;
     
     
-    if (log_energy_frac > START_SPEECH_THRESHOLD) {
+    if (log_energy_frac > START_SPEECH_THRESHOLD && _this.num_speech_frames < NUM_NONSPEECH_FRAMES_TO_TURN_OFF) {
         _this.num_speech_frames++;
-        _this.num_nonspeech_frames = 0;
     }
     
-    if (log_energy_frac < STOP_SPEECH_THRESHOLD) {
-        _this.num_nonspeech_frames++;
-        _this.num_speech_frames = 0;
+    if (log_energy_frac < STOP_SPEECH_THRESHOLD && _this.num_speech_frames > 0 ) {
+        _this.num_speech_frames--;
     }
     
     //track number of frames VAD is on        
@@ -213,7 +211,7 @@ static void do_voice_activity_detection(int16_t * fr,int16_t * fi,int16_t input_
     } 
 
   
-    if ((_this.num_nonspeech_frames == NUM_NONSPEECH_FRAMES_TO_TURN_OFF && _this.is_speech) ||
+    if ((_this.num_speech_frames == 0 && _this.is_speech) ||
          _this.num_frames_vad_turned_on >= MAX_DURATION_OF_VAD) {
 
         if (_this.speech_detector_callback) {
@@ -225,7 +223,7 @@ static void do_voice_activity_detection(int16_t * fr,int16_t * fi,int16_t input_
         _this.num_speech_frames = 0;
     }
 
-    if (_this.num_speech_frames == NUM_SPEECH_FRAMES_TO_TURN_ON && !_this.is_speech) {
+    if (_this.num_speech_frames > NUM_SPEECH_FRAMES_TO_TURN_ON && !_this.is_speech) {
         if (_this.speech_detector_callback) {
             _this.speech_detector_callback(_this.results_context,start_speech);
         }
