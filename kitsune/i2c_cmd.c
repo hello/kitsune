@@ -597,8 +597,10 @@ int Cmd_set_tvenv(int argc, char * argv[]){
 	return set_tvoc_env(atoi(argv[1]), atoi(argv[2]));
 }
 #define DBG_TVOC LOGI
+#define TVOC_CALIBRATION_TIME (60 * 1000)	/* do not calibrate until after the first minute */
 int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, unsigned int humid ) {
 	unsigned char b[8];
+	static bool calibrated;
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
 	b[0] = 2;
@@ -635,7 +637,10 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 
 	vTaskDelay(10);
 	xSemaphoreGiveRecursive(i2c_smphr);
-	set_tvoc_env(temp,humid);
+	if(!calibrated && xTaskGetTickCount() > TVOC_CALIBRATION_TIME){
+		calibrated = true;
+		set_tvoc_env(temp,humid);
+	}
 	return 0;
 }
 
