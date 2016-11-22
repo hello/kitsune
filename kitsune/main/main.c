@@ -306,7 +306,7 @@ void nwp_reset_thread(void* unused) {
 	vTaskDelete(NULL);
 }
 #endif
-
+extern bool disable_net_timeout;
 bool check_button();
 void watchdog_thread(void* unused) {
 #ifdef NWP_WATCHDOG_TIMEOUT
@@ -314,7 +314,7 @@ void watchdog_thread(void* unused) {
 #endif
 	int button_cnt=0;
 	while (1) {
-		if (xTaskGetTickCount() - last_upload_time > FIFTEEN_MINUTES) {
+		if (xTaskGetTickCount() - last_upload_time > FIFTEEN_MINUTES && !disable_net_timeout) {
 			LOGE("NET TIMEOUT\n");
 			mcu_reset();
 		}

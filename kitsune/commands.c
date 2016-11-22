@@ -1791,12 +1791,13 @@ void launch_tasks() {
 	xTaskCreate(audio_features_upload_task,"audioFeatsUpload",512/4,NULL,2,NULL);
 
 }
-
+bool disable_net_timeout = false;
 int Cmd_boot(int argc, char *argv[]) {
 	if( !booted ) {
 		launch_tasks();
 		Cmd_led_clr(0,0);
 	}
+	disable_net_timeout = true;
 	return 0;
 }
 
