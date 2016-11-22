@@ -602,7 +602,30 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 	unsigned char b[8];
 	static bool calibrated;
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
-
+	/*
+	 * read status
+	 */
+	int tries = 3;
+	bool data_is_ready = false;
+	while(tries-- > 0){
+		b[0] = 0;
+		(I2C_IF_Write(0x5a, b, 1, 1));
+		memset(b,0, sizeof(b));
+		I2C_IF_Read(0x5a, b, 1);
+		if(b[0] & 0x08){
+			data_is_ready = true;
+			break;
+		}
+		vTaskDelay(1);
+	}
+	if(!data_is_ready){
+		LOGW("I2C Data Not Ready\r\n");
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return -2;
+	}
+	/*
+	 * read alg_result_data
+	 */
 	b[0] = 2;
 	(I2C_IF_Write(0x5a, b, 1, 1));
 	memset(b,0, sizeof(b));
@@ -628,11 +651,6 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 		LOGE("%x\n", b[0]);
 		xSemaphoreGiveRecursive(i2c_smphr);
 		return -1;
-	} else if (!(b[4] & 0x08) ){
-		//data not ready!
-		LOGW("TVOC Data Not Ready!\r\n");
-		xSemaphoreGiveRecursive(i2c_smphr);
-		return -2;
 	}
 	*eco2 = (b[1] | (b[0]<<8));
 	*tvoc = (b[3] | (b[2]<<8));
