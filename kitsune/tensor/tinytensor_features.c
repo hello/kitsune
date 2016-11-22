@@ -153,6 +153,7 @@ void tinytensor_features_get_mel_bank(int16_t * melbank,const int16_t * fr, cons
 void tinytensor_features_force_voice_activity_detection(void) {
 	_this.is_speech = 1;
 	_this.num_speech_frames = NUM_NONSPEECH_FRAMES_TO_BEGIN;
+	_this.num_frames_vad_turned_on = 0;
 }
 
 #define SPEECH_BIN_START (4)
@@ -195,10 +196,12 @@ static void do_voice_activity_detection(int16_t * fr,int16_t * fi,int16_t input_
     
     
     if (log_energy_frac > START_SPEECH_THRESHOLD && _this.num_speech_frames < NUM_NONSPEECH_FRAMES_TO_TURN_OFF) {
+        DISP("%d +\r",_this.num_speech_frames );
         _this.num_speech_frames++;
     }
     
     if (log_energy_frac < STOP_SPEECH_THRESHOLD && _this.num_speech_frames > 0 ) {
+        DISP("%d -\r",_this.num_speech_frames );
         _this.num_speech_frames--;
     }
     
@@ -213,6 +216,9 @@ static void do_voice_activity_detection(int16_t * fr,int16_t * fi,int16_t input_
   
     if ((_this.num_speech_frames == 0 && _this.is_speech) ||
          _this.num_frames_vad_turned_on >= MAX_DURATION_OF_VAD) {
+        DISP("%d\r",_this.num_frames_vad_turned_on );
+
+        LOGI("VAD %d\n", _this.num_frames_vad_turned_on);
 
         if (_this.speech_detector_callback) {
             _this.speech_detector_callback(_this.results_context,stop_speech);
