@@ -619,7 +619,7 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 		vTaskDelay(1);
 	}
 	if(!data_is_ready){
-		LOGW("I2C Data Not Ready\r\n");
+		LOGW("TVOC Data Not Ready\r\n");
 		xSemaphoreGiveRecursive(i2c_smphr);
 		return -2;
 	}
