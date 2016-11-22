@@ -601,7 +601,6 @@ int Cmd_set_tvenv(int argc, char * argv[]){
 int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, unsigned int humid ) {
 	unsigned char b[8];
 	static bool calibrated;
-	static int last_tvoc, last_eco2;
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
 	b[0] = 2;
@@ -632,16 +631,11 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 	} else if (!(b[4] & 0x08) ){
 		//data not ready!
 		LOGW("TVOC Data Not Ready!\r\n");
-		*eco2 = last_eco2;
-		*tvoc = last_tvoc;
-		goto finish;
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return -2;
 	}
 	*eco2 = (b[1] | (b[0]<<8));
 	*tvoc = (b[3] | (b[2]<<8));
-	last_eco2 = *eco2;
-	last_tvoc = *tvoc;
-
-finish:
 	*current = (b[6]>>2);
 	*voltage = (((b[6]&3)<<8) | (b[7]));
 	vTaskDelay(10);
