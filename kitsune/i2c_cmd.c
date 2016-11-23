@@ -709,9 +709,9 @@ int init_light_sensor()
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
 	b[0] = 0x80;
 	b[1] = 0b0000111; //enable prox/als/power
-	b[2] = 249; //20ms integration
+	b[2] = 220; //100ms integration
 	b[3] = 35; //100ms prox time
-	b[4] = 249; //20ms als time
+	b[4] = 220; //100ms als time
 	(I2C_IF_Write(0x39, b, 5, 1));
 	b[0] = 0x8d;
 	b[1] = 0x0;
@@ -763,10 +763,14 @@ int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p ) {
 	(I2C_IF_Write(0x39, b, 1, 1));
 	(I2C_IF_Read(0x39, b, 10));
 
-	*w = get_le_short(b);
-	*r = get_le_short(b+2);
-	*g = get_le_short(b+4);
-	*bl = get_le_short(b+6);
+	/* Backend calculations and FW constants are tuned to 20ms integration time
+	 * for now, divide by 16-bit ADC value by (integration time / 20ms)
+	 * this keeps lux calculation, lights-off, and LED brightness functionality
+	 */
+	*w = get_le_short(b) / 5;
+	*r = get_le_short(b+2) / 5;
+	*g = get_le_short(b+4) / 5;
+	*bl = get_le_short(b+6) / 5;
 	*p = get_le_short(b+8);
 
 	xSemaphoreGiveRecursive(i2c_smphr);
