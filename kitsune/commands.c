@@ -105,6 +105,7 @@
 #include "octogram.h"
 
 #include "audiohelper.h"
+#include "audio_features_upload_task.h"
 
 #define ONLY_MID 0
 
@@ -1206,7 +1207,7 @@ void sample_sensor_data(periodic_data* data,NetStats_t * keyword_net_stats)
 
 	//get audio -- this is thread safe
 	AudioTask_DumpOncePerMinuteStats(&aud_data);
-
+#if 1
 	//Benjo wrote this:  get keyword statistics -- this is thread safe
 	//IF we have memory allocated for this
 	if (keyword_net_stats && keyword_net_get_and_reset_stats(keyword_net_stats)) {
@@ -1214,6 +1215,7 @@ void sample_sensor_data(periodic_data* data,NetStats_t * keyword_net_stats)
 		//if you got the stats, then set up all the protobuf encoders, which use "keyword_net_stats" as part of its memeory
 		set_encoders_with_data(&data->keyword_stats,keyword_net_stats);
 	}
+#endif
 
 	if (aud_data.isValid) {
 		data->has_audio_num_disturbances = true;
@@ -1784,6 +1786,9 @@ void launch_tasks() {
 	display_pairing_animation();
 
 	xTaskCreate(AudioControlTask, "AudioControl",  7*1024 / 4, NULL, 2, NULL);
+
+	//only network message is used in the stack of this task
+	xTaskCreate(audio_features_upload_task,"audioFeatsUpload",512/4,NULL,2,NULL);
 
 }
 

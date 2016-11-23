@@ -13,7 +13,7 @@
 #include "arm_const_structs.h"
 #include "fft.h"
 
-#define NEURAL_NET_MODEL "model_aug30_lstm_med_dist_okay_sense_stop_snooze_tiny_end0_1022_state_ep250.c" 
+#define NEURAL_NET_MODEL "model_nov07_lstm_med_adam_okay_sense_stop_snooze_tiny_end0_1108_ep046.c" 
 #include NEURAL_NET_MODEL
 const static char * k_net_id = NEURAL_NET_MODEL;
 
@@ -40,12 +40,12 @@ typedef struct {
     tinytensor_speech_detector_callback_t speech_callback;
     void * speech_callback_context;
 
-    xSemaphoreHandle stats_mutex;
     NetStats_t stats;
 
 } KeywordNetContext_t;
 
 static KeywordNetContext_t _context;
+static xSemaphoreHandle _stats_mutex;
 
 const static char * k_okay_sense = "okay_sense";
 const static char * k_stop = "stop";
@@ -78,10 +78,10 @@ static void speech_detect_callback(void * context, SpeechTransition_t transition
 
 uint8_t keyword_net_get_and_reset_stats(NetStats_t * stats) {
     //copy out stats, and zero it out
-    if( xSemaphoreTake(_context.stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
+    if( xSemaphoreTake(_stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
         memcpy(stats,&_context.stats,sizeof(NetStats_t));
         net_stats_reset(&_context.stats);
-        xSemaphoreGive(_context.stats_mutex);
+        xSemaphoreGive(_stats_mutex);
         return 1;
     }
 
@@ -146,11 +146,11 @@ static void feats_callback(void * p, Weight_t * feats) {
 
 
     //update stats
-    if( xSemaphoreTake(context->stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
+    if( xSemaphoreTake(_stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
         
         net_stats_update_counts(&context->stats,out->x);
 
-        xSemaphoreGive(context->stats_mutex);
+        xSemaphoreGive(_stats_mutex);
     }
 
 	//evaluate output
@@ -181,14 +181,13 @@ static void feats_callback(void * p, Weight_t * feats) {
 					//do callback
 					callback_item->on_end(callback_item->context,(Keyword_t)i, callback_item->max_value);
 					
-                                        //TEMPORARILY COMMENTED OUT UNTIL UPLOAD DEADLOCK SOLUTION IS IMPLEMENTED
-					//trigger feats asynchronous upload
-					//audio_features_upload_trigger_async_upload(NEURAL_NET_MODEL, keyword_enum_to_str((Keyword_t)i),NUM_MEL_BINS,feats_sint8);
+					//trigger a delayed asynchronous upload
+					audio_features_upload_trigger_async_upload(NEURAL_NET_MODEL, keyword_enum_to_str((Keyword_t)i),NUM_MEL_BINS,feats_sint8);
 
 					//log activation, has to be thread safe
-                    if( xSemaphoreTake(context->stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
+                    if( xSemaphoreTake(_stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
 						net_stats_record_activation(&context->stats,(Keyword_t)i,context->counter);
-						xSemaphoreGive(context->stats_mutex);
+						xSemaphoreGive(_stats_mutex);
 					}
 				}
 			}
@@ -217,7 +216,9 @@ void keyword_net_pause_net_operation(void) {
 __attribute__((section(".ramcode")))
 void keyword_net_initialize(void) {
 	MEMSET(&_context,0,sizeof(_context));
-	_context.stats_mutex = xSemaphoreCreateMutex();
+	if( !_stats_mutex ) {
+		_stats_mutex = xSemaphoreCreateMutex();
+	}
 
 	_context.net = initialize_network();
 	net_stats_init(&_context.stats,NUM_KEYWORDS,k_net_id);
@@ -229,8 +230,6 @@ void keyword_net_initialize(void) {
 
 __attribute__((section(".ramcode")))
 void keyword_net_deinitialize(void) {
-	vPortFree(_context.stats_mutex);
-
 	tinytensor_features_deinitialize();
 
 	tinytensor_free_states(&_context.state,&_context.net);

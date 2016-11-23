@@ -18,8 +18,8 @@ static void encode_MorpheusCommand(hlo_future_t * result, void * context){
 		goto end;
 	}
 	command->version = PROTOBUF_VERSION;
-	command->has_protocol_version = true;
-	command->protocol_version = FIRMWARE_VERSION_INTERNAL;
+	command->has_firmware_version = true;
+	command->firmware_version = FIRMWARE_VERSION_INTERNAL;
 
 	ble_proto_assign_encode_funcs(command);
 
@@ -95,7 +95,7 @@ hlo_future_t * buffer_from_MorpheusCommand(MorpheusCommand * src){
 #include "hlo_pipe.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
-#define DBG_PBSTREAM LOGI
+#define DBG_PBSTREAM(...)
 #define PB_FRAME_SIZE 1024
 
 typedef struct{

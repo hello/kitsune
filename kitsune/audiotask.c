@@ -93,7 +93,7 @@ static void _sense_state_task(hlo_future_t * result, void * ctx){
 			_playing = sense_state.audio_state.playing_audio;
 
 			sense_state.has_volume = true;
-			sense_state.volume = sys_volume;
+			sense_state.volume = sys_volume * 100 / 64;
 			sense_state.has_voice_control_enabled = true;
 			sense_state.voice_control_enabled = !disable_voice;
 
@@ -192,17 +192,12 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 			LOGI("Setting volume %u at %u\n", v->current, xTaskGetTickCount());
 		}
 
-		if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
+		if( xSemaphoreTakeRecursive(i2c_smphr, 10)) {
 			//set vol
 			vTaskDelay(5);
 			set_volume(v->current, 0);
 			vTaskDelay(5);
 			xSemaphoreGiveRecursive(i2c_smphr);
-
-		}else{
-			//set volume failed, instantly exit out of this async worker.
-			AudioTask_StopPlayback();
-			hlo_future_write(result, NULL, 0, -1);
 		}
 	}
 	AudioTask_StopPlayback();
