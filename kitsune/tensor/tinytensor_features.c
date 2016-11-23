@@ -199,8 +199,8 @@ static void do_voice_activity_detection(int16_t * fr,int16_t * fi,int16_t input_
         DISP("%d +\r",_this.num_speech_frames );
         _this.num_speech_frames++;
     }
-    
-    if (log_energy_frac < STOP_SPEECH_THRESHOLD && _this.num_speech_frames > 0 ) {
+    if (_this.num_speech_frames > NUM_NONSPEECH_FRAMES_TO_TURN_OFF
+    		|| (log_energy_frac < STOP_SPEECH_THRESHOLD && _this.num_speech_frames > 0 ) ) {
         DISP("%d -\r",_this.num_speech_frames );
         _this.num_speech_frames--;
     }
