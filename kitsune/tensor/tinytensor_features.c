@@ -49,8 +49,8 @@ void set_background_energy(const int16_t fr[], const int16_t fi[], int16_t log2s
 #define START_SPEECH_THRESHOLD (4000)
 #define STOP_SPEECH_THRESHOLD (1000)
 
-#define NUM_NONSPEECH_FRAMES_TO_BEGIN      (33)
-#define NUM_NONSPEECH_FRAMES_TO_TURN_OFF   (22)
+#define NUM_NONSPEECH_FRAMES_TO_BEGIN      (4*33)
+#define NUM_NONSPEECH_FRAMES_TO_TURN_OFF   (33)
 #define NUM_SPEECH_FRAMES_TO_TURN_ON       (2)
 #define MAX_DURATION_OF_VAD                (10 * 66)
 //hanning window
