@@ -1797,7 +1797,6 @@ int Cmd_boot(int argc, char *argv[]) {
 		launch_tasks();
 		Cmd_led_clr(0,0);
 	}
-	LOGI("Manual boot, net timeout disabled\r\n");
 	return 0;
 }
 
