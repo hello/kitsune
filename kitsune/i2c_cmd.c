@@ -993,6 +993,29 @@ int cmd_codec(int argc, char *argv[]) {
 	return 0;
 }
 
+int cmd_codec_read(int argc, char *argv[]) {
+	unsigned char cmd[2]={0xFF,0xFF};
+	if(argc < 4){
+		LOGF("Usage: codecr <book> <page> <reg>\n");
+		return -1;
+	}
+	if( xSemaphoreTakeRecursive(i2c_smphr, 1000)){
+
+		codec_set_book(atoi(argv[1]));
+
+		codec_set_page(atoi(argv[2]));
+
+		cmd[0] = atoi(argv[3]);
+		I2C_IF_Write(Codec_addr, &cmd[0],1,1);
+		I2C_IF_Read(Codec_addr, &cmd[1], 1);
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+	LOGI("Codecr [%u][%u][%u] = 0x%x\n",atoi(argv[2]),atoi(argv[1]),cmd[0],cmd[1]);
+
+	return 0;
+}
+
 static void codec_sw_reset(void)
 {
 	char send_stop = 1;
