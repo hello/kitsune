@@ -97,7 +97,8 @@ static void _sense_state_task(hlo_future_t * result, void * ctx){
 			sense_state.has_voice_control_enabled = true;
 			sense_state.voice_control_enabled = !disable_voice;
 
-			LOGI("AudioState %s, %s\r\n",  _playing ?"Playing":"Stopped", sense_state.audio_state.file_path);
+			LOGI("AudioState %s, %s\t\t\t\t\t\t %d \r\n",
+					_playing ?"Playing":"Stopped", sense_state.audio_state.file_path, sense_state.volume);
 			state_sent = NetworkTask_SendProtobuf(true, DATA_SERVER,
 							SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 0,
 							NULL, NULL, NULL, true);
