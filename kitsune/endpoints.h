@@ -25,7 +25,6 @@ char * get_speech_server(void);
 #define DEV_SPEECH_SERVER "dev-speech.hello.is"
 
 #define SPEECH_ENDPOINT "/v2/upload/audio"
-#define SPEECH_KEEPALIVE_ENDPOINT "/v2/ping"
 
 #define MESSEJI_ENDPOINT "/receive"
 
@@ -41,7 +40,7 @@ char * get_speech_server(void);
 #define DATA_RECEIVE_ENDPOINT               "/in/sense/batch"
 #define MORPHEUS_REGISTER_ENDPOINT          "/register/morpheus"
 #define PILL_REGISTER_ENDPOINT              "/register/pill"
-#define AUDIO_KEYWORD_FEATURES_ENDPOINT     "/audio/keyword_features"
+#define AUDIO_KEYWORD_FEATURES_ENDPOINT     "/v1/audio/keyword_features"
 #define RAW_AUDIO_ENDPOINT                 "/audio/raw"
 #define PILL_DATA_RECEIVE_ENDPOINT          "/in/pill"
 #define CHECK_KEY_ENDPOINT                  "/check"
