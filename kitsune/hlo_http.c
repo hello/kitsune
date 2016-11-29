@@ -469,7 +469,8 @@ typedef struct{
 }hlo_http_context_t;
 typedef enum{
 	GET,
-	POST
+	POST,
+	PUT
 }http_method;
 //====================================================================
 //common functions
@@ -558,6 +559,14 @@ static int _generate_header(char * output, size_t output_size, http_method metho
 		            "Transfer-Encoding: chunked\r\n\r\n",
 		            endpoint, host, content_type, hex_device_id, KIT_VER, get_top_version());
 		break;
+	case PUT:
+		usnprintf(output, output_size,
+					"PUT %s HTTP/1.1\r\n"
+		            "Host: %s\r\n"
+		            "Content-type: %s\r\n"
+		            "Transfer-Encoding: chunked\r\n\r\n",
+		            endpoint, host, content_type);
+		break;
 	}
 	return ustrlen(output);
 }
@@ -572,6 +581,7 @@ static int _get_content(void * ctx, void * buf, size_t size){
 	if( !session->response_active ){
 		return HLO_STREAM_EOF;
 	}
+	memset(session->scratch, 0, SCRATCH_SIZE);
 	int ndata = hlo_stream_read(session->sockstream, session->scratch, bytes_to_process);
 	if( ndata > 0 ){
 		while(session->response_active && ndata) {
@@ -587,8 +597,8 @@ static int _get_content(void * ctx, void * buf, size_t size){
 	int content_size = (session->content_itr - (char*)buf);
 	session->content_itr = NULL;	/* need to clean up here to prevent cached buffer tampering */
 	if( http_iserror(&session->rt) ) {
-		DISP("Has error\r\n");
-		return HLO_STREAM_ERROR;
+		LOGE("Has error\r\n");
+		return content_size;
 	} else if(content_size == 0 && !session->response_active){
 		LOGI("GET EOF %d bytes\r\n", session->len);
 		return HLO_STREAM_EOF;
@@ -791,7 +801,7 @@ static int _get_post_response(void * ctx, void * buf, size_t size){
 	}
 	return _get_content(ctx,buf,size);
 }
-hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str){
+hlo_stream_t * hlo_http_upload_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str, http_method method){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
 		.write = _post_content_with_header,
 		.read = _get_post_response,
@@ -802,7 +812,7 @@ hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const c
 		return NULL;
 	}else{
 		hlo_http_context_t * session = (hlo_http_context_t*)ret->ctx;
-		int len = _generate_header(session->scratch, sizeof(session->scratch), POST, host, endpoint, content_type_str);
+		int len = _generate_header(session->scratch, sizeof(session->scratch), method, host, endpoint, content_type_str);
 		if( len > 0 ){
 			DISP("caching header\r\n");
 			session->header_cache = pvPortMalloc(len + 1);
@@ -815,21 +825,34 @@ hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const c
 	}
 	return ret;
 }
-//====================================================================
-//User Friendly post
-//
-hlo_stream_t * hlo_http_post(const char * url, const char * content_type){
+
+hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str ){
+	return hlo_http_upload_opt(sock, host, endpoint, content_type_str, POST);
+}
+
+hlo_stream_t * hlo_http_upload(const char * url, const char * content_type, http_method method){
 	url_desc_t desc;
 	if(0 == parse_url(&desc,url)){
 		const char * type = content_type ? content_type:"application/octet-stream";
-		return hlo_http_post_opt(
+		return hlo_http_upload_opt(
 				hlo_sock_stream(desc.host, (desc.protocol == HTTP)?0:1),
 				desc.host,
 				desc.path,
-				type
+				type,
+				method
 			);
 	}else{
 		LOGE("Malformed URL %s\r\n", url);
 	}
 	return NULL;
 }
+//====================================================================
+//User Friendly post / put
+//
+hlo_stream_t * hlo_http_post(const char * url, const char * content_type){
+	return hlo_http_upload(url, content_type, POST);
+}
+hlo_stream_t * hlo_http_put(const char * url, const char * content_type){
+	return hlo_http_upload(url, content_type, PUT);
+}
+

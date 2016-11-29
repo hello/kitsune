@@ -33,3 +33,4 @@ hlo_stream_t * hlo_http_get(const char * url);
  * half duplex, open -> write all -> read response until eof -> write all ...
  */
 hlo_stream_t * hlo_http_post(const char * url, const char * content_type);
+hlo_stream_t * hlo_http_put(const char * url, const char * content_type);
