@@ -1791,13 +1791,12 @@ void launch_tasks() {
 	xTaskCreate(audio_features_upload_task,"audioFeatsUpload",512/4,NULL,2,NULL);
 
 }
-bool disable_net_timeout = false;
+
 int Cmd_boot(int argc, char *argv[]) {
 	if( !booted ) {
 		launch_tasks();
 		Cmd_led_clr(0,0);
 	}
-	disable_net_timeout = true;
 	LOGI("Manual boot, net timeout disabled\r\n");
 	return 0;
 }
@@ -2173,7 +2172,7 @@ extern xSemaphoreHandle g_xRxLineSemaphore;
 
 void UARTStdioIntHandler(void);
 long nwp_reset();
-
+bool disable_net_timeout = false;
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
 
@@ -2339,6 +2338,7 @@ void vUARTTask(void *pvParameters) {
 		return;
 	} else {
 		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
+		disable_net_timeout = true;
 	}
 #else
 	/* remove anything we recieved before we were ready */
