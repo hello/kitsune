@@ -226,10 +226,12 @@ typedef struct{
 	uint16_t reserved;
 	uint32_t timeout;
 	uint8_t is_speaking;
+	uint32_t keyword_begin_time;
 }nn_keyword_ctx_t;
 
 static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	LOGI("KEYWORD BEGIN\n");
+	nn_keyword_ctx_t * p = (nn_keyword_ctx_t*)ctx;
 }
 
 bool cancel_alarm();
@@ -250,6 +252,7 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	tinytensor_features_force_voice_activity_detection();
 	p->is_speaking = true;
 	p->speech_pb.has_word = true;
+	p->keyword_begin_time = xTaskGetTickCount();
 
 	switch (keyword ) {
 	case okay_sense:
@@ -303,8 +306,14 @@ static void _speech_detect_callback(void * context, SpeechTransition_t transitio
 extern volatile int sys_volume;
 int32_t set_volume(int v, unsigned int dly);
 #define AUDIO_NET_RATE (AUDIO_SAMPLE_RATE/1024)
-
-
+#define BASE_KEEPALIVE_INTERVAL (3 * 60 * 1000)
+#define KEEPALIVE_INTERVAL_RANGE (60 * 1000)
+uint32_t _next_keepalive_interval(uint32_t base, uint32_t range){
+	if (range == 0){
+		return base;
+	}
+	return base +  (rand() % KEEPALIVE_INTERVAL_RANGE);
+}
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
 	int ret = 0;
@@ -340,6 +349,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	hlo_stream_t * send_str = hmac_payload_str;
 
 	uint32_t begin = xTaskGetTickCount();
+	uint32_t keepalive_interval = _next_keepalive_interval(BASE_KEEPALIVE_INTERVAL, KEEPALIVE_INTERVAL_RANGE);
 	uint32_t speech_detected_time;
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, NUM_SAMPLES_TO_RUN_FFT*2, 4)) > 0 ){
@@ -374,6 +384,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)compressed, sizeof(compressed), 4);
 				if( ret < 0 ) {
 					break;
+				}else if(nn_ctx.keyword_begin_time){
+					analytics_event("{speech_connect_latency:%d}", xTaskGetTickCount() - nn_ctx.keyword_begin_time);
+					nn_ctx.keyword_begin_time = 0;
 				}
 			}
 			if (!nn_ctx.is_speaking) {
@@ -386,6 +399,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			//workaround to refresh connection once time server responds
 			static TickType_t _last_refresh_check = 0;
 			if( xTaskGetTickCount() - _last_refresh_check > 1000 ) {
+				//check ip changed
 				static bool _had_ip = false;
 				bool have_ip = wifi_status_get(HAS_IP);
 				if( have_ip && !_had_ip ) {
@@ -396,6 +410,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				}
 				_had_ip = have_ip;
 
+				//check time
 				static bool _had_time = false;
 				bool have_time = has_good_time();
 				if( have_time && !_had_time ) {
@@ -406,12 +421,29 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				}
 				_had_time = have_time;
 				_last_refresh_check = xTaskGetTickCount();
-			}
+#if 0
+				//check server reachable
+				if(xTaskGetTickCount() - begin > keepalive_interval){
+					begin = xTaskGetTickCount();
+					keepalive_interval =  _next_keepalive_interval(BASE_KEEPALIVE_INTERVAL, KEEPALIVE_INTERVAL_RANGE);
+					int code = hlo_http_keep_alive(output, get_speech_server(), SPEECH_KEEPALIVE_ENDPOINT);
+					//int code = 0;
+					if( code != 200){
+						LOGW("Unable to reach Voice server.  Retry...");
+						ret = HLO_STREAM_EAGAIN;
+						break;
+					}else{
+						LOGI("Voice server alive. Checking again in %d seconds!\r\n", keepalive_interval / 1000);
+					}
+				}
+#endif
+			}//end connection health check
 		}
 
 		BREAK_ON_SIG(signal);
+
 		if(!nn_ctx.speech_pb.has_word &&
-				xTaskGetTickCount() - begin > 4*60*1000 ) {
+			xTaskGetTickCount() - begin > keepalive_interval ) {
 			ret = HLO_STREAM_EAGAIN;
 			break;
 		}

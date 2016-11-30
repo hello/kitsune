@@ -33,3 +33,6 @@ hlo_stream_t * hlo_http_get(const char * url);
  * half duplex, open -> write all -> read response until eof -> write all ...
  */
 hlo_stream_t * hlo_http_post(const char * url, const char * content_type);
+
+//this keeps the socket alive
+int hlo_http_keep_alive(hlo_stream_t * post_stream, const char * host, const char * endpoint);

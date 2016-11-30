@@ -105,6 +105,7 @@
 #include "octogram.h"
 
 #include "audiohelper.h"
+#include "audio_features_upload_task.h"
 
 #define ONLY_MID 0
 
@@ -1785,6 +1786,9 @@ void launch_tasks() {
 	display_pairing_animation();
 
 	xTaskCreate(AudioControlTask, "AudioControl",  7*1024 / 4, NULL, 2, NULL);
+
+	//only network message is used in the stack of this task
+	xTaskCreate(audio_features_upload_task,"audioFeatsUpload",512/4,NULL,2,NULL);
 
 }
 
