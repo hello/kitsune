@@ -254,6 +254,7 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	switch (keyword ) {
 	case okay_sense:
 		LOGI("OKAY SENSE\r\n");
+		LOGA("\r\nOKAY SENSE\r\n");
 		p->speech_pb.word = Keyword_OK_SENSE;
 		break;
 	case snooze:
