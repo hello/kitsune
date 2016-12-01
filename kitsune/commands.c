@@ -1984,6 +1984,15 @@ int cmd_confidence(int argc, char *argv[]);
 int cmd_pwr_speaker(int argc, char * argv[]);
 
 
+int cmd_http_put(int argc, char *argv[]) {
+	char output[128] = {0};
+	hlo_stream_t * post = hlo_http_put(argv[2], argv[1] );
+	hlo_stream_transfer_all( INTO_STREAM, post, argv[3], strlen(argv[3]), 2);
+	hlo_stream_transfer_all( FROM_STREAM, post, output, sizeof(output), 2);
+
+	LOGF("%s\n", output);
+	return 0;
+}
 int cmd_button(int argc, char *argv[]) {
 	LOGF("%d\n", check_button());
 	return 0;
@@ -2003,6 +2012,7 @@ int cmd_flipped(int argc, char * argv[]){
 // ==============================================================================
 tCmdLineEntry g_sCmdTable[] = {
 		//    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
+		{ "hp",      cmd_http_put,      " " },
 		{ "b",      cmd_button,      " " },
 		{ "v",      cmd_vol,      " " },
 		{ "getv", cmd_get_vol,   "  " },
