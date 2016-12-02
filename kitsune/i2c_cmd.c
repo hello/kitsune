@@ -523,14 +523,18 @@ int Cmd_read_temp_hum_press(int argc, char *argv[]) {
 	return SUCCESS;
 }
 
+/********************************************************************************
+ *                     GAS SENSOR CCS811 - BEGIN
+ ********************************************************************************/
 bool tvoc_wa = false;
+uint8_t tvoc_i2c_addr = 0x5A;
 int init_tvoc(int measmode) {
 	unsigned char b[2];
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
 	b[0] = 0;
-	(I2C_IF_Write(0x5a, b, 1, 1));
-	(I2C_IF_Read(0x5a, b, 1));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
+	(I2C_IF_Read(tvoc_i2c_addr, b, 1));
 
 	if( !(b[0] & 0x10) ) {
 		LOGE("no valid fw for TVOC\n");
@@ -539,11 +543,11 @@ int init_tvoc(int measmode) {
 	}
 	//boot
 	b[0] = 0xf4;
-	(I2C_IF_Write(0x5a, b, 1, 1));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
 	vTaskDelay(100);
 	b[0] = 0;
-	(I2C_IF_Write(0x5a, b, 1, 1));
-	(I2C_IF_Read(0x5a, b, 1));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
+	(I2C_IF_Read(tvoc_i2c_addr, b, 1));
 	if( !(b[0] & 0x90) ) {
 		LOGE("fail to boot TVOC\n");
 		xSemaphoreGiveRecursive(i2c_smphr);
@@ -551,11 +555,11 @@ int init_tvoc(int measmode) {
 	}
 	b[0] = 1;
 	b[1] = measmode;
-	(I2C_IF_Write(0x5a, b, 2, 1));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 2, 1));
 
 	b[0] = 0x24;
-	(I2C_IF_Write(0x5a, b, 1, 1));
-	(I2C_IF_Read(0x5a, b, 2));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
+	(I2C_IF_Read(tvoc_i2c_addr, b, 2));
 
 	LOGE("TVOC FW %d.%d.%d\n",(b[0]>>4) & 0xf,b[0] & 0xf, b[1]);
 	if (b[0] == 0x02 && b[1] == 0x4) {
@@ -588,7 +592,7 @@ static int set_tvoc_env(int temp, unsigned int humid){
 		b[3] |= 1;
 	}
 	b[4] = 0;
-	(I2C_IF_Write(0x5a, b, 5, 1));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 5, 1));
 	vTaskDelay(10);
 	xSemaphoreGiveRecursive(i2c_smphr);
 	return 0;
@@ -602,9 +606,9 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
 	b[0] = 2;
-	(I2C_IF_Write(0x5a, b, 1, 1));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
 	memset(b,0, sizeof(b));
-	(I2C_IF_Read(0x5a, b, 8));
+	(I2C_IF_Read(tvoc_i2c_addr, b, 8));
 
 	DBG_TVOC("%x:%x:%x:%x:%x:%x:%x:%x\n",
 			b[0],b[1],b[2],b[3],b[4],b[5],
@@ -621,8 +625,8 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 	if( b[4] & 0x01 ) {
 		LOGE("TVOC error %x ", b[5] );
 		b[0] = 0xe0;
-		(I2C_IF_Write(0x5a, b, 1, 1));
-		(I2C_IF_Read(0x5a, b, 1));
+		(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
+		(I2C_IF_Read(tvoc_i2c_addr, b, 1));
 		LOGE("%x\n", b[0]);
 		xSemaphoreGiveRecursive(i2c_smphr);
 		return -1;
@@ -654,6 +658,167 @@ int Cmd_meas_TVOC(int argc, char *argv[]) {
 	}
 	return -1;
 }
+
+#define APP_VALID_MASK (0x1 << 4)
+inline static uint8_t _tvoc_read_status_reg(void){
+
+	uint8_t status_reg_cmd[2] = {0x00, 0xFF};
+
+	if(xSemaphoreTakeRecursive(i2c_smphr, 30000)){
+
+		(I2C_IF_Write(tvoc_i2c_addr, status_reg_cmd, 1, 1));
+		(I2C_IF_Read(tvoc_i2c_addr, &status_reg_cmd[1], 1));
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+	return status_reg_cmd[1];
+
+}
+
+inline static int _tvoc_reset(void){
+
+	uint8_t sw_reset_cmd[5] = {0xFF, 0x11, 0xE5, 0x72, 0x8A };
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+
+	(I2C_IF_Write(tvoc_i2c_addr, sw_reset_cmd, 5, 1));
+	vTaskDelay(10);
+	xSemaphoreGiveRecursive(i2c_smphr);
+
+	return 0;
+}
+
+inline static int _tvoc_erase_app(void){
+
+	uint8_t erase_cmd[5] = {0xF1, 0xE7, 0xA7, 0xE6, 0x09 };
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+
+	(I2C_IF_Write(tvoc_i2c_addr, erase_cmd, 5, 1));
+	xSemaphoreGiveRecursive(i2c_smphr);
+
+	vTaskDelay(500);
+
+	return ( (_tvoc_read_status_reg() & APP_VALID_MASK == 0x00) ? 0:-1);
+}
+
+inline static int _tvoc_program_app(const char* file){
+
+	return 0;
+}
+
+inline static int _tvoc_verify_app(void){
+
+	uint8_t verify_cmd[1] = {0xF3 };
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+
+	(I2C_IF_Write(tvoc_i2c_addr, verify_cmd, 1, 1));
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+
+	vTaskDelay(100);
+
+	return ( (_tvoc_read_status_reg() & APP_VALID_MASK == 0x00) ? 0:-1);
+}
+
+inline static uint8_t _tvoc_get_hw_version(void){
+
+	uint8_t hw_ver_cmd[2] = {0x21, 0xFF};
+
+	if(xSemaphoreTakeRecursive(i2c_smphr, 30000)){
+
+		(I2C_IF_Write(tvoc_i2c_addr, hw_ver_cmd, 1, 1));
+		(I2C_IF_Read(tvoc_i2c_addr, &hw_ver_cmd[1], 1));
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+	return hw_ver_cmd[1];
+}
+
+inline static uint8_t _tvoc_get_fw_boot_version(void){
+
+	uint8_t fw_boot_ver_cmd[2] = {0x23, 0xFF};
+
+	if(xSemaphoreTakeRecursive(i2c_smphr, 30000)){
+
+		(I2C_IF_Write(tvoc_i2c_addr, fw_boot_ver_cmd, 1, 1));
+		(I2C_IF_Read(tvoc_i2c_addr, &fw_boot_ver_cmd[1], 1));
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+	return fw_boot_ver_cmd[1];
+
+	return 0;
+}
+// CCS811 firmware update
+// Returns 0 if firmware update is successful, -1 otherwise
+int tvoc_fw_update(const char* file)
+{
+	int ret_val = 0;
+
+	if( !file ){
+		ret_val = -5;
+		goto tvoc_fail;
+	}
+
+	LOGI("*TVOC FW UPDATE* \n -Current HW version: 0x%x. FW Boot Version: 0x%x- \n",
+			_tvoc_get_hw_version(), _tvoc_get_fw_boot_version());
+
+	// reset CCS811
+	if(_tvoc_reset()){
+		ret_val = -2;
+		goto tvoc_fail;
+	}
+
+	vTaskDelay(100);
+
+	// erase application
+	if(_tvoc_erase_app()){
+		ret_val = -3;
+		goto tvoc_fail;
+	}
+
+	// read binary and write to CCS811
+	if(_tvoc_program_app(file)){
+		ret_val = -1;
+		goto tvoc_fail;
+	}
+
+	// verify
+	if(!_tvoc_verify_app()){
+		LOGI("*TVOC FW UPDATE SUCCESSFUL* \n -HW version: 0x%x. FW Boot Version: 0x%x- \n",
+				_tvoc_get_hw_version(), _tvoc_get_fw_boot_version());
+		return 0;
+	}
+	else{
+		ret_val = -4;
+		goto tvoc_fail;
+	}
+
+tvoc_fail:
+		LOGE("*TVOC FW UPDATE NOT SUCCESSFUL - %d* \n",ret_val);
+		return ret_val;
+}
+
+
+// Cmd to firmware update CCS811
+int cmd_tvoc_fw_update(int argc, char *argv[]) {
+
+	if(argc < 2) {
+		LOGE("Usage: tvfw $full_path_to_file");
+		return -1;
+	}
+
+	return tvoc_fw_update(argv[1]);
+}
+
+/********************************************************************************
+ *                     GAS SENSOR CCS811 - END
+ ********************************************************************************/
+
 static bool haz_tmg4903() {
 	unsigned char b[2]={0};
 	b[0] = 0x92;
