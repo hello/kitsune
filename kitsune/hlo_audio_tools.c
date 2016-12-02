@@ -33,13 +33,13 @@ bool audio_playing();
 #include "audiofeatures.h"
 #include "tensor/tinytensor_math_defs.h"
 
-#define OKAY_SENSE_THRESHOLD     TOFIX(0.7)
-#define OKAY_SENSE_MIN_DURATION  5
+#define OKAY_SENSE_THRESHOLD     TOFIX(0.5)
+#define OKAY_SENSE_MIN_DURATION  3
 
-#define SNOOZE_THRESHOLD      TOFIX(0.2)
+#define SNOOZE_THRESHOLD      TOFIX(0.3)
 #define SNOOZE_MIN_DURATION   3
 
-#define STOP_THRESHOLD        TOFIX(0.5)
+#define STOP_THRESHOLD        TOFIX(0.3)
 #define STOP_MIN_DURATION     3
 
 static xSemaphoreHandle _statsMutex = NULL;
@@ -257,6 +257,7 @@ static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	switch (keyword ) {
 	case okay_sense:
 		LOGI("OKAY SENSE\r\n");
+		LOGA("\r\nOKAY SENSE\r\n");
 		p->speech_pb.word = Keyword_OK_SENSE;
 		break;
 	case snooze:
