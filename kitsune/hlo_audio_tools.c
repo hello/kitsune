@@ -301,9 +301,41 @@ static void _speech_detect_callback(void * context, SpeechTransition_t transitio
 
 }
 
+typedef struct{
+	int ok_sense_count;
+}nn_benchmark_t;
+static void _test_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
+	nn_benchmark_t * p = (nn_benchmark_t *)ctx;
 
+	switch (keyword ) {
+	case okay_sense:
+		LOGI("OKAY SENSE\r\n");
+		p->ok_sense_count++;
+		break;
+	case snooze:
+		break;
+	case stop:
+		break;
+	}
+}
+int hlo_filter_benchmark_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	nn_benchmark_t nn_ctx = (nn_benchmark_t){0};
+	int16_t samples[NSAMPLES];
+	keyword_net_initialize();
+	keyword_net_register_callback(&nn_ctx,okay_sense,OKAY_SENSE_THRESHOLD,OKAY_SENSE_MIN_DURATION,_voice_begin_keyword,_test_finish_keyword);
+	//keyword_net_register_callback(&nn_ctx,snooze,SNOOZE_THRESHOLD,SNOOZE_MIN_DURATION,_voice_begin_keyword,_snooze_stop);
+	//keyword_net_register_callback(&nn_ctx,stop,STOP_THRESHOLD,STOP_MIN_DURATION,_voice_begin_keyword,_stop_stop);
+	//keyword_net_register_speech_callback(&nn_ctx,_speech_detect_callback);
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, NUM_SAMPLES_TO_RUN_FFT*2, 4)) > 0 ){
+		keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 
+		BREAK_ON_SIG(signal);
 
+	}
+	keyword_net_deinitialize();
+
+	LOGA("\r\n[OKSENSE][%d]\r\n", nn_ctx.ok_sense_count);
+}
 extern volatile int sys_volume;
 int32_t set_volume(int v, unsigned int dly);
 #define AUDIO_NET_RATE (AUDIO_SAMPLE_RATE/1024)
@@ -817,6 +849,8 @@ static hlo_filter _filter_from_string(const char * str){
 		return hlo_filter_octogram;
 	case '?':
 		return hlo_filter_throughput_test;
+	case 'v':
+		return hlo_filter_benchmark_keyword_recognition;
 	case 'x':
 		return hlo_filter_voice_command;
 	case 'X':
