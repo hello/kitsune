@@ -52,8 +52,9 @@
 
 #define MONO_BUF_LENGTH (AUDIO_FFT_SIZE) //256
 
-#define FLAG_SUCCESS (0x01)
-#define FLAG_STOP    (0x02)
+#define FLAG_SUCCESS     (0x01)
+#define FLAG_STOP        (0x02)
+#define FLAG_INTERRUPTED (0x03)
 
 /* static variables  */
 static xQueueHandle _playback_queue = NULL;
@@ -151,7 +152,7 @@ static uint8_t CheckForInterruptionDuringPlayback(void * unused) {
 			LOGI("Stopping playback\r\n");
 		}
 		if (m.command == eAudioPlaybackStart ) {
-			ret = FLAG_STOP;
+			ret = FLAG_INTERRUPTED;
 //			LOGI("Switching audio\r\n");
 		}
 	}
@@ -169,6 +170,7 @@ typedef struct{
 }ramp_ctx_t;
 
 int32_t set_volume(int v, unsigned int dly);
+int32_t reduce_volume( int v, unsigned int dly );
 
 static void _change_volume_task(hlo_future_t * result, void * ctx){
 	volatile ramp_ctx_t * v = (ramp_ctx_t*)ctx;
@@ -200,7 +202,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 			xSemaphoreGiveRecursive(i2c_smphr);
 		}
 	}
-	AudioTask_StopPlayback();
+//	AudioTask_StopPlayback();
 	hlo_future_write(result, NULL, 0, 0);
 
 
@@ -215,12 +217,12 @@ static uint8_t fadeout_sig(void * ctx) {
 	return 0;
 }
 
-extern volatile int last_set_volume;
+extern volatile int last_fadeout_volume;
 
 ////-------------------------------------------
 //playback sample app
-static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop){
-	int ret;
+static int _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop){
+	int main_ret=FLAG_SUCCESS,ret=FLAG_SUCCESS;
 	bool  vol_ramp = desc->fade_in_ms || desc->fade_out_ms || desc->to_fade_out_ms;
 	ramp_ctx_t vol;
 	hlo_future_t * vol_task;
@@ -252,22 +254,33 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	hlo_filter transfer_function = desc->p ? desc->p : hlo_filter_data_transfer;
 
 	ret = transfer_function(fs, spkr, desc->context, sig_stop);
+	if( ret > 0 ) {
+		main_ret = ret;
+	}
 
 	if( vol_ramp && ret > 0 ) {
 		//join async worker
 		vol.target = 0;
-		vol.current = last_set_volume; //handles fade out if the system volume has changed during the last playback
+		vol.current = last_fadeout_volume; //handles fade out if the system volume has changed during the last playback
 		ret = transfer_function(fs, spkr, vol_task, fadeout_sig);
 	}
 
-	hlo_stream_close(fs);
-	hlo_stream_close(spkr);
-	if(desc->onFinished){
-		desc->onFinished(desc->context);
+	if( main_ret != FLAG_INTERRUPTED ) {
+		hlo_stream_close(fs);
+		if(desc->onFinished){
+			desc->onFinished(desc->context);
+		}
 	}
-	DISP("Playback Task Finished %d\r\n", ret);
+	hlo_stream_close(spkr);
+	DISP("Playback Task Finished %d, %d\r\n", main_ret, ret);
+
+	return ret <= 0 ? ret : main_ret;
 }
+
 void AudioPlaybackTask(void * data) {
+	AudioMessage_t m_resume;
+	m_resume.command = eAudioPlaybackStop;
+
 	_playback_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	assert(_playback_queue);
 
@@ -280,21 +293,36 @@ void AudioPlaybackTask(void * data) {
 
 	while(1){
 		AudioMessage_t  m;
+
 		if (xQueueReceive( _playback_queue,(void *) &m, portMAX_DELAY )) {
+			top:
+
 			switch (m.command) {
 
 				case eAudioPlaybackStart:
 				{
+					int r;
 					AudioPlaybackDesc_t * info = &m.message.playbackdesc;
 					/** prep  **/
 					_queue_audio_playback_state(PLAYING, info);
 					/** blocking loop to play the sound **/
-					_playback_loop(info, CheckForInterruptionDuringPlayback);
+					r = _playback_loop(info, CheckForInterruptionDuringPlayback);
+
 					/** clean up **/
 					_queue_audio_playback_state(SILENT, info);
 
 					if (m.message.playbackdesc.onFinished) {
 						m.message.playbackdesc.onFinished(m.message.playbackdesc.context);
+					}
+
+					if( r == FLAG_INTERRUPTED ) {
+						DISP("interrupted\n\n\n");
+						m_resume = m;
+					} else if( m_resume.command != eAudioPlaybackStop) {
+						DISP("resumed\n\n\n");
+						m = m_resume;
+						m_resume.command = eAudioPlaybackStop;
+						goto top;
 					}
 				}   break;
 				default:

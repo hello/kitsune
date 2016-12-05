@@ -306,6 +306,9 @@ static void _speech_detect_callback(void * context, SpeechTransition_t transitio
 
 extern volatile int sys_volume;
 int32_t set_volume(int v, unsigned int dly);
+int32_t reduce_volume( int v, unsigned int dly );
+void resume_volume( );
+
 #define AUDIO_NET_RATE (AUDIO_SAMPLE_RATE/1024)
 #define BASE_KEEPALIVE_INTERVAL (3 * 60 * 1000)
 #define KEEPALIVE_INTERVAL_RANGE (60 * 1000)
@@ -367,6 +370,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				break;
 			}
 			if( !light_open ) {
+				reduce_volume(30, 10);
 				light_sensor_power(LOW_POWER);
 				keyword_net_pause_net_operation();
 				stop_led_animation(2,20);
@@ -384,6 +388,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				adpcm_coder((short*)samples, (char*)compressed, ret / 2, &state);
 				ret = hlo_stream_transfer_all(INTO_STREAM, send_str,  (uint8_t*)compressed, sizeof(compressed), 4);
 				if( ret < 0 ) {
+					resume_volume();
 					break;
 				}else if(nn_ctx.keyword_begin_time){
 					analytics_event("{speech_connect_latency:%d}", xTaskGetTickCount() - nn_ctx.keyword_begin_time);
@@ -485,7 +490,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				AudioPlaybackDesc_t desc;
 				desc.context = NULL;
 				desc.durationInSeconds = INT32_MAX;
-				desc.to_fade_out_ms = desc.fade_in_ms = desc.fade_out_ms = 0;
+				desc.to_fade_out_ms = desc.fade_in_ms = desc.fade_out_ms = 10;
 				desc.onFinished = NULL;
 				desc.rate = AUDIO_SAMPLE_RATE;
 				desc.stream = output;

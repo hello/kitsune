@@ -941,14 +941,16 @@ int32_t set_system_volume(int new_volume) {
 	}
 	return set_volume(new_volume, portMAX_DELAY);
 }
-volatile int last_set_volume = 0;
+volatile int last_fadeout_volume = 0;
+volatile int last_explicitly_set_volume = 0;
 
-int32_t set_volume(int v, unsigned int dly) {
-	LOGI("v %d\n", v);
-	last_set_volume = v;
-
+uint32_t _volume( int v, unsigned int dly ) {
 	char send_stop = 1;
 	unsigned char cmd[2];
+
+	last_fadeout_volume = v;
+
+	LOGI("v %d\n", v);
 
 	if(v < 0) v = 0;
 	if(v >64) v = 64;
@@ -972,6 +974,21 @@ int32_t set_volume(int v, unsigned int dly) {
 	} else {
 		return -1;
 	}
+
+}
+
+int32_t set_volume(int v, unsigned int dly) {
+	last_explicitly_set_volume = v;
+	return _volume(v, dly);
+}
+int32_t reduce_volume( int v, unsigned int dly ) {
+	if( v < last_fadeout_volume ) {
+		return _volume(v, dly);
+	}
+	return 0;
+}
+void resume_volume( ) {
+	_volume(last_explicitly_set_volume, 0);
 
 }
 
