@@ -162,8 +162,8 @@ static uint8_t CheckForInterruptionDuringPlayback(void * unused) {
 extern xSemaphoreHandle i2c_smphr;
 
 typedef struct{
-	unsigned long current;
-	unsigned long target;
+	long current;
+	long target;
 	unsigned long ramp_up_ms;
 	unsigned long ramp_down_ms;
 	int32_t  duration;
@@ -175,7 +175,9 @@ int32_t reduce_volume( int v, unsigned int dly );
 static void _change_volume_task(hlo_future_t * result, void * ctx){
 	volatile ramp_ctx_t * v = (ramp_ctx_t*)ctx;
 	portTickType t0 = xTaskGetTickCount();
-	while( v->target || v->current ){
+	portTickType last_set = 0;
+	while( v->target != 0 || v->current != 0 ){
+		//DISP("\t\t\t\t%u %u %u\n", v->current, v->target,v->target || v->current);
 		if ( (v->duration - (int32_t)(xTaskGetTickCount() - t0)) < 0 && v->duration > 0){
 			v->target = 0;
 		}
@@ -186,26 +188,21 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 			v->current++;
 			vTaskDelay(v->ramp_up_ms);
 		}else{
-			vTaskDelay(10);
+			vTaskDelay(100);
 			continue;
 		}
-		//fallthrough if volume adjust is needed
-		if(v->current % 10 == 0){
-			LOGI("Setting volume %u at %u\n", v->current, xTaskGetTickCount());
+		if((v->target<0) || (v->current<0)) {
+			break;
 		}
 
-		if( xSemaphoreTakeRecursive(i2c_smphr, 10)) {
-			//set vol
-			vTaskDelay(5);
+		if( last_set - xTaskGetTickCount() > 100 ) {
+			//DISP("%u %u at %u\n", v->current, v->target, xTaskGetTickCount());
 			set_volume(v->current, 0);
-			vTaskDelay(5);
-			xSemaphoreGiveRecursive(i2c_smphr);
+			last_set = xTaskGetTickCount();
 		}
 	}
-//	AudioTask_StopPlayback();
+	set_volume(v->current<0?0:v->current, 100);
 	hlo_future_write(result, NULL, 0, 0);
-
-
 }
 
 static uint8_t fadeout_sig(void * ctx) {
@@ -308,8 +305,10 @@ void AudioPlaybackTask(void * data) {
 					/** blocking loop to play the sound **/
 					r = _playback_loop(info, CheckForInterruptionDuringPlayback);
 
-					/** clean up **/
-					_queue_audio_playback_state(SILENT, info);
+					if( r == FLAG_STOP) {
+						/** clean up **/
+						_queue_audio_playback_state(SILENT, info);
+					}
 
 					if (m.message.playbackdesc.onFinished) {
 						m.message.playbackdesc.onFinished(m.message.playbackdesc.context);
