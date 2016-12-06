@@ -201,9 +201,6 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 			vTaskDelay(5);
 			xSemaphoreGiveRecursive(i2c_smphr);
 		}
-		if(v->current == 0) {
-			break;
-		}
 	}
 //	AudioTask_StopPlayback();
 	hlo_future_write(result, NULL, 0, 0);
