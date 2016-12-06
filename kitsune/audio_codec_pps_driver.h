@@ -88,7 +88,7 @@ static const reg_value REG_Section_program[] = {
     { 50,0x08},
     {  0x7F,0x64},
 //			# reg[100][0][50] = 0xa4                     ; Decimation Ratio is 4, CIC AutoNorm = Enabled, FIFO = Enabled
-    { 50,0xA4},
+    { 50,0x84},
     {  0x7F,0x00},
 //			# reg[0][0][60] = 0x00                       ; reg(0)(0)(0x3c => 60)     DAC prog Mode, DAC & ADC filter engines powered up together                          ; reg(0)(0)(0x3c => 60)     DAC prog Mode, DAC & ADC filter engines not powered up together
     { 60,0x00},
@@ -173,7 +173,7 @@ static const reg_value REG_Section_program2[] = {
     {112,0xD4},
     {  0,0x04},
 //			# reg[0][4][101] = 0x34     ; GPIO5 --> DigMic2 and DigMic3 data, GPIO6 --> DigMic4 and DigMic5 data
-    {101,0x55},
+    {101,0x34},
 //			# reg[0][4][91] = 0x04      ; GPIO6 in input mode.
     { 91,0x04},
 //			# reg[0][4][90] = 0x04      ; GPIO5 in input mode
@@ -182,12 +182,14 @@ static const reg_value REG_Section_program2[] = {
     { 89,0x04},
 //			# reg[0][4][87] = 0x28      ; GPIO2 is ADC_MOD_CLK
     { 87,0x28},
+//			# reg[0][4][102] = 0x55     ; GPIO6
+    {102,0x55},
 //			# reg[0][4][96] = 0x00      ; GPIO1 is disabled
     { 96,0x00},
 //			# reg[0][4][100] = 0x84     ; MIC LEFT latching
-    {100,0x88},
+    {100,0x84},
 //			# reg[0][4][102] = 0x55     ; DIG2 Left and Right input data control
-    {102,0x34},
+    {102,0x55},
 //			# reg[0][4][1]  = 0x00                          ; ASI1 Audio Interface = I2S mode
     {  1,0x00},
 //			# reg[0][4][4] = 0x40        ;reg[0][4][12] = 0x81                           ; ASI1 master, BCLK = 6.144Mhz;reg[0][4][13] = 0x80                           ; ASI1_WDIV = 128; For 4 channel digmic,
@@ -197,7 +199,7 @@ static const reg_value REG_Section_program2[] = {
     {  0,0x00},
 //			# reg[0][0][82] = 0
     { 82,0x00},
-//			# reg[0][0][83] = 20
+//			# reg[0][0][83] = 0
     { 83,0x00},
 //			# reg[0][0][86] = 32
     { 86,0x20},
@@ -213,7 +215,7 @@ static const reg_value REG_Section_program2[] = {
     { 91,0x06},
 //			# reg[0][0][92] = 0
     { 92,0x00},
-//			# reg[0][0][84] = 20
+//			# reg[0][0][84] = 0
     { 84,0x00},
 //			# reg[0][0][94] = 32
     { 94,0x20},
@@ -2655,7 +2657,7 @@ const static reg_value miniDSP_A_reg_values[] = {
 #define miniDSP_A_reg_values_INST_START    579
 #define miniDSP_A_reg_values_INST_SIZE     1838
 
-static const reg_value miniDSP_D_reg_values[] = {
+const static reg_value miniDSP_D_reg_values[] = {
     {  0,0x0},
     {  0x7F,0x50},
     {  0,0x01},

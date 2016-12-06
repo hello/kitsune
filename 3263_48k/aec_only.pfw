@@ -2592,7 +2592,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
       <label_text_color>Black</label_text_color>
       <instance_name>AIC3263App8x4x_1</instance_name>
       <x_coordinate>48</x_coordinate>
-      <y_coordinate>24</y_coordinate>
+      <y_coordinate>144</y_coordinate>
       <rate8>false</rate8>
       <rate11>false</rate11>
       <rate16>false</rate16>
@@ -3467,7 +3467,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
           <values>
             <rate_value_pair>
               <rate>RateAll</rate>
-              <value>10.0</value>
+              <value>0.0</value>
             </rate_value_pair>
           </values>
           <configurations>
@@ -3476,7 +3476,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
               <config_values>
                 <rate_value_pair>
                   <rate>RateAll</rate>
-                  <value>10.0</value>
+                  <value>0.0</value>
                 </rate_value_pair>
               </config_values>
             </configuration>
@@ -3515,7 +3515,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
           </dap_long_delta_val>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
-          <value>10.0</value>
+          <value>0.0</value>
         </runtime_property>
         <runtime_property>
           <name>Left_Fine_Gain</name>
@@ -6239,7 +6239,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
       <label_text>DigMic4xIn_1</label_text>
       <label_text_color>Black</label_text_color>
       <instance_name>DigMic4xIn_1</instance_name>
-      <x_coordinate>192</x_coordinate>
+      <x_coordinate>252</x_coordinate>
       <y_coordinate>144</y_coordinate>
       <rate8>false</rate8>
       <rate11>false</rate11>
@@ -6277,7 +6277,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
       <from_port>Model.DigMic4xIn_1.Ch1_Out</from_port>
       <to_port>Model.Multi_Channel_Digital_Out_1.Ch1_In</to_port>
       <points>
-        <X>216</X>
+        <X>276</X>
         <Y>156</Y>
       </points>
       <points>
@@ -6301,7 +6301,7 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
       <from_port>Model.DigMic4xIn_1.Ch2_Out</from_port>
       <to_port>Model.Multi_Channel_Digital_Out_1.Ch2_In</to_port>
       <points>
-        <X>216</X>
+        <X>276</X>
         <Y>168</Y>
       </points>
       <points>
@@ -6322,34 +6322,10 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
     <link>
       <from_symbol>Model.DigMic4xIn_1</from_symbol>
       <to_symbol>Model.Multi_Channel_Digital_Out_1</to_symbol>
-      <from_port>Model.DigMic4xIn_1.Ch4_Out</from_port>
-      <to_port>Model.Multi_Channel_Digital_Out_1.Ch4_In</to_port>
-      <points>
-        <X>216</X>
-        <Y>192</Y>
-      </points>
-      <points>
-        <X>431.999969</X>
-        <Y>191.999985</Y>
-      </points>
-      <line_color>Black</line_color>
-      <line_width>2</line_width>
-      <draw_start_port>Model.DigMic4xIn_1.Ch4_Out</draw_start_port>
-      <draw_end_port>Model.Multi_Channel_Digital_Out_1.Ch4_In</draw_end_port>
-      <draw_start_symbol>Model.DigMic4xIn_1</draw_start_symbol>
-      <draw_end_symbol>Model.Multi_Channel_Digital_Out_1</draw_end_symbol>
-      <feedback_link>false</feedback_link>
-      <overlay>all</overlay>
-      <ToComponentVersion>Multi_Channel_Digital_Out_TI_v1</ToComponentVersion>
-      <FromComponentVersion>DigMic4xIn_TI_v1</FromComponentVersion>
-    </link>
-    <link>
-      <from_symbol>Model.DigMic4xIn_1</from_symbol>
-      <to_symbol>Model.Multi_Channel_Digital_Out_1</to_symbol>
       <from_port>Model.DigMic4xIn_1.Ch3_Out</from_port>
       <to_port>Model.Multi_Channel_Digital_Out_1.Ch3_In</to_port>
       <points>
-        <X>216</X>
+        <X>276</X>
         <Y>180</Y>
       </points>
       <points>
@@ -6360,6 +6336,30 @@ reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
       <line_width>2</line_width>
       <draw_start_port>Model.DigMic4xIn_1.Ch3_Out</draw_start_port>
       <draw_end_port>Model.Multi_Channel_Digital_Out_1.Ch3_In</draw_end_port>
+      <draw_start_symbol>Model.DigMic4xIn_1</draw_start_symbol>
+      <draw_end_symbol>Model.Multi_Channel_Digital_Out_1</draw_end_symbol>
+      <feedback_link>false</feedback_link>
+      <overlay>all</overlay>
+      <ToComponentVersion>Multi_Channel_Digital_Out_TI_v1</ToComponentVersion>
+      <FromComponentVersion>DigMic4xIn_TI_v1</FromComponentVersion>
+    </link>
+    <link>
+      <from_symbol>Model.DigMic4xIn_1</from_symbol>
+      <to_symbol>Model.Multi_Channel_Digital_Out_1</to_symbol>
+      <from_port>Model.DigMic4xIn_1.Ch4_Out</from_port>
+      <to_port>Model.Multi_Channel_Digital_Out_1.Ch4_In</to_port>
+      <points>
+        <X>276</X>
+        <Y>192</Y>
+      </points>
+      <points>
+        <X>431.999969</X>
+        <Y>191.999985</Y>
+      </points>
+      <line_color>Black</line_color>
+      <line_width>2</line_width>
+      <draw_start_port>Model.DigMic4xIn_1.Ch4_Out</draw_start_port>
+      <draw_end_port>Model.Multi_Channel_Digital_Out_1.Ch4_In</draw_end_port>
       <draw_start_symbol>Model.DigMic4xIn_1</draw_start_symbol>
       <draw_end_symbol>Model.Multi_Channel_Digital_Out_1</draw_end_symbol>
       <feedback_link>false</feedback_link>
