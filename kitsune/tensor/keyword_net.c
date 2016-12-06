@@ -13,7 +13,7 @@
 #include "arm_const_structs.h"
 #include "fft.h"
 
-#define NEURAL_NET_MODEL "model_nov07_lstm_med_adam_okay_sense_stop_snooze_tiny_end0_1108_ep046.c" 
+#define NEURAL_NET_MODEL "model_nov07_lstm_med_adam_okay_sense_stop_snooze_tiny_end0_plus_1115_ep065.c"
 #include NEURAL_NET_MODEL
 const static char * k_net_id = NEURAL_NET_MODEL;
 
@@ -181,9 +181,8 @@ static void feats_callback(void * p, Weight_t * feats) {
 					//do callback
 					callback_item->on_end(callback_item->context,(Keyword_t)i, callback_item->max_value);
 					
-                                        //TEMPORARILY COMMENTED OUT UNTIL UPLOAD DEADLOCK SOLUTION IS IMPLEMENTED
-					//trigger feats asynchronous upload
-					//audio_features_upload_trigger_async_upload(NEURAL_NET_MODEL, keyword_enum_to_str((Keyword_t)i),NUM_MEL_BINS,feats_sint8);
+					//trigger a delayed asynchronous upload
+					audio_features_upload_trigger_async_upload(NEURAL_NET_MODEL, keyword_enum_to_str((Keyword_t)i),NUM_MEL_BINS,feats_sint8);
 
 					//log activation, has to be thread safe
                     if( xSemaphoreTake(_stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
