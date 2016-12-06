@@ -319,6 +319,8 @@ static void _test_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	}
 }
 int hlo_filter_benchmark_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+#define NSAMPLES 512
+	int ret;
 	nn_benchmark_t nn_ctx = (nn_benchmark_t){0};
 	int16_t samples[NSAMPLES];
 	keyword_net_initialize();
