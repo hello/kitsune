@@ -88,7 +88,7 @@ static const reg_value REG_Section_program[] = {
     { 50,0x08},
     {  0x7F,0x64},
 //			# reg[100][0][50] = 0xa4                     ; Decimation Ratio is 4, CIC AutoNorm = Enabled, FIFO = Enabled
-    { 50,0x84},
+    { 50,0xA4},
     {  0x7F,0x00},
 //			# reg[0][0][60] = 0x00                       ; reg(0)(0)(0x3c => 60)     DAC prog Mode, DAC & ADC filter engines powered up together                          ; reg(0)(0)(0x3c => 60)     DAC prog Mode, DAC & ADC filter engines not powered up together
     { 60,0x00},
