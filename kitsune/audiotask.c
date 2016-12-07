@@ -180,6 +180,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 	portTickType t0 = xTaskGetTickCount();
 	portTickType last_set = 0;
 	while( v.target != 0 || v.current != 0 ){
+		DISP("\t\t\t\t%u %u %u\n", v.current, v.target,v.target || v.current);
 		if ( (v.duration - (int32_t)(xTaskGetTickCount() - t0)) < 0 && v.duration > 0){
 			v.target = 0;
 		}
@@ -231,6 +232,8 @@ static int _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop
 	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,HLO_AUDIO_PLAYBACK);
 	hlo_stream_t * fs = desc->stream;
 
+	DISP("\t1\n");
+
 	if(vol_ramp) {
 		volume_queue = xQueueCreate(1,sizeof(ramp_ctx_t));
 		int ramp_target = desc->volume;
@@ -256,8 +259,11 @@ static int _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop
 
 	//playback
 	hlo_filter transfer_function = desc->p ? desc->p : hlo_filter_data_transfer;
+	DISP("\t3\n");
 
 	main_ret = transfer_function(fs, spkr, desc->context, sig_stop);
+
+	DISP("\t4");
 
 	if( vol_ramp && ret > 0 ) {
 		//join async worker
@@ -268,14 +274,18 @@ static int _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop
 		ret = transfer_function(fs, spkr, vol_task, fadeout_sig);
 		vPortFree(volume_queue);
 	}
+	DISP("\t5\n");
 
 	if( main_ret != FLAG_INTERRUPTED ) {
+		DISP("\t0\n");
 		hlo_stream_close(fs);
+		DISP("\t6\n");
 		if(desc->onFinished){
 			desc->onFinished(desc->context);
 		}
 	}
 	hlo_stream_close(spkr);
+	DISP("\t7\n");
 	DISP("Playback Task Finished %d, %d\r\n", main_ret, ret);
 
 	return main_ret;
@@ -302,6 +312,7 @@ void AudioPlaybackTask(void * data) {
 
 		if (xQueueReceive( _playback_queue,(void *) &m, portMAX_DELAY )) {
 			top:
+			DISP("0\n");
 
 			switch (m.command) {
 
@@ -310,14 +321,17 @@ void AudioPlaybackTask(void * data) {
 					int r;
 					AudioPlaybackDesc_t * info = &m.message.playbackdesc;
 					/** prep  **/
+					DISP("1\n");
 					_queue_audio_playback_state(PLAYING, info);
 					/** blocking loop to play the sound **/
+					DISP("2\n");
 					r = _playback_loop(info, CheckForInterruptionDuringPlayback);
 
 					if( r == FLAG_STOP) {
 						/** clean up **/
 						_queue_audio_playback_state(SILENT, info);
 					}
+					DISP("3\n");
 
 					if( r == FLAG_INTERRUPTED ) {
 						if( intdepth == 0 ) {
@@ -325,6 +339,7 @@ void AudioPlaybackTask(void * data) {
 							m_resume = m;
 							intdepth++;
 						} else {
+							DISP("\t\t\t\tDOUBLE INTERRRUPWETR %d\n\n\n", intdepth);
 							hlo_stream_close(info->stream);
 							if(info->onFinished){
 								info->onFinished(info->context);

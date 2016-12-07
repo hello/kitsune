@@ -122,6 +122,8 @@ static int _start_connection(hlo_sock_ctx_t * ctx) {
 			sl_SetSockOpt(ctx->sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv,
 					sizeof(tv));
 			ctx->setup = true;
+			DISP("opening %d\n", ctx->sock);
+
 		}
 
 		if (!ctx->connected && ctx->setup) {
@@ -141,6 +143,7 @@ exit:
 static int _close_sock(void * ctx){
 	hlo_sock_ctx_t * sock_ctx = (hlo_sock_ctx_t*)ctx;
 	if( sock_ctx->setup ) {
+		DISP("closing %d\n", sock_ctx->sock);
 		close(sock_ctx->sock);
 	}
 	vPortFree(sock_ctx);
