@@ -180,7 +180,6 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 	portTickType t0 = xTaskGetTickCount();
 	portTickType last_set = 0;
 	while( v.target != 0 || v.current != 0 ){
-		DISP("\t\t\t\t%u %u %u\n", v.current, v.target,v.target || v.current);
 		if ( (v.duration - (int32_t)(xTaskGetTickCount() - t0)) < 0 && v.duration > 0){
 			v.target = 0;
 		}
@@ -200,7 +199,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 			set_volume(v.current, 0);
 			last_set = xTaskGetTickCount();
 		}
-		vTaskDelay(1);
+		vTaskDelay(0);
 		if(v.current == v.target && (v.current != 0) ) {
 			xQueueReceive( volume_queue,(void *) &v, portMAX_DELAY );
 		}
