@@ -173,35 +173,38 @@ int32_t set_volume(int v, unsigned int dly);
 int32_t reduce_volume( int v, unsigned int dly );
 
 static void _change_volume_task(hlo_future_t * result, void * ctx){
-	volatile ramp_ctx_t * v = (ramp_ctx_t*)ctx;
+	xQueueHandle volume_queue =  (xQueueHandle)ctx;
+	ramp_ctx_t v;
+	xQueueReceive( volume_queue,(void *) &v, portMAX_DELAY );
+
 	portTickType t0 = xTaskGetTickCount();
 	portTickType last_set = 0;
-	while( v->target != 0 || v->current != 0 ){
-		//DISP("\t\t\t\t%u %u %u\n", v->current, v->target,v->target || v->current);
-		if ( (v->duration - (int32_t)(xTaskGetTickCount() - t0)) < 0 && v->duration > 0){
-			v->target = 0;
+	while( v.target != 0 || v.current != 0 ){
+		if ( (v.duration - (int32_t)(xTaskGetTickCount() - t0)) < 0 && v.duration > 0){
+			v.target = 0;
 		}
-		if(v->current > v->target){
-			vTaskDelay(v->ramp_down_ms);
-			v->current--;
-		}else if(v->current < v->target){
-			v->current++;
-			vTaskDelay(v->ramp_up_ms);
-		}else{
-			vTaskDelay(100);
-			continue;
+		if(v.current > v.target){
+			vTaskDelay(v.ramp_down_ms);
+			v.current--;
+		}else if(v.current < v.target){
+			v.current++;
+			vTaskDelay(v.ramp_up_ms);
 		}
-		if((v->target<0) || (v->current<0)) {
+		if((v.target<0) || (v.current<0)) {
 			break;
 		}
 
-		if( last_set - xTaskGetTickCount() > 100 ) {
-			//DISP("%u %u at %u\n", v->current, v->target, xTaskGetTickCount());
-			set_volume(v->current, 0);
+		if( v.current != v.target && last_set - xTaskGetTickCount() > 100 ) {
+			DISP("%u %u at %u\n", v.current, v.target, xTaskGetTickCount());
+			set_volume(v.current, 0);
 			last_set = xTaskGetTickCount();
 		}
+		vTaskDelay(1);
+		if(v.current == v.target && (v.current != 0) ) {
+			xQueueReceive( volume_queue,(void *) &v, portMAX_DELAY );
+		}
 	}
-	set_volume(v->current<0?0:v->current, 100);
+	set_volume(v.current<0?0:v.current, 100);
 	hlo_future_write(result, NULL, 0, 0);
 }
 
@@ -219,21 +222,25 @@ extern volatile int last_fadeout_volume;
 ////-------------------------------------------
 //playback sample app
 static int _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop){
-	int main_ret=FLAG_SUCCESS,ret=FLAG_SUCCESS;
+	int main_ret=FLAG_STOP,ret=FLAG_STOP;
 	bool  vol_ramp = desc->fade_in_ms || desc->fade_out_ms || desc->to_fade_out_ms;
 	ramp_ctx_t vol;
 	hlo_future_t * vol_task;
+	xQueueHandle volume_queue = NULL;
 
 	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,HLO_AUDIO_PLAYBACK);
 	hlo_stream_t * fs = desc->stream;
 
 	if(vol_ramp) {
+		volume_queue = xQueueCreate(1,sizeof(ramp_ctx_t));
 		int ramp_target = desc->volume;
 		if(ramp_target > 64){
 			ramp_target = 64;
 		}else if(ramp_target < 0){
 			ramp_target = 0;
 		}
+		set_volume(0, portMAX_DELAY);
+
 		vol = (ramp_ctx_t){
 			.current = 0,
 			.target = ramp_target,
@@ -241,8 +248,8 @@ static int _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop
 			.ramp_down_ms = desc->fade_out_ms / (desc->volume + 1),
 			.duration =  desc->durationInSeconds * 1000,
 		};
-		set_volume(0, portMAX_DELAY);
-		vol_task = (hlo_future_t*)hlo_future_create_task_bg(_change_volume_task,(void*)&vol,1024);
+		xQueueSend(volume_queue, &vol, portMAX_DELAY);
+		vol_task = (hlo_future_t*)hlo_future_create_task_bg(_change_volume_task,(void*)volume_queue,2048);
 	} else {
 		set_volume(desc->volume, portMAX_DELAY);
 	}
@@ -250,16 +257,16 @@ static int _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop
 	//playback
 	hlo_filter transfer_function = desc->p ? desc->p : hlo_filter_data_transfer;
 
-	ret = transfer_function(fs, spkr, desc->context, sig_stop);
-	if( ret > 0 ) {
-		main_ret = ret;
-	}
+	main_ret = transfer_function(fs, spkr, desc->context, sig_stop);
 
 	if( vol_ramp && ret > 0 ) {
 		//join async worker
 		vol.target = 0;
 		vol.current = last_fadeout_volume; //handles fade out if the system volume has changed during the last playback
+		xQueueSend(volume_queue, &vol, portMAX_DELAY);
+
 		ret = transfer_function(fs, spkr, vol_task, fadeout_sig);
+		vPortFree(volume_queue);
 	}
 
 	if( main_ret != FLAG_INTERRUPTED ) {
@@ -271,7 +278,7 @@ static int _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop
 	hlo_stream_close(spkr);
 	DISP("Playback Task Finished %d, %d\r\n", main_ret, ret);
 
-	return ret <= 0 ? ret : main_ret;
+	return main_ret;
 }
 
 void AudioPlaybackTask(void * data) {
@@ -287,6 +294,8 @@ void AudioPlaybackTask(void * data) {
 
 	hlo_future_t * state_update_task = hlo_future_create_task_bg(_sense_state_task, NULL, 1024);
 	assert(state_update_task);
+
+	int intdepth = 0;
 
 	while(1){
 		AudioMessage_t  m;
@@ -310,17 +319,22 @@ void AudioPlaybackTask(void * data) {
 						_queue_audio_playback_state(SILENT, info);
 					}
 
-					if (m.message.playbackdesc.onFinished) {
-						m.message.playbackdesc.onFinished(m.message.playbackdesc.context);
-					}
-
 					if( r == FLAG_INTERRUPTED ) {
-						DISP("interrupted\n\n\n");
-						m_resume = m;
+						if( intdepth == 0 ) {
+							DISP("interrupted %d\n\n\n", intdepth);
+							m_resume = m;
+							intdepth++;
+						} else {
+							hlo_stream_close(info->stream);
+							if(info->onFinished){
+								info->onFinished(info->context);
+							}
+						}
 					} else if( m_resume.command != eAudioPlaybackStop) {
-						DISP("resumed\n\n\n");
+						DISP("resumed %d\n\n\n", intdepth);
 						m = m_resume;
 						m_resume.command = eAudioPlaybackStop;
+						intdepth--;
 						goto top;
 					}
 				}   break;
