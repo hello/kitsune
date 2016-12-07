@@ -90,7 +90,7 @@ uint8_t keyword_net_get_and_reset_stats(NetStats_t * stats) {
 extern volatile int idlecnt;
 
 __attribute__((section(".ramcode")))
-static void feats_callback(void * p, Weight_t * feats) {
+static void feats_callback(void * p, Weight_t * feats,const uint32_t flags) {
 	KeywordNetContext_t * context = (KeywordNetContext_t *)p;
 	Tensor_t * out;
 	Tensor_t temp_tensor;
@@ -139,7 +139,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 				DISP("_");
 			}
 		}
-		DISP("%03d %d\r", out->x[1], idlecnt);
+		DISP("%04d %d\r", out->x[1], idlecnt);
 
 		idlecnt = 0;
 	}
@@ -179,7 +179,12 @@ static void feats_callback(void * p, Weight_t * feats) {
 				//did we reach the desired number of counts?
 				if (callback_item->active_count == callback_item->min_duration && callback_item->on_end) {
 					//do callback
-					callback_item->on_end(callback_item->context,(Keyword_t)i, callback_item->max_value);
+
+                                        if (!(feats & TINYFEATS_FLAGS_TRIGGER_PRIMARY_KEYWORD_INVALID && i == (int)okay_sense)) {
+                                            //if features say there hasn't been enough non-speech fames and the keyword is okay_sense, then 
+                                            //don't do a callback
+					    callback_item->on_end(callback_item->context,(Keyword_t)i, callback_item->max_value);
+                                        }
 					
 					//trigger a delayed asynchronous upload
 					audio_features_upload_trigger_async_upload(NEURAL_NET_MODEL, keyword_enum_to_str((Keyword_t)i),NUM_MEL_BINS,feats_sint8);

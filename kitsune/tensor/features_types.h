@@ -12,7 +12,10 @@
 #define FEATURES_FFT_SIZE_2N (9)
 #define FEATURES_FFT_SIZE (1 << FEATURES_FFT_SIZE_2N)
 
-typedef void(*tinytensor_audio_feat_callback_t)(void * context, int16_t * feats);
+#define TINYFEATS_FLAGS_NONE                            (0x00000000)
+#define TINYFEATS_FLAGS_TRIGGER_PRIMARY_KEYWORD_INVALID (0x00000001)
+
+typedef void(*tinytensor_audio_feat_callback_t)(void * context, int16_t * feats,const uint32_t flags);
 
 typedef enum {
     start_speech,
