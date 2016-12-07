@@ -180,11 +180,12 @@ static void feats_callback(void * p, Weight_t * feats,const uint32_t flags) {
 				if (callback_item->active_count == callback_item->min_duration && callback_item->on_end) {
 					//do callback
 
-                                        if (!(feats & TINYFEATS_FLAGS_TRIGGER_PRIMARY_KEYWORD_INVALID && i == (int)okay_sense)) {
-                                            //if features say there hasn't been enough non-speech fames and the keyword is okay_sense, then 
-                                            //don't do a callback
-					    callback_item->on_end(callback_item->context,(Keyword_t)i, callback_item->max_value);
-                                        }
+					//if there hasn't been enough non-speech before the keyword "okay sense", then don't do the callback
+					if (!((flags & TINYFEATS_FLAGS_TRIGGER_PRIMARY_KEYWORD_INVALID) &&
+							i == (uint32_t)okay_sense)) {
+
+						callback_item->on_end(callback_item->context,(Keyword_t)i, callback_item->max_value);
+					}
 					
 					//trigger a delayed asynchronous upload
 					audio_features_upload_trigger_async_upload(NEURAL_NET_MODEL, keyword_enum_to_str((Keyword_t)i),NUM_MEL_BINS,feats_sint8);

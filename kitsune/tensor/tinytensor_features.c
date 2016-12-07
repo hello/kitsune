@@ -91,6 +91,7 @@ typedef struct {
     uint8_t is_speech;
     uint32_t num_frames_vad_turned_on;
 
+    uint32_t num_nonspeech_frames;
     int32_t no_speech_elapsed_counter;
 
 } TinyTensorFeatures_t;
@@ -108,6 +109,7 @@ void tinytensor_features_initialize(void * results_context, tinytensor_audio_fea
     _this.speech_detector_callback = speech_detector_callback;
     _this.results_context = results_context;
     _this.log_speech_lpf = -6000;
+    _this.num_nonspeech_frames = NUM_NONSPEECH_FRAMES_SUFFICIENT_TO_BE_PRIMED; //start high
 }
 
 void tinytensor_features_deinitialize(void) {
@@ -243,10 +245,24 @@ static void do_voice_activity_detection(int16_t * fr,int16_t * fi,int16_t input_
     }
     
 
+    ////////////////////////////
+    //VAD GATING CALCULATIONS
+
+    //track number of non-speech frames
+    if (log_energy_frac > START_SPEECH_THRESHOLD) {
+        _this.num_nonspeech_frames = 0;
+    }
+
+    if (log_energy_frac < STOP_SPEECH_THRESHOLD) {
+        _this.num_nonspeech_frames++;
+    }
+
+    //if number of non-speech frames is high enough, we open up the VAD gate
     if (_this.num_nonspeech_frames >= NUM_NONSPEECH_FRAMES_SUFFICIENT_TO_BE_PRIMED) {
         _this.no_speech_elapsed_counter = NUM_FRAMES_AFTER_SPEECH_TO_STAY_PRIMED;
     }
   
+    //after some time the gate will close if not kept open (i.e. we haven't seen a long enough period of non-speech)
     if (--_this.no_speech_elapsed_counter < 0) {
         _this.no_speech_elapsed_counter = 0;
     }
