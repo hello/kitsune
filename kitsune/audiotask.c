@@ -271,8 +271,13 @@ static int _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop
 
 		if( main_ret > 0 ) {
 			ret = transfer_function(fs, spkr, vol_task, fadeout_sig);
+			if( ret != FLAG_STOP ) {
+				hlo_future_read_once(vol_task, NULL, 0);
+			}
+			hlo_future_destroy(vol_task);
+		} else {
+			hlo_future_read_once(vol_task, NULL, 0);
 		}
-		hlo_future_destroy(vol_task);
 		vQueueDelete(volume_queue);
 	}
 
