@@ -490,7 +490,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				AudioPlaybackDesc_t desc;
 				desc.context = NULL;
 				desc.durationInSeconds = INT32_MAX;
-				desc.to_fade_out_ms = desc.fade_in_ms = desc.fade_out_ms = 1;
+				desc.to_fade_out_ms = 1;
+				desc.fade_in_ms = 0;
+				desc.fade_out_ms = 0;
 				desc.onFinished = NULL;
 				desc.rate = AUDIO_SAMPLE_RATE;
 				desc.stream = output;

@@ -199,7 +199,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 			set_volume(v.current, 0);
 			last_set = xTaskGetTickCount();
 		}
-		vTaskDelay(0);
+		vTaskDelay(1);
 		if(v.current == v.target && (v.current != 0) ) {
 			xQueueReceive( volume_queue,(void *) &v, portMAX_DELAY );
 		}
