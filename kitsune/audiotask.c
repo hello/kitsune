@@ -177,6 +177,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 	ramp_ctx_t v;
 	xQueueReceive( volume_queue,(void *) &v, portMAX_DELAY );
 
+	long last_set_vol = 0;
 	portTickType t0 = xTaskGetTickCount();
 	portTickType last_set = 0;
 	while( v.target != 0 || v.current != 0 ){
@@ -194,12 +195,14 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 			break;
 		}
 
-		if( v.current != v.target && last_set - xTaskGetTickCount() > 100 ) {
+		if( ( v.current != last_set_vol ) && ( xTaskGetTickCount() - last_set > 10 ) ) {
 			DISP("%u %u at %u\n", v.current, v.target, xTaskGetTickCount());
 			set_volume(v.current, 0);
+			last_set_vol = v.current;
 			last_set = xTaskGetTickCount();
+		} else {
+			vTaskDelay(1);
 		}
-		vTaskDelay(1);
 		if(v.current == v.target && (v.current != 0) ) {
 			xQueueReceive( volume_queue,(void *) &v, portMAX_DELAY );
 		}
@@ -259,14 +262,18 @@ static int _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop
 
 	main_ret = transfer_function(fs, spkr, desc->context, sig_stop);
 
-	if( vol_ramp && ret > 0 ) {
+	if( vol_ramp ) {
+		vTaskDelay(1000*RX_BUFFER_SIZE/(2*AUDIO_SAMPLE_RATE) - 200 ); //wait for buffer to almost drain...
 		//join async worker
 		vol.target = 0;
 		vol.current = last_fadeout_volume; //handles fade out if the system volume has changed during the last playback
 		xQueueSend(volume_queue, &vol, portMAX_DELAY);
 
-		ret = transfer_function(fs, spkr, vol_task, fadeout_sig);
-		vPortFree(volume_queue);
+		if( main_ret > 0 ) {
+			ret = transfer_function(fs, spkr, vol_task, fadeout_sig);
+		}
+		hlo_future_destroy(vol_task);
+		vQueueDelete(volume_queue);
 	}
 
 	if( main_ret != FLAG_INTERRUPTED ) {

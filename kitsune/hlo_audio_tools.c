@@ -362,7 +362,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 		}
 
-
 		if( nn_ctx.speech_pb.has_word && nn_ctx.speech_pb.word == Keyword_OK_SENSE) {
 			if( disable_voice || !wifi_status_get(HAS_IP) ) {
 				LOGW("voicetrignot %d %d\n", disable_voice, wifi_status_get(HAS_IP) );
@@ -489,7 +488,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 				AudioPlaybackDesc_t desc;
 				desc.context = NULL;
-				desc.durationInSeconds = INT32_MAX;
+				desc.durationInSeconds = 60;
 				desc.to_fade_out_ms = 1;
 				desc.fade_in_ms = 0;
 				desc.fade_out_ms = 0;
