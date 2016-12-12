@@ -737,7 +737,10 @@ typedef enum{
 int get_ambient_light_level(ambient_light_source source){
 	int tmg[5] = {0};
 	static int last_val;
-	get_rgb_prox(tmg+0, tmg+1, tmg+2, tmg+3, tmg+4);
+	if( 0 != get_rgb_prox(tmg+0, tmg+1, tmg+2, tmg+3, tmg+4) ) {
+		return last_val;
+	}
+	{
 	int als = read_zopt(ZOPT_ALS);
 	int light = (als + tmg[0] * 10) / 2;
 	int val =  (light * 3 + last_val * 7)/10;
@@ -746,6 +749,7 @@ int get_ambient_light_level(ambient_light_source source){
 		return val;
 	}else{
 		return light;
+	}
 	}
 //	LOGF("(%d\t%d\t%d\t%d)(%d) = %d\r\n", tmg[0], tmg[1],tmg[2], tmg[3], als, val);
 }

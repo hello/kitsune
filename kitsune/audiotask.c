@@ -195,17 +195,20 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 			break;
 		}
 
-		if( ( v.current != last_set_vol ) && ( xTaskGetTickCount() - last_set > 10 ) ) {
+		if( ( v.current != last_set_vol ) && ( xTaskGetTickCount() - last_set > 20 ) ) {
 			DISP("%u %u at %u\n", v.current, v.target, xTaskGetTickCount());
 			set_volume(v.current, 0);
 			last_set_vol = v.current;
 			last_set = xTaskGetTickCount();
 		} else {
-			vTaskDelay(1);
+			vTaskDelay(2);
 		}
+
+		TickType_t wait_for_msgs = 0;
 		if(v.current == v.target && (v.current != 0) ) {
-			xQueueReceive( volume_queue,(void *) &v, portMAX_DELAY );
+			wait_for_msgs = portMAX_DELAY;
 		}
+		xQueueReceive( volume_queue,(void *) &v, wait_for_msgs );
 	}
 	set_volume(v.current<0?0:v.current, 100);
 	hlo_future_write(result, NULL, 0, 0);
