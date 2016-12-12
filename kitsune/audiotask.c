@@ -342,6 +342,9 @@ void AudioPlaybackTask(void * data) {
 					if( r == FLAG_INTERRUPTED ) {
 						if( intdepth == 0 ) {
 							DISP("interrupted %d\n\n\n", intdepth);
+							if(info->onInterrupt) {
+								info->onInterrupt(info->context);
+							}
 							m_resume = m;
 							intdepth++;
 						} else {

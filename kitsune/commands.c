@@ -516,9 +516,7 @@ int set_test_alarm(int argc, char *argv[]) {
 	return 0;
 }
 static void thread_alarm_on_interrupt(void * context) {
-	if( led_get_animation_id() == *(int*)context ) {
-		stop_led_animation(10, 60);
-	}
+	stop_led_animation(10, 60);
 }
 static void thread_alarm_on_finished(void * context) {
 	thread_alarm_on_interrupt(context);
@@ -532,7 +530,7 @@ static void thread_alarm_on_finished(void * context) {
 static void thread_alarm_on_play(void * context) {
 	uint8_t trippy_base[3] = { 0, 0, 0 };
 	uint8_t trippy_range[3] = { 254, 254, 254 };
-	*(int*)context = play_led_trippy(trippy_base, trippy_range,0,30, 120000);
+	play_led_trippy(trippy_base, trippy_range,0,30, 120000);
 
 	if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
 		LOGI("Alarm playing\r\n");
@@ -556,7 +554,6 @@ uint8_t get_alpha_from_light();
 extern volatile int sys_volume;
 
 void thread_alarm(void * unused) {
-	int alarm_led_id = -1;
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
 
@@ -635,7 +632,7 @@ void thread_alarm(void * unused) {
 				desc.onPlay = thread_alarm_on_play;
 				desc.onInterrupt = thread_alarm_on_interrupt;
 				desc.rate = AUDIO_SAMPLE_RATE;
-				desc.context = &alarm_led_id;
+				desc.context = NULL;
 				desc.p = hlo_filter_data_transfer;
 
 				alarm.has_start_time = FALSE;
