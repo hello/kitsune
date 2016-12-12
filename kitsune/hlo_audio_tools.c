@@ -33,8 +33,8 @@ bool audio_playing();
 #include "audiofeatures.h"
 #include "tensor/tinytensor_math_defs.h"
 
-#define OKAY_SENSE_THRESHOLD     TOFIX(0.5)
-#define OKAY_SENSE_MIN_DURATION  3
+#define OKAY_SENSE_THRESHOLD     TOFIX(0.25)
+#define OKAY_SENSE_MIN_DURATION  5
 
 #define SNOOZE_THRESHOLD      TOFIX(0.3)
 #define SNOOZE_MIN_DURATION   3
@@ -517,7 +517,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 					hlo_stream_close(output);
 				}
 			} else {
-				output = hlo_stream_bw_limited( output, 1, 5000);
+				output = hlo_stream_bw_limited( output, 1, 10000);
 				output = hlo_light_stream( output, false );
 
 				AudioPlaybackDesc_t desc;
@@ -526,7 +526,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				desc.to_fade_out_ms = 1;
 				desc.fade_in_ms = 0;
 				desc.fade_out_ms = 0;
-				desc.onFinished = NULL;
+				desc.onFinished = desc.onPlay = desc.onInterrupt = NULL;
 				desc.rate = AUDIO_SAMPLE_RATE;
 				desc.stream = output;
 				desc.volume = sys_volume;

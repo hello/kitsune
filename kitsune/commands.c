@@ -515,15 +515,27 @@ int set_test_alarm(int argc, char *argv[]) {
 
 	return 0;
 }
+static void thread_alarm_on_interrupt(void * context) {
+	stop_led_animation(10, 60);
+}
 static void thread_alarm_on_finished(void * context) {
-	if( led_get_animation_id() == *(int*)context ) {
-		stop_led_animation(10, 60);
-	}
-	if (xSemaphoreTakeRecursive(alarm_smphr, 500)) {
+	thread_alarm_on_interrupt(context);
+	if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
 		LOGI("Alarm finished\r\n");
 		alarm_is_ringing = false;
 		xSemaphoreGiveRecursive(alarm_smphr);
 
+	}
+}
+static void thread_alarm_on_play(void * context) {
+	uint8_t trippy_base[3] = { 0, 0, 0 };
+	uint8_t trippy_range[3] = { 254, 254, 254 };
+	play_led_trippy(trippy_base, trippy_range,0,30, 120000);
+
+	if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
+		LOGI("Alarm playing\r\n");
+		alarm_is_ringing = true;
+		xSemaphoreGiveRecursive(alarm_smphr);
 	}
 }
 
@@ -542,7 +554,6 @@ uint8_t get_alpha_from_light();
 extern volatile int sys_volume;
 
 void thread_alarm(void * unused) {
-	int alarm_led_id = -1;
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
 
@@ -618,8 +629,10 @@ void thread_alarm(void * unused) {
 				desc.durationInSeconds = alarm.ring_duration_in_second;
 				desc.volume = 64;
 				desc.onFinished = thread_alarm_on_finished;
+				desc.onPlay = thread_alarm_on_play;
+				desc.onInterrupt = thread_alarm_on_interrupt;
 				desc.rate = AUDIO_SAMPLE_RATE;
-				desc.context = &alarm_led_id;
+				desc.context = NULL;
 				desc.p = hlo_filter_data_transfer;
 
 				alarm.has_start_time = FALSE;
@@ -631,10 +644,6 @@ void thread_alarm(void * unused) {
 				LOGI("ALARM DURATION %d\n", alarm.ring_duration_in_second);
 				analytics_event( "{alarm: ring}" );
 				alarm_is_ringing = true;
-
-				uint8_t trippy_base[3] = { 0, 0, 0 };
-				uint8_t trippy_range[3] = { 254, 254, 254 };
-				alarm_led_id = play_led_trippy(trippy_base, trippy_range,0,30, 120000);
 			}
 			
 			xSemaphoreGiveRecursive(alarm_smphr);
@@ -737,7 +746,10 @@ typedef enum{
 int get_ambient_light_level(ambient_light_source source){
 	int tmg[5] = {0};
 	static int last_val;
-	get_rgb_prox(tmg+0, tmg+1, tmg+2, tmg+3, tmg+4);
+	if( 0 != get_rgb_prox(tmg+0, tmg+1, tmg+2, tmg+3, tmg+4) ) {
+		return last_val;
+	}
+	{
 	int als = read_zopt(ZOPT_ALS);
 	int light = (als + tmg[0] * 10) / 2;
 	int val =  (light * 3 + last_val * 7)/10;
@@ -746,6 +758,7 @@ int get_ambient_light_level(ambient_light_source source){
 		return val;
 	}else{
 		return light;
+	}
 	}
 //	LOGF("(%d\t%d\t%d\t%d)(%d) = %d\r\n", tmg[0], tmg[1],tmg[2], tmg[3], als, val);
 }
