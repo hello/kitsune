@@ -326,6 +326,11 @@ void AudioPlaybackTask(void * data) {
 					AudioPlaybackDesc_t * info = &m.message.playbackdesc;
 					/** prep  **/
 					_queue_audio_playback_state(PLAYING, info);
+
+					if( info->onPlay ) {
+						info->onPlay(info->context);
+					}
+
 					/** blocking loop to play the sound **/
 					r = _playback_loop(info, CheckForInterruptionDuringPlayback);
 
@@ -398,7 +403,7 @@ int Cmd_AudioPlayback(int argc, char * argv[]){
 		desc.durationInSeconds = 10;
 		desc.fade_in_ms = 1000;
 		desc.fade_out_ms = 1000;
-		desc.onFinished = NULL;
+		desc.onFinished = desc.onPlay = desc.onInterrupt = NULL;
 		desc.rate = AUDIO_SAMPLE_RATE;
 		desc.stream = fs_stream_open_media(argv[1], 0);
 		desc.volume = 64;

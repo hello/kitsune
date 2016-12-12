@@ -515,15 +515,29 @@ int set_test_alarm(int argc, char *argv[]) {
 
 	return 0;
 }
-static void thread_alarm_on_finished(void * context) {
+static void thread_alarm_on_interrupt(void * context) {
 	if( led_get_animation_id() == *(int*)context ) {
 		stop_led_animation(10, 60);
 	}
-	if (xSemaphoreTakeRecursive(alarm_smphr, 500)) {
+}
+static void thread_alarm_on_finished(void * context) {
+	thread_alarm_on_interrupt(context);
+	if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
 		LOGI("Alarm finished\r\n");
 		alarm_is_ringing = false;
 		xSemaphoreGiveRecursive(alarm_smphr);
 
+	}
+}
+static void thread_alarm_on_play(void * context) {
+	uint8_t trippy_base[3] = { 0, 0, 0 };
+	uint8_t trippy_range[3] = { 254, 254, 254 };
+	*(int*)context = play_led_trippy(trippy_base, trippy_range,0,30, 120000);
+
+	if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
+		LOGI("Alarm playing\r\n");
+		alarm_is_ringing = true;
+		xSemaphoreGiveRecursive(alarm_smphr);
 	}
 }
 
@@ -618,6 +632,8 @@ void thread_alarm(void * unused) {
 				desc.durationInSeconds = alarm.ring_duration_in_second;
 				desc.volume = 64;
 				desc.onFinished = thread_alarm_on_finished;
+				desc.onPlay = thread_alarm_on_play;
+				desc.onInterrupt = thread_alarm_on_interrupt;
 				desc.rate = AUDIO_SAMPLE_RATE;
 				desc.context = &alarm_led_id;
 				desc.p = hlo_filter_data_transfer;
@@ -631,10 +647,6 @@ void thread_alarm(void * unused) {
 				LOGI("ALARM DURATION %d\n", alarm.ring_duration_in_second);
 				analytics_event( "{alarm: ring}" );
 				alarm_is_ringing = true;
-
-				uint8_t trippy_base[3] = { 0, 0, 0 };
-				uint8_t trippy_range[3] = { 254, 254, 254 };
-				alarm_led_id = play_led_trippy(trippy_base, trippy_range,0,30, 120000);
 			}
 			
 			xSemaphoreGiveRecursive(alarm_smphr);
