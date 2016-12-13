@@ -663,7 +663,7 @@ static bool haz_tmg4903() {
 		xSemaphoreGiveRecursive(i2c_smphr);
 
 		if( b[0] != 0xb8 ) {
-			LOGE("can't find TMG4903\n");
+			LOGE("can't find TMG4903 %x\n", b[0]);
 			return false;
 		}
 	}

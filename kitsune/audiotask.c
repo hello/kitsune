@@ -195,17 +195,20 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 			break;
 		}
 
-		if( ( v.current != last_set_vol ) && ( xTaskGetTickCount() - last_set > 10 ) ) {
+		if( ( v.current != last_set_vol ) && ( xTaskGetTickCount() - last_set > 20 ) ) {
 			DISP("%u %u at %u\n", v.current, v.target, xTaskGetTickCount());
 			set_volume(v.current, 0);
 			last_set_vol = v.current;
 			last_set = xTaskGetTickCount();
 		} else {
-			vTaskDelay(1);
+			vTaskDelay(2);
 		}
+
+		TickType_t wait_for_msgs = 0;
 		if(v.current == v.target && (v.current != 0) ) {
-			xQueueReceive( volume_queue,(void *) &v, portMAX_DELAY );
+			wait_for_msgs = portMAX_DELAY;
 		}
+		xQueueReceive( volume_queue,(void *) &v, wait_for_msgs );
 	}
 	set_volume(v.current<0?0:v.current, 100);
 	hlo_future_write(result, NULL, 0, 0);
@@ -323,6 +326,11 @@ void AudioPlaybackTask(void * data) {
 					AudioPlaybackDesc_t * info = &m.message.playbackdesc;
 					/** prep  **/
 					_queue_audio_playback_state(PLAYING, info);
+
+					if( info->onPlay ) {
+						info->onPlay(info->context);
+					}
+
 					/** blocking loop to play the sound **/
 					r = _playback_loop(info, CheckForInterruptionDuringPlayback);
 
@@ -334,6 +342,9 @@ void AudioPlaybackTask(void * data) {
 					if( r == FLAG_INTERRUPTED ) {
 						if( intdepth == 0 ) {
 							DISP("interrupted %d\n\n\n", intdepth);
+							if(info->onInterrupt) {
+								info->onInterrupt(info->context);
+							}
 							m_resume = m;
 							intdepth++;
 						} else {
@@ -395,7 +406,7 @@ int Cmd_AudioPlayback(int argc, char * argv[]){
 		desc.durationInSeconds = 10;
 		desc.fade_in_ms = 1000;
 		desc.fade_out_ms = 1000;
-		desc.onFinished = NULL;
+		desc.onFinished = desc.onPlay = desc.onInterrupt = NULL;
 		desc.rate = AUDIO_SAMPLE_RATE;
 		desc.stream = fs_stream_open_media(argv[1], 0);
 		desc.volume = 64;
