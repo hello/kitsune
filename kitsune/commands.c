@@ -881,6 +881,7 @@ return 0 == MAP_GPIOPinRead(BUTTON_GPIO_BASE_DOUT, BUTTON_GPIO_BIT_DOUT);
 void reset_to_factory_fw();
 void play_startup_sound();
 void display_pairing_animation();
+int checki2c();
 void thread_fast_i2c_poll(void * unused)  {
 	int w,r,g,b,p;
 
@@ -923,6 +924,8 @@ void thread_fast_i2c_poll(void * unused)  {
 
 		if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
 			vTaskDelay(1);
+			while(checki2c());
+
 
 			if( 0 != get_rgb_prox( &w,&r,&g,&b,&p ) ) {
 				xSemaphoreGiveRecursive(i2c_smphr);
