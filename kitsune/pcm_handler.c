@@ -202,7 +202,7 @@ void DMAPingPongCompleteAppCB_opt()
 			if (_pcm_ping_pong_incoming_stream_mode == PCM_PING_PONG_MODE_SINGLE_CHANNEL_HALF_RATE) {
 				int k=0;
 				for (i = 0; i<= CB_TRANSFER_SZ/2-2 ; i+=2 ) {
-					pong[k++] = (pong[i*4+ch]+pong[(i+1)*4+ch]);
+					pong[k++] = pong[i*4+ch];
 				}
 
 				FillBuffer(pAudInBuf, (unsigned char*) pong, 2*k );
@@ -245,7 +245,7 @@ void DMAPingPongCompleteAppCB_opt()
 				if (_pcm_ping_pong_incoming_stream_mode == PCM_PING_PONG_MODE_SINGLE_CHANNEL_HALF_RATE) {
 					int k=0;
 					for (i = 0; i<= CB_TRANSFER_SZ/2-2; i+=2 ) {
-						ping[k++] = (ping[i*4+ch]+ping[(i+1)*4+ch]);
+						ping[k++] = ping[i*4+ch];
 					}
 					FillBuffer(pAudInBuf, (unsigned char*) ping, 2*k );
 				}
