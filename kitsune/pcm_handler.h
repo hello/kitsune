@@ -56,6 +56,8 @@ extern "C"
 #define PCM_PING_PONG_MODE_SINGLE_CHANNEL_FULL_RATE (1)
 #define PCM_PING_PONG_MODE_ALL_CHANNELS_FULL_RATE   (2)
 
+int Cmd_set_ping_pong_mode(int argc, char *argv[]);
+
 void pcm_set_ping_pong_incoming_stream_mode(const int mode);
 
 
