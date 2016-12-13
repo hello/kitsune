@@ -33,7 +33,7 @@ bool audio_playing();
 #include "audiofeatures.h"
 #include "tensor/tinytensor_math_defs.h"
 
-#define OKAY_SENSE_THRESHOLD     TOFIX(0.25)
+#define OKAY_SENSE_THRESHOLD     TOFIX(0.6)
 #define OKAY_SENSE_MIN_DURATION  5
 
 #define SNOOZE_THRESHOLD      TOFIX(0.3)
