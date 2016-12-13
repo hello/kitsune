@@ -657,18 +657,11 @@ int Cmd_meas_TVOC(int argc, char *argv[]) {
 static bool haz_tmg4903() {
 	unsigned char b[2]={0};
 	b[0] = 0x92;
-	if(xSemaphoreTakeRecursive(i2c_smphr, 1000)){
-		(I2C_IF_Write(0x39, b, 1, 1));
-		(I2C_IF_Read(0x39, b, 1));
-		xSemaphoreGiveRecursive(i2c_smphr);
 
-		if( b[0] != 0xb8 ) {
-			LOGE("can't find TMG4903 %x\n", b[0]);
-			return false;
-		}
-	}
-	else{
-		LOGW("failed to get i2c %d\n", __LINE__);
+	(I2C_IF_Write(0x39, b, 1, 1));
+	(I2C_IF_Read(0x39, b, 1));
+	if( b[0] != 0xb8 ) {
+		LOGE("can't find TMG4903 %x\n", b[0]);
 		return false;
 	}
 
@@ -701,12 +694,13 @@ int init_light_sensor()
 {
 	unsigned char b[5];
 
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
 	if( !haz_tmg4903() ) {
 		LOGE("haz_tmg4903 fail\n");
+		xSemaphoreGiveRecursive(i2c_smphr);
 		return FAILURE;
 	}
 
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
 	b[0] = 0x80;
 	b[1] = 0b0000111; //enable prox/als/power
 	b[2] = 249; //20ms integration
