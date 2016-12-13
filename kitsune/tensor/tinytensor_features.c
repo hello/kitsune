@@ -53,6 +53,10 @@ void set_background_energy(const int16_t fr[], const int16_t fi[], int16_t log2s
 #define NUM_NONSPEECH_FRAMES_TO_TURN_OFF   (33)
 #define NUM_SPEECH_FRAMES_TO_TURN_ON       (2)
 #define MAX_DURATION_OF_VAD                (10 * 66)
+
+#define NUM_FRAMES_AFTER_SPEECH_TO_STAY_PRIMED          (66*2)
+#define NUM_NONSPEECH_FRAMES_SUFFICIENT_TO_BE_PRIMED    (50)
+
 //hanning window
 __attribute__((section(".data")))
 const static int16_t k_hanning[FFT_UNPADDED_SIZE] = {0,2,8,18,32,51,73,99,130,164,203,245,292,342,397,455,517,584,654,728,806,888,973,1063,1156,1253,1354,1459,1567,1679,1794,1914,2036,2163,2293,2426,2563,2703,2847,2994,3144,3298,3455,3615,3778,3944,4114,4286,4462,4640,4821,5006,5193,5383,5575,5770,5968,6169,6372,6577,6785,6995,7208,7423,7640,7859,8080,8304,8529,8757,8986,9217,9450,9684,9921,10159,10398,10639,10881,11125,11370,11616,11863,12112,12362,12612,12864,13116,13369,13623,13878,14133,14389,14645,14902,15159,15417,15674,15932,16190,16448,16706,16964,17222,17479,17736,17993,18250,18506,18762,19016,19271,19524,19777,20029,20280,20530,20779,21027,21274,21520,21764,22007,22249,22489,22728,22965,23200,23434,23666,23896,24124,24351,24575,24798,25018,25236,25452,25666,25877,26086,26293,26497,26699,26898,27095,27289,27480,27668,27854,28037,28216,28393,28567,28738,28906,29071,29233,29391,29546,29698,29847,29992,30134,30273,30408,30540,30668,30792,30913,31031,31145,31255,31361,31464,31563,31658,31749,31837,31921,32001,32077,32149,32217,32281,32342,32398,32451,32499,32544,32584,32620,32653,32681,32706,32726,32742,32754,32762,32766,32766,32762,32754,32742,32726,32706,32681,32653,32620,32584,32544,32499,32451,32398,32342,32281,32217,32149,32077,32001,31921,31837,31749,31658,31563,31464,31361,31255,31145,31031,30913,30792,30668,30540,30408,30273,30134,29992,29847,29698,29546,29391,29233,29071,28906,28738,28567,28393,28216,28037,27854,27668,27480,27289,27095,26898,26699,26497,26293,26086,25877,25666,25452,25236,25018,24798,24575,24351,24124,23896,23666,23434,23200,22965,22728,22489,22249,22007,21764,21520,21274,21027,20779,20530,20280,20029,19777,19524,19271,19016,18762,18506,18250,17993,17736,17479,17222,16964,16706,16448,16190,15932,15674,15417,15159,14902,14645,14389,14133,13878,13623,13369,13116,12864,12612,12362,12112,11863,11616,11370,11125,10881,10639,10398,10159,9921,9684,9450,9217,8986,8757,8529,8304,8080,7859,7640,7423,7208,6995,6785,6577,6372,6169,5968,5770,5575,5383,5193,5006,4821,4640,4462,4286,4114,3944,3778,3615,3455,3298,3144,2994,2847,2703,2563,2426,2293,2163,2036,1914,1794,1679,1567,1459,1354,1253,1156,1063,973,888,806,728,654,584,517,455,397,342,292,245,203,164,130,99,73,51,32,18,8,2,0};
@@ -87,6 +91,9 @@ typedef struct {
     uint8_t is_speech;
     uint32_t num_frames_vad_turned_on;
 
+    uint32_t num_nonspeech_frames;
+    int32_t no_speech_elapsed_counter;
+
 } TinyTensorFeatures_t;
 
 static TinyTensorFeatures_t _this;
@@ -102,6 +109,7 @@ void tinytensor_features_initialize(void * results_context, tinytensor_audio_fea
     _this.speech_detector_callback = speech_detector_callback;
     _this.results_context = results_context;
     _this.log_speech_lpf = -6000;
+    _this.num_nonspeech_frames = NUM_NONSPEECH_FRAMES_SUFFICIENT_TO_BE_PRIMED; //start high
 }
 
 void tinytensor_features_deinitialize(void) {
@@ -237,8 +245,30 @@ static void do_voice_activity_detection(int16_t * fr,int16_t * fi,int16_t input_
     }
     
 
+    ////////////////////////////
+    //VAD GATING CALCULATIONS
+
+    //track number of non-speech frames
+    if (log_energy_frac > START_SPEECH_THRESHOLD) {
+        _this.num_nonspeech_frames = 0;
+    }
+
+    if (log_energy_frac < STOP_SPEECH_THRESHOLD) {
+        _this.num_nonspeech_frames++;
+    }
+
+    //if number of non-speech frames is high enough, we open up the VAD gate
+    if (_this.num_nonspeech_frames >= NUM_NONSPEECH_FRAMES_SUFFICIENT_TO_BE_PRIMED) {
+        _this.no_speech_elapsed_counter = NUM_FRAMES_AFTER_SPEECH_TO_STAY_PRIMED;
+    }
   
+    //after some time the gate will close if not kept open (i.e. we haven't seen a long enough period of non-speech)
+    if (--_this.no_speech_elapsed_counter < 0) {
+        _this.no_speech_elapsed_counter = 0;
+    }
 }
+
+
 #include "arm_math.h"
 
 __attribute__((section(".ramcode")))
@@ -430,12 +460,17 @@ void tinytensor_features_add_samples(const int16_t * samples, const uint32_t num
     int32_t offset;
     int32_t offset_adjustment;
     const int8_t shift = 7 - QFIXEDPOINT;
+    uint32_t feats_flags = TINYFEATS_FLAGS_NONE;
     
     uint32_t i;
 
     DECLCHKCYC
 
     if (add_samples_and_get_mel(&maxmel,&avgmel,melbank,samples,num_samples)) {
+
+        if (_this.no_speech_elapsed_counter <= 0) {
+            feats_flags |= TINYFEATS_FLAGS_TRIGGER_PRIMARY_KEYWORD_INVALID;
+        }
 
         avgmel >>= SCALE_TO_8_BITS;
         maxmel >>= SCALE_TO_8_BITS;
@@ -466,7 +501,7 @@ void tinytensor_features_add_samples(const int16_t * samples, const uint32_t num
         }
 
         if (_this.results_callback) {
-            _this.results_callback(_this.results_context,melbank);
+            _this.results_callback(_this.results_context,melbank,feats_flags);
         }
 #ifdef PRINT_MEL_BINS
         for (i = 0; i < 40; i++) {
