@@ -13,7 +13,7 @@
 #include "arm_const_structs.h"
 #include "fft.h"
 
-#define NEURAL_NET_MODEL "model_aug30_lstm_med_stateful_okay_sense_stop_snooze_tiny_end0_plus_1115_ep050.c"
+#define NEURAL_NET_MODEL "model_nov07_lstm_med_adam_okay_sense_stop_snooze_tiny_end0_plus_1115_ep065.c"
 #include NEURAL_NET_MODEL
 const static char * k_net_id = NEURAL_NET_MODEL;
 
