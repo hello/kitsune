@@ -977,6 +977,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			LOGW("failed to get i2c %d\n", __LINE__);
 			fail_fast_i2c:
 			LOGE("Thread fast i2c fail\n");
+			vTaskDelay(1000);
 		}
 
 		vTaskDelayUntil(&now, delay);
