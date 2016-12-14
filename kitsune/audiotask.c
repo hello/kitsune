@@ -360,7 +360,13 @@ void AudioPlaybackTask(void * data) {
 						intdepth--;
 						goto top;
 					}
-				}   break;
+				}
+				break;
+				case eAudioResetCodec:
+					LOGI("Codec Reset...");
+					reset_codec();
+					LOGI("done.\r\n");
+					break;
 				default:
 					break;
 			}
@@ -370,7 +376,14 @@ void AudioPlaybackTask(void * data) {
 	//hlo_future_destroy(state_update_task);
 
 }
-
+void AudioTask_ResetCodec(void) {
+	AudioMessage_t m;
+	memset(&m,0,sizeof(m));
+	m.command = eAudioResetCodec;
+	if (_playback_queue) {
+		xQueueSend(_playback_queue,(void *)&m,0);
+	}
+}
 void AudioTask_StopPlayback(void) {
 	AudioMessage_t m;
 	memset(&m,0,sizeof(m));

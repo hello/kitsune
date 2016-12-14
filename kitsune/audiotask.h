@@ -12,6 +12,7 @@
 typedef enum {
 	eAudioPlaybackStart,
 	eAudioPlaybackStop,
+	eAudioResetCodec,
 } EAudioCommand_t;
 
 typedef struct {
@@ -46,6 +47,7 @@ void AudioPlaybackTask(void * data);
 #include "codec_debug_config.h"
 
 void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc);
+void AudioTask_ResetCodec(void);
 
 void AudioTask_StopPlayback(void);
 void AudioTask_DumpOncePerMinuteStats(AudioEnergyStats_t * pdata);
