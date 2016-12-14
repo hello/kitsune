@@ -125,7 +125,7 @@ static void i2c_int() {
 	traceISR_EXIT();
 }
 
-int checki2c() {
+void checki2c() {
 	int pulses = 0;
 
 	//
@@ -171,7 +171,6 @@ int checki2c() {
 		I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
     }
 	vTaskDelay(2);
-	return pulses;
 }
 static int
 I2CTransact(unsigned long ulCmd)
