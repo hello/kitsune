@@ -55,5 +55,5 @@ void AudioTask_DumpOncePerMinuteStats(AudioEnergyStats_t * pdata);
  * testing commands
  */
 int Cmd_AudioPlayback(int argc, char * argv[]);
-
+int cmd_codec_reset(int argc, char * argv[]);
 #endif //_AUDIOCAPTURETASK_H_

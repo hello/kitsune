@@ -430,4 +430,8 @@ int Cmd_AudioPlayback(int argc, char * argv[]){
 	}
 	return -1;
 }
+int cmd_codec_reset(int argc, char * argv[]){
+	AudioTask_ResetCodec();
+	return 0;
+}
 
