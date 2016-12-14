@@ -72,7 +72,7 @@ extern "C"
 // API Function prototypes
 //
 //*****************************************************************************
-extern int checki2c();
+extern void checki2c();
 extern int I2C_IF_Open(unsigned long ulMode);
 extern int I2C_IF_Close();
 extern int I2C_IF_Write(unsigned char ucDevAddr,

@@ -19,7 +19,7 @@
  */
 typedef uint8_t (*hlo_stream_signal)(void * ctx);
 typedef int(*hlo_filter)(hlo_stream_t * input, hlo_stream_t * opt_output, void * ctx, hlo_stream_signal signal);
-#define BREAK_ON_SIG(s) if(s && (ret = s(ctx))){break;}
+#define BREAK_ON_SIG(s) if(s && s(ctx)){break;}
 
 #include "streaming.pb.h"
 typedef struct {
