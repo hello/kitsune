@@ -364,7 +364,7 @@ void AudioPlaybackTask(void * data) {
 				break;
 				case eAudioResetCodec:
 					LOGI("Codec Reset...");
-					reset_codec();
+					reset_audio();
 					LOGI("done.\r\n");
 					break;
 				default:
