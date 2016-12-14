@@ -24,8 +24,6 @@ typedef struct {
 	uint32_t rate;
 	hlo_stream_t * stream;
 	NotificationCallback_t onFinished;
-	NotificationCallback_t onInterrupt;
-	NotificationCallback_t onPlay; // in case of interruption this will be called before each resume
 	hlo_filter p;				/* the algorithm to run on the spkr input */
 	void * context;
 	char source_name[64];

@@ -56,15 +56,12 @@ int hlo_stream_close(hlo_stream_t * stream){
 
 	LOCK(stream);
 	ret = stream->impl.close(stream->ctx);
-
+	UNLOCK(stream);
 	if(ret >= 0){
 		vSemaphoreDelete(stream->info.lock);
 		vPortFree(stream);
 	}else if( ret == HLO_STREAM_NO_IMPL ){
-		UNLOCK(stream);
 		return 0;
-	} else {
-		UNLOCK(stream);
 	}
 	return ret;
 }
