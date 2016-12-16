@@ -6,6 +6,7 @@
 
 #include "hlo_stream.h"
 #include "hlo_pipe.h"
+#include "hlo_async.h"
 
 #include "codec_debug_config.h"
 
@@ -36,6 +37,7 @@ typedef struct {
 
 	union {
 		AudioPlaybackDesc_t playbackdesc;
+		hlo_future_t * reset_sync;
 	} message;
 
 } AudioMessage_t;

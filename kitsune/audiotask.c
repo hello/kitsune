@@ -302,6 +302,7 @@ void AudioPlaybackTask(void * data) {
 					LOGI("Codec Reset...");
 					reset_audio();
 					LOGI("done.\r\n");
+					hlo_future_write(m.message.reset_sync, NULL,0, 0);
 					break;
 				default:
 					break;
@@ -316,9 +317,13 @@ void AudioTask_ResetCodec(void) {
 	AudioMessage_t m;
 	memset(&m,0,sizeof(m));
 	m.command = eAudioResetCodec;
+	hlo_future_t * sync = hlo_future_create();
+	assert(sync);
+	m.message.reset_sync = sync;
 	if (_playback_queue) {
 		xQueueSend(_playback_queue,(void *)&m,0);
 	}
+	hlo_future_read_once(sync, NULL,0);
 }
 void AudioTask_StopPlayback(void) {
 	AudioMessage_t m;
