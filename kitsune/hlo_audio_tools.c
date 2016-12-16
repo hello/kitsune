@@ -837,7 +837,12 @@ static uint8_t _can_has_sig_stop(void * unused){
 }
 int Cmd_audio_stop(int argc, char *argv[]){
 	DISP("Stopping Audio\r\n");
-	audio_sig_stop = 1;
+	if(argc > 1){
+		audio_sig_stop = atoi(argv[1]);
+		LOGI("Signal Set to %d\r\n", audio_sig_stop);
+	}else{
+		audio_sig_stop = FILTER_SIG_STOP;
+	}
 	return 0;
 
 }
@@ -922,13 +927,16 @@ void AudioControlTask(void * unused) {
 		out = hlo_http_post(speech_url, NULL);
 
 		if(in && out){
-			ret = hlo_filter_voice_command(in,out,NULL, NULL);
+			ret = hlo_filter_voice_command(in,out,NULL, audio_sig_stop);
 		}
 		LOGI("Task Stream transfer exited with code %d\r\n", ret);
 
 		//hlo_stream_close(in);
 		//hlo_stream_close(out);
 
+		if(audio_sig_stop == FILTER_SIG_RESET){
+			AudioTask_ResetCodec();
+		}
 		vTaskDelay(100);
 	}
 }
