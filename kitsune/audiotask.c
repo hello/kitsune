@@ -267,6 +267,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	}
 	DISP("Playback Task Finished %d\r\n", ret);
 }
+void SetAudioSignal(int i);
 void AudioPlaybackTask(void * data) {
 	_playback_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	assert(_playback_queue);
@@ -280,7 +281,7 @@ void AudioPlaybackTask(void * data) {
 
 	while(1){
 		AudioMessage_t  m;
-		if (xQueueReceive( _playback_queue,(void *) &m, portMAX_DELAY )) {
+		if (xQueueReceive( _playback_queue,(void *) &m, AUDIO_TASK_IDLE_RESET_TIME )) {
 			switch (m.command) {
 
 				case eAudioPlaybackStart:
@@ -307,6 +308,11 @@ void AudioPlaybackTask(void * data) {
 				default:
 					break;
 			}
+		}else{
+			//signal codec reset
+			//this signals synchronizes the reset so that audio stream isn't being used in the meantime.
+			LOGI("Codec Needs Reset\r\n");
+			SetAudioSignal(FILTER_SIG_RESET);
 		}
 	}
 

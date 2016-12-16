@@ -835,6 +835,9 @@ int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * c
 static uint8_t _can_has_sig_stop(void * unused){
 	return audio_sig_stop;
 }
+void SetAudioSignal(int s){
+	audio_sig_stop = s;
+}
 int Cmd_audio_stop(int argc, char *argv[]){
 	DISP("Stopping Audio\r\n");
 	if(argc > 1){

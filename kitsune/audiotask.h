@@ -10,6 +10,10 @@
 
 #include "codec_debug_config.h"
 
+/*This defines the number of idle ticks that is required before resetting the codec
+ * 									t/s	   s    m   h
+ */
+#define AUDIO_TASK_IDLE_RESET_TIME (1000 * 60 * 60 * 4)
 typedef enum {
 	eAudioPlaybackStart,
 	eAudioPlaybackStop,
