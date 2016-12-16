@@ -323,13 +323,13 @@ void AudioTask_ResetCodec(void) {
 	AudioMessage_t m;
 	memset(&m,0,sizeof(m));
 	m.command = eAudioResetCodec;
-	hlo_future_t * sync = hlo_future_create();
-	assert(sync);
-	m.message.reset_sync = sync;
 	if (_playback_queue) {
+		hlo_future_t * sync = hlo_future_create();
+		assert(sync);
+		m.message.reset_sync = sync;
 		xQueueSend(_playback_queue,(void *)&m,0);
+		hlo_future_read_once(sync, NULL,0);
 	}
-	hlo_future_read_once(sync, NULL,0);
 }
 void AudioTask_StopPlayback(void) {
 	AudioMessage_t m;
