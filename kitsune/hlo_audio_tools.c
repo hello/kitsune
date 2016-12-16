@@ -927,7 +927,7 @@ void AudioControlTask(void * unused) {
 		out = hlo_http_post(speech_url, NULL);
 
 		if(in && out){
-			ret = hlo_filter_voice_command(in,out,NULL, audio_sig_stop);
+			ret = hlo_filter_voice_command(in,out,NULL, _can_has_sig_stop);
 		}
 		LOGI("Task Stream transfer exited with code %d\r\n", ret);
 
