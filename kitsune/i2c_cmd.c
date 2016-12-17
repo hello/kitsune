@@ -427,7 +427,7 @@ int init_light_sensor()
 		return FAILURE;
 	}
 
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	assert(xSemaphoreTakeRecursive(i2c_smphr, DEFAULT_I2C_SEM_TIMEOUT));
 	b[0] = 0x80;
 	b[1] = 0b0000111; //enable prox/als/power
 	b[2] = 249; //20ms integration
@@ -528,7 +528,7 @@ int get_ir( int * ir ) {
 }
 int init_uv(bool als) {
 	unsigned char b[2];
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	assert(xSemaphoreTakeRecursive(i2c_smphr, DEFAULT_I2C_SEM_TIMEOUT));
 
 #if 0 // checking the part id seems to make the mode setting fail
 	//check the part id
@@ -596,7 +596,7 @@ int Cmd_uvr(int argc, char *argv[]) {
 	int addr = strtol(argv[1], NULL, 16);
 	int len = strtol(argv[2], NULL, 16);
 	unsigned char b[2];
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	assert(xSemaphoreTakeRecursive(i2c_smphr, DEFAULT_I2C_SEM_TIMEOUT));
 
 	b[0] = addr;
 	(I2C_IF_Write(0x53, b, 1, 1));
@@ -614,7 +614,7 @@ int Cmd_uvw(int argc, char *argv[]) {
 	int data = strtol(argv[2], NULL, 16);
 
 	unsigned char b[2];
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	assert(xSemaphoreTakeRecursive(i2c_smphr, DEFAULT_I2C_SEM_TIMEOUT));
 	b[0] = addr;
 	b[1] = data;
 	(I2C_IF_Write(0x53, b, 2, 1));
