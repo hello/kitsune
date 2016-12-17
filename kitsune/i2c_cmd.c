@@ -66,7 +66,7 @@ static void DisplayBuffer(unsigned char *pucDataBuf, unsigned char ucLen) {
 	}
 	LOGI("\n\r");
 }
-
+#if 0
 int Cmd_i2c_read(int argc, char *argv[]) {
 	unsigned char ucDevAddr, ucLen;
 	unsigned char aucDataBuf[256];
@@ -203,6 +203,7 @@ int Cmd_i2c_readreg(int argc, char *argv[]) {
 
 	return SUCCESS;
 }
+
 int Cmd_i2c_write(int argc, char *argv[]) {
 	unsigned char ucDevAddr, ucStopBit, ucLen;
 	unsigned char aucDataBuf[256];
@@ -253,7 +254,7 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 	return SUCCESS;
 
 }
-
+#endif
 
 static int get_temp_old() {
 	unsigned char cmd = 0xe3;
