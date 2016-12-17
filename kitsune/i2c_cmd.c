@@ -53,6 +53,7 @@ static int codec_after_init_test(void);
 //! \return none
 //!
 //*****************************************************************************
+#if 0	/* unused for prod */
 static void DisplayBuffer(unsigned char *pucDataBuf, unsigned char ucLen) {
 	unsigned char ucBufIndx = 0;
 	LOGI("Read contents");
@@ -66,7 +67,7 @@ static void DisplayBuffer(unsigned char *pucDataBuf, unsigned char ucLen) {
 	}
 	LOGI("\n\r");
 }
-#if 0
+
 int Cmd_i2c_read(int argc, char *argv[]) {
 	unsigned char ucDevAddr, ucLen;
 	unsigned char aucDataBuf[256];
