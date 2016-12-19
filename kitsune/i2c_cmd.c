@@ -528,7 +528,7 @@ int get_ir( int * ir ) {
 }
 int init_uv(bool als) {
 	unsigned char b[2];
-	assert(xSemaphoreTakeRecursive(i2c_smphr, DEFAULT_I2C_SEM_TIMEOUT));
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 2000));
 
 #if 0 // checking the part id seems to make the mode setting fail
 	//check the part id
