@@ -476,10 +476,11 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		}
 
 		//filter signal to abort
-		if(signal && signal()){
+		if(signal && signal(ctx)){
 			ret = HLO_STREAM_EAGAIN;
 			break;
 		}
+
 		//timeout abort
 		if(!nn_ctx.speech_pb.has_word &&
 			xTaskGetTickCount() - begin > keepalive_interval ) {
