@@ -949,12 +949,3 @@ void AudioControlTask(void * unused) {
 	}
 }
 
-static uint8_t mic_count = 8;
-static uint8_t _mic_test_stop(void * unused){
-
-	DISP("Mic test count %d\n",mic_count);
-	return (--mic_count == 0);
-}
-
-
-
