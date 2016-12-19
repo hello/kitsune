@@ -475,8 +475,12 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			}//end connection health check
 		}
 
-		BREAK_ON_SIG(signal);
-
+		//filter signal to abort
+		if(signal && signal()){
+			ret = HLO_STREAM_EAGAIN;
+			break;
+		}
+		//timeout abort
 		if(!nn_ctx.speech_pb.has_word &&
 			xTaskGetTickCount() - begin > keepalive_interval ) {
 			ret = HLO_STREAM_EAGAIN;
