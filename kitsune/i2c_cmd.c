@@ -399,7 +399,7 @@ static bool haz_tmg4903() {
 #include "gesture.h"
 int light_sensor_power(light_power_mode power_state) {
 	unsigned char b[2];
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 2000));
 
 	//max pulse length, number of pluses
 	b[0] = 0x8E;
@@ -464,7 +464,7 @@ static int get_le_short( uint8_t * b ) {
 int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p ) {
 	unsigned char b[10];
 
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 2000));
 
 	/*Red, green, blue, and clear data are stored as 16-bit values.
 	The read sequence must read byte pairs (low followed by high)
@@ -508,7 +508,7 @@ int Cmd_readlight(int argc, char *argv[]) {
 int get_ir( int * ir ) {
 	unsigned char b[2];
 	int w,r,g,bl,p;
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 2000));
 
 	b[0] = 0xAB;
 	b[1] = 0x40;
@@ -576,7 +576,7 @@ int read_zopt(zopt_mode selection) {
 
 	int32_t v = 0;
 	unsigned char b[2];
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 2000));
 
 	b[0] = use_als ? 0xd : 0x10;
 	(I2C_IF_Write(0x53, b, 1, 1));
