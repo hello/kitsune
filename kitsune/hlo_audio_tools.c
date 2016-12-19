@@ -337,6 +337,7 @@ int hlo_filter_benchmark_keyword_recognition(hlo_stream_t * input, hlo_stream_t 
 	keyword_net_deinitialize();
 
 	LOGA("\r\n[OKSENSE][%d]\r\n", nn_ctx.ok_sense_count);
+	return ret;
 }
 extern volatile int sys_volume;
 int32_t set_volume(int v, unsigned int dly);
