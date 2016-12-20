@@ -2062,7 +2062,6 @@ tCmdLineEntry g_sCmdTable[] = {
 	{ "uv", Cmd_read_uv, "" },
 	{ "light", Cmd_readlight, "" },
 #if 1
-    {"th-old", Cmd_read_temp_humid_old, "" },
 	{ "uvr", Cmd_uvr, "" },
 	{ "uvw", Cmd_uvw, "" },
 #endif

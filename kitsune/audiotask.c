@@ -301,6 +301,7 @@ void AudioPlaybackTask(void * data) {
 				break;
 				case eAudioResetCodec:
 					LOGI("Codec Reset...");
+					analytics_event("{codec: reset}");
 					reset_audio();
 					LOGI("done.\r\n");
 					hlo_future_write(m.message.reset_sync, NULL,0, 0);

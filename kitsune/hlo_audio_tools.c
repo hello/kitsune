@@ -337,6 +337,7 @@ int hlo_filter_benchmark_keyword_recognition(hlo_stream_t * input, hlo_stream_t 
 	keyword_net_deinitialize();
 
 	LOGA("\r\n[OKSENSE][%d]\r\n", nn_ctx.ok_sense_count);
+	return ret;
 }
 extern volatile int sys_volume;
 int32_t set_volume(int v, unsigned int dly);
@@ -475,8 +476,13 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			}//end connection health check
 		}
 
-		BREAK_ON_SIG(signal);
+		//filter signal to abort
+		if(signal && signal(ctx)){
+			ret = HLO_STREAM_EAGAIN;
+			break;
+		}
 
+		//timeout abort
 		if(!nn_ctx.speech_pb.has_word &&
 			xTaskGetTickCount() - begin > keepalive_interval ) {
 			ret = HLO_STREAM_EAGAIN;
@@ -943,13 +949,4 @@ void AudioControlTask(void * unused) {
 		vTaskDelay(100);
 	}
 }
-
-static uint8_t mic_count = 8;
-static uint8_t _mic_test_stop(void * unused){
-
-	DISP("Mic test count %d\n",mic_count);
-	return (--mic_count == 0);
-}
-
-
 
