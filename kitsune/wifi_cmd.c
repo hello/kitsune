@@ -1984,6 +1984,7 @@ void reset_to_factory_fw();
 
 extern int data_queue_batch_size;
 extern int pill_queue_batch_size;
+extern uint32_t light_off_threshold;
 static void _on_response_protobuf( SyncResponse* response_protobuf)
 {
     if (response_protobuf->has_alarm) 
@@ -2041,6 +2042,10 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     		mcu_reset();
     	}
 	}
+    if(response_protobuf->has_lights_off_threshold) {
+    	LOGI("loffthr %d\r\n");
+    	light_off_threshold = response_protobuf->lights_off_threshold;
+    }
     _set_led_color_based_on_room_conditions(response_protobuf);
 }
 

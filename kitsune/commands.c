@@ -770,7 +770,7 @@ uint8_t get_alpha_from_light()
 	LOGI("ALS %d ALPHA %d\r\n", als, alpha);
 	return alpha;
 }
-static int light_off_threshold = 100;
+uint32_t light_off_threshold = 100;
 static int _is_light_off()
 {
 	static int last_light = -1;
