@@ -2043,8 +2043,8 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     	}
 	}
     if(response_protobuf->has_lights_off_threshold) {
-    	LOGI("loffthr %u\r\n");
     	light_off_threshold = response_protobuf->lights_off_threshold;
+    	LOGI("loffthr %u\r\n",light_off_threshold);
     }
     _set_led_color_based_on_room_conditions(response_protobuf);
 }
