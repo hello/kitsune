@@ -770,14 +770,12 @@ uint8_t get_alpha_from_light()
 	LOGI("ALS %d ALPHA %d\r\n", als, alpha);
 	return alpha;
 }
-
-
+static int light_off_threshold = 100;
 static int _is_light_off()
 {
 	static int last_light = -1;
 	static int now_light;
 	static unsigned int last_light_time = 0;
-	const int light_off_threshold = 72;
 	int ret = 0;
 
 	xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY);
