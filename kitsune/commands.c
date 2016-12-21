@@ -784,7 +784,7 @@ static int _is_light_off()
 	{
 		int delta = last_light - now_light;
 		if(xTaskGetTickCount() - last_light_time > 2000
-				&& delta >= light_off_threshold
+				&& abs(delta) >= light_off_threshold
 				&& now_light < 100)
 		{
 			LOGI("light delta: %d, current %d, last %d\n", delta, now_light, last_light);
