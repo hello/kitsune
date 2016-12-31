@@ -158,9 +158,6 @@ void audio_features_upload_task(void * not_used) {
 				LOGE("audio_features_upload -- UNABLE TO ADD TO NETWORK QUEUE\r\n");
 
 				cleanup((hlo_stream_t *)  message.context);
-			} else {
-				//toggle state if adding message to queue was successful
-				_is_waiting_for_uploading = 1;
 			}
 		}
 	}
@@ -177,6 +174,9 @@ void audio_features_upload_trigger_async_upload(const char * net_id,const char *
 		return;
 	}
 
+
+	//stop collecting data immediately
+	_is_waiting_for_uploading = 1;
 
 	memset(&netmessage,0,sizeof(netmessage));
 	memset(&_mat,0,sizeof(_mat));
