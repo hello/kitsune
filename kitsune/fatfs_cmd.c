@@ -489,6 +489,9 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 						rstr = fs_stream_open(path_buff, HLO_STREAM_READ);
 					}
 					break;
+				case '0':
+					rstr = zero_stream_open();
+					break;
 				case '~':
 					rstr = open_serial_flash(p+1, HLO_STREAM_READ,  1024*128);
 					break;

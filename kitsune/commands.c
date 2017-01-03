@@ -770,14 +770,12 @@ uint8_t get_alpha_from_light()
 	LOGI("ALS %d ALPHA %d\r\n", als, alpha);
 	return alpha;
 }
-
-
+uint32_t light_off_threshold = 100;
 static int _is_light_off()
 {
 	static int last_light = -1;
 	static int now_light;
 	static unsigned int last_light_time = 0;
-	const int light_off_threshold = 100;
 	int ret = 0;
 
 	xSemaphoreTakeRecursive(_light_data.light_smphr, portMAX_DELAY);
@@ -786,7 +784,7 @@ static int _is_light_off()
 	{
 		int delta = last_light - now_light;
 		if(xTaskGetTickCount() - last_light_time > 2000
-				&& delta >= light_off_threshold
+				&& abs(delta) >= light_off_threshold
 				&& now_light < 100)
 		{
 			LOGI("light delta: %d, current %d, last %d\n", delta, now_light, last_light);
@@ -2062,7 +2060,6 @@ tCmdLineEntry g_sCmdTable[] = {
 	{ "uv", Cmd_read_uv, "" },
 	{ "light", Cmd_readlight, "" },
 #if 1
-    {"th-old", Cmd_read_temp_humid_old, "" },
 	{ "uvr", Cmd_uvr, "" },
 	{ "uvw", Cmd_uvw, "" },
 #endif
@@ -2159,7 +2156,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"pn",cmd_audio_self_test,""},
 		{"tap", cmd_tap, ""},
 		{"flipped", cmd_flipped, ""},
-
 		{ 0, 0, 0 } };
 
 
@@ -2171,7 +2167,7 @@ extern xSemaphoreHandle g_xRxLineSemaphore;
 
 void UARTStdioIntHandler(void);
 long nwp_reset();
-
+bool disable_net_timeout = false;
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
 
@@ -2337,6 +2333,7 @@ void vUARTTask(void *pvParameters) {
 		return;
 	} else {
 		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
+		disable_net_timeout = true;
 	}
 #else
 	/* remove anything we recieved before we were ready */
