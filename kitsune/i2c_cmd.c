@@ -705,6 +705,12 @@ inline static int _tvoc_erase_app(void){
 
 inline static int _tvoc_program_app(const char* file){
 
+	// File open
+
+	//loop:
+		// read bytes
+
+		// Write
 	return 0;
 }
 
