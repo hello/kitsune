@@ -1,6 +1,7 @@
 #ifndef _ENDPOINTS_H_
 #define _ENDPOINTS_H_
 
+
 char * get_server(void);
 char * get_messeji_server(void);
 
@@ -12,6 +13,8 @@ char * get_speech_server(void);
 
 #define DATA_SERVER	get_server()
 #define MESSEJI_SERVER	get_messeji_server()
+
+#define USE_SHA2
 
 #ifdef USE_SHA2
 #define PROD_MESSEJI_SERVER "messeji-sha2.hello.is"
