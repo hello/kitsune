@@ -2,6 +2,7 @@
 #define __I2C_CMD_H__
 
 #include "stdbool.h"
+#define DEFAULT_I2C_SEM_TIMEOUT 1000
 
 int Cmd_i2c_read(int argc, char *argv[]);
 int Cmd_i2c_write(int argc, char *argv[]);

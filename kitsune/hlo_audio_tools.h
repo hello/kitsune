@@ -15,6 +15,7 @@ int hlo_filter_data_transfer_limited(hlo_stream_t * input, hlo_stream_t * output
 int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
 int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
 int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
+int hlo_filter_benchmark_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
 /**
  * contains a list of streams for audio
  */

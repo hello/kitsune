@@ -43,285 +43,6 @@ static int codec_after_init_test(void);
 
 #include "stdbool.h"
 
-//*****************************************************************************
-//
-//! Display the buffer contents over I2C
-//!
-//! \param  pucDataBuf is the pointer to the data store to be displayed
-//! \param  ucLen is the length of the data to be displayed
-//!
-//! \return none
-//!
-//*****************************************************************************
-static void DisplayBuffer(unsigned char *pucDataBuf, unsigned char ucLen) {
-	unsigned char ucBufIndx = 0;
-	LOGI("Read contents");
-	LOGI("\n\r");
-	while (ucBufIndx < ucLen) {
-		LOGI(" 0x%x, ", pucDataBuf[ucBufIndx]);
-		ucBufIndx++;
-		if ((ucBufIndx % 8) == 0) {
-			LOGI("\n\r");
-		}
-	}
-	LOGI("\n\r");
-}
-
-int Cmd_i2c_read(int argc, char *argv[]) {
-	unsigned char ucDevAddr, ucLen;
-	unsigned char aucDataBuf[256];
-	char *pcErrPtr;
-	int iRetVal;
-
-	if (argc != 3) {
-		LOGI(
-				"read  <dev_addr> <rdlen> \n\r\t - Read data frpm the specified i2c device\n\r");
-		return FAILURE;
-	}
-
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
-	// Get the device address
-	//
-	ucDevAddr = (unsigned char) strtoul(argv[2], &pcErrPtr, 16);
-	//
-	// Get the length of data to be read
-	//
-	ucLen = (unsigned char) strtoul(argv[3], &pcErrPtr, 10);
-
-	// Read the specified length of data
-	//
-	iRetVal = I2C_IF_Read(ucDevAddr, aucDataBuf, ucLen);
-
-	xSemaphoreGiveRecursive(i2c_smphr);
-
-	if (iRetVal == SUCCESS) {
-		LOGI("I2C_IF_ Read complete\n\r");
-		//
-		// Display the buffer over UART on successful write
-		//
-		DisplayBuffer(aucDataBuf, ucLen);
-	} else {
-		LOGI("I2C_IF_ Read failed\n\r");
-		return FAILURE;
-	}
-
-	return SUCCESS;
-}
-
-int Cmd_i2c_writereg(int argc, char *argv[]) {
-	unsigned char ucDevAddr, ucRegOffset, ucWrLen;
-	unsigned char aucDataBuf[256];
-	char *pcErrPtr;
-	int iLoopCnt = 0;
-
-	if (argc != 5) {
-		LOGI(
-				"writereg <dev_addr> <reg_offset> <wrlen> <<byte0> [<byte1> ... ]> \n\r");
-		return FAILURE;
-	}
-
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
-
-	// Get the device address
-	//
-	ucDevAddr = (unsigned char) strtoul(argv[2], &pcErrPtr, 16);
-
-	//get the register offset
-	ucRegOffset = (unsigned char) strtoul(argv[3], &pcErrPtr, 10);
-	aucDataBuf[iLoopCnt] = ucRegOffset;
-	iLoopCnt++;
-	//
-	// Get the length of data to be written
-	//
-	ucWrLen = (unsigned char) strtoul(argv[4], &pcErrPtr, 10);
-	//
-	// Get the bytes to be written
-	//
-	for (; iLoopCnt < ucWrLen + 1; iLoopCnt++) {
-		//
-		// Store the data to be written
-		//
-		aucDataBuf[iLoopCnt] = (unsigned char) strtoul(argv[4], &pcErrPtr, 16);
-
-		++argv[4];
-	}
-	//
-	// Write the data values.
-	//
-	RET_IF_ERR(I2C_IF_Write(ucDevAddr, &aucDataBuf[0], ucWrLen + 1, 1));
-
-	xSemaphoreGiveRecursive(i2c_smphr);
-
-	LOGI("I2C_IF_ Write To address complete\n\r");
-
-	return SUCCESS;
-}
-int Cmd_i2c_readreg(int argc, char *argv[]) {
-	unsigned char ucDevAddr, ucRegOffset, ucRdLen;
-	unsigned char aucRdDataBuf[256];
-	char *pcErrPtr;
-
-	if (argc != 4) {
-		LOGI("readreg <dev_addr> <reg_offset> <rdlen> \n\r");
-		return FAILURE;
-	}
-
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
-	//
-	// Get the device address
-	//
-	ucDevAddr = (unsigned char) strtoul(argv[1], &pcErrPtr, 16);
-	//
-	// Get the register offset address
-	//
-	ucRegOffset = (unsigned char) strtoul(argv[2], &pcErrPtr, 16);
-
-	//
-	// Get the length of data to be read
-	//
-	ucRdLen = (unsigned char) strtoul(argv[3], &pcErrPtr, 10);
-
-	//
-	// Write the register address to be read from.
-	// Stop bit implicitly assumed to be 0.
-	//
-	RET_IF_ERR(I2C_IF_Write(ucDevAddr, &ucRegOffset, 1, 0));
-
-	vTaskDelay(0);
-	//
-	// Read the specified length of data
-	//
-	RET_IF_ERR(I2C_IF_Read(ucDevAddr, &aucRdDataBuf[0], ucRdLen));
-
-	xSemaphoreGiveRecursive(i2c_smphr);
-
-	LOGI("I2C_IF_ Read From address complete\n");
-	//
-	// Display the buffer over UART on successful readreg
-	//
-	DisplayBuffer(aucRdDataBuf, ucRdLen);
-
-	return SUCCESS;
-}
-int Cmd_i2c_write(int argc, char *argv[]) {
-	unsigned char ucDevAddr, ucStopBit, ucLen;
-	unsigned char aucDataBuf[256];
-	char *pcErrPtr;
-	int iRetVal, iLoopCnt;
-
-	if (argc != 4) {
-		LOGI("write <dev_addr> <wrlen> <<byte0>[<byte1> ... ]>\n\r");
-		return FAILURE;
-	}
-
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
-	//
-	// Get the device address
-	//
-	ucDevAddr = (unsigned char) strtoul(argv[1], &pcErrPtr, 16);
-	//
-	// Get the length of data to be written
-	//
-	ucLen = (unsigned char) strtoul(argv[2], &pcErrPtr, 10);
-	//RETERR_IF_TRUE(ucLen > sizeof(aucDataBuf));
-
-	for (iLoopCnt = 0; iLoopCnt < ucLen; iLoopCnt++) {
-		//
-		// Store the data to be written
-		//
-		aucDataBuf[iLoopCnt] = (unsigned char) strtoul(argv[3], &pcErrPtr, 16);
-		++argv[3];
-	}
-	//
-	// Get the stop bit
-	//
-	ucStopBit = (unsigned char) strtoul(argv[3], &pcErrPtr, 10);
-	//
-	// Write the data to the specified address
-	//
-	iRetVal = I2C_IF_Write(ucDevAddr, aucDataBuf, ucLen, ucStopBit);
-
-	xSemaphoreGiveRecursive(i2c_smphr);
-
-	if (iRetVal == SUCCESS) {
-		LOGI("I2C_IF_ Write complete\n\r");
-	} else {
-		LOGI("I2C_IF_ Write failed\n\r");
-		return FAILURE;
-	}
-
-	return SUCCESS;
-
-}
-
-
-static int get_temp_old() {
-	unsigned char cmd = 0xe3;
-	int temp_raw;
-	int temp;
-
-	unsigned char aucDataBuf[2];
-
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
-
-	vTaskDelay(5);
-	(I2C_IF_Write(0x40, &cmd, 1, 1));
-
-	xSemaphoreGiveRecursive(i2c_smphr);
-	vTaskDelay(50);
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
-	vTaskDelay(5);
-	(I2C_IF_Read(0x40, aucDataBuf, 2));
-	temp_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
-
-	temp = 17572 * temp_raw / 65536 - 4685;
-
-	xSemaphoreGiveRecursive(i2c_smphr);
-
-	return temp;
-}
-static int get_humid_old() {
-	unsigned char aucDataBuf[2];
-	unsigned char cmd = 0xe5;
-	int humid_raw;
-	int humid;
-
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
-	vTaskDelay(5);
-
-	(I2C_IF_Write(0x40, &cmd, 1, 1));
-
-	xSemaphoreGiveRecursive(i2c_smphr);
-	vTaskDelay(50);
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
-
-	vTaskDelay(5);
-	(I2C_IF_Read(0x40, aucDataBuf, 2));
-	humid_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
-
-	xSemaphoreGiveRecursive(i2c_smphr);
-
-	humid = 12500 * humid_raw / 65536 - 600;
-	return humid;
-}
-int Cmd_read_temp_humid_old(int argc, char *argv[]) {
-	unsigned char cmd = 0xfe;
-	int temp,humid;
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
-	(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
-	get_temp_old();
-	get_humid_old();
-	xSemaphoreGiveRecursive(i2c_smphr);
-	vTaskDelay(500);
-
-	temp = get_temp_old();
-	humid = get_humid_old();
-	humid += (2500-temp)*-15/100;
-
-	LOGF("%d,%d\n", temp, humid);
-	return SUCCESS;
-}
-
 #if 1
 struct {
 	uint16_t dig_T1;
@@ -849,7 +570,7 @@ static bool haz_tmg4903() {
 #include "gesture.h"
 int light_sensor_power(light_power_mode power_state) {
 	unsigned char b[2];
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 2000));
 
 	//max pulse length, number of pluses
 	b[0] = 0x8E;
@@ -877,7 +598,7 @@ int init_light_sensor()
 		return FAILURE;
 	}
 
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	assert(xSemaphoreTakeRecursive(i2c_smphr, DEFAULT_I2C_SEM_TIMEOUT));
 	b[0] = 0x80;
 	b[1] = 0b0000111; //enable prox/als/power
 	b[2] = 249; //20ms integration
@@ -914,7 +635,7 @@ static int get_le_short( uint8_t * b ) {
 int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p ) {
 	unsigned char b[10];
 
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 2000));
 
 	/*Red, green, blue, and clear data are stored as 16-bit values.
 	The read sequence must read byte pairs (low followed by high)
@@ -958,7 +679,7 @@ int Cmd_readlight(int argc, char *argv[]) {
 int get_ir( int * ir ) {
 	unsigned char b[2];
 	int w,r,g,bl,p;
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 2000));
 
 	b[0] = 0xAB;
 	b[1] = 0x40;
@@ -978,7 +699,7 @@ int get_ir( int * ir ) {
 }
 int init_uv(bool als) {
 	unsigned char b[2];
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 2000));
 
 #if 0 // checking the part id seems to make the mode setting fail
 	//check the part id
@@ -1026,7 +747,7 @@ int read_zopt(zopt_mode selection) {
 
 	int32_t v = 0;
 	unsigned char b[2];
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 2000));
 
 	b[0] = use_als ? 0xd : 0x10;
 	(I2C_IF_Write(0x53, b, 1, 1));
@@ -1046,7 +767,7 @@ int Cmd_uvr(int argc, char *argv[]) {
 	int addr = strtol(argv[1], NULL, 16);
 	int len = strtol(argv[2], NULL, 16);
 	unsigned char b[2];
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	assert(xSemaphoreTakeRecursive(i2c_smphr, DEFAULT_I2C_SEM_TIMEOUT));
 
 	b[0] = addr;
 	(I2C_IF_Write(0x53, b, 1, 1));
@@ -1064,7 +785,7 @@ int Cmd_uvw(int argc, char *argv[]) {
 	int data = strtol(argv[2], NULL, 16);
 
 	unsigned char b[2];
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	assert(xSemaphoreTakeRecursive(i2c_smphr, DEFAULT_I2C_SEM_TIMEOUT));
 	b[0] = addr;
 	b[1] = data;
 	(I2C_IF_Write(0x53, b, 2, 1));

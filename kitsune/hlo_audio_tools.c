@@ -34,7 +34,7 @@ bool audio_playing();
 #include "tensor/tinytensor_math_defs.h"
 
 #define OKAY_SENSE_THRESHOLD     TOFIX(0.5)
-#define OKAY_SENSE_MIN_DURATION  3
+#define OKAY_SENSE_MIN_DURATION  5
 
 #define SNOOZE_THRESHOLD      TOFIX(0.3)
 #define SNOOZE_MIN_DURATION   3
@@ -301,9 +301,44 @@ static void _speech_detect_callback(void * context, SpeechTransition_t transitio
 
 }
 
+typedef struct{
+	int ok_sense_count;
+}nn_benchmark_t;
+static void _test_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
+	nn_benchmark_t * p = (nn_benchmark_t *)ctx;
 
+	switch (keyword ) {
+	case okay_sense:
+		LOGI("OKAY SENSE\r\n");
+		p->ok_sense_count++;
+		break;
+	case snooze:
+		break;
+	case stop:
+		break;
+	}
+}
+int hlo_filter_benchmark_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+#define NSAMPLES 512
+	int ret;
+	nn_benchmark_t nn_ctx = (nn_benchmark_t){0};
+	int16_t samples[NSAMPLES];
+	keyword_net_initialize();
+	keyword_net_register_callback(&nn_ctx,okay_sense,OKAY_SENSE_THRESHOLD,OKAY_SENSE_MIN_DURATION,_voice_begin_keyword,_test_finish_keyword);
+	//keyword_net_register_callback(&nn_ctx,snooze,SNOOZE_THRESHOLD,SNOOZE_MIN_DURATION,_voice_begin_keyword,_snooze_stop);
+	//keyword_net_register_callback(&nn_ctx,stop,STOP_THRESHOLD,STOP_MIN_DURATION,_voice_begin_keyword,_stop_stop);
+	//keyword_net_register_speech_callback(&nn_ctx,_speech_detect_callback);
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, NUM_SAMPLES_TO_RUN_FFT*2, 4)) > 0 ){
+		keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 
+		BREAK_ON_SIG(signal);
 
+	}
+	keyword_net_deinitialize();
+
+	LOGA("\r\n[OKSENSE][%d]\r\n", nn_ctx.ok_sense_count);
+	return ret;
+}
 extern volatile int sys_volume;
 int32_t set_volume(int v, unsigned int dly);
 #define AUDIO_NET_RATE (AUDIO_SAMPLE_RATE/1024)
@@ -441,8 +476,13 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			}//end connection health check
 		}
 
-		BREAK_ON_SIG(signal);
+		//filter signal to abort
+		if(signal && signal(ctx)){
+			ret = HLO_STREAM_EAGAIN;
+			break;
+		}
 
+		//timeout abort
 		if(!nn_ctx.speech_pb.has_word &&
 			xTaskGetTickCount() - begin > keepalive_interval ) {
 			ret = HLO_STREAM_EAGAIN;
@@ -801,9 +841,17 @@ int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * c
 static uint8_t _can_has_sig_stop(void * unused){
 	return audio_sig_stop;
 }
+void SetAudioSignal(int s){
+	audio_sig_stop = s;
+}
 int Cmd_audio_stop(int argc, char *argv[]){
 	DISP("Stopping Audio\r\n");
-	audio_sig_stop = 1;
+	if(argc > 1){
+		audio_sig_stop = atoi(argv[1]);
+		LOGI("Signal Set to %d\r\n", audio_sig_stop);
+	}else{
+		audio_sig_stop = FILTER_SIG_STOP;
+	}
 	return 0;
 
 }
@@ -817,6 +865,8 @@ static hlo_filter _filter_from_string(const char * str){
 		return hlo_filter_octogram;
 	case '?':
 		return hlo_filter_throughput_test;
+	case 'v':
+		return hlo_filter_benchmark_keyword_recognition;
 	case 'x':
 		return hlo_filter_voice_command;
 	case 'X':
@@ -886,23 +936,17 @@ void AudioControlTask(void * unused) {
 		out = hlo_http_post(speech_url, NULL);
 
 		if(in && out){
-			ret = hlo_filter_voice_command(in,out,NULL, NULL);
+			ret = hlo_filter_voice_command(in,out,NULL, _can_has_sig_stop);
 		}
 		LOGI("Task Stream transfer exited with code %d\r\n", ret);
 
 		//hlo_stream_close(in);
 		//hlo_stream_close(out);
 
+		if(audio_sig_stop == FILTER_SIG_RESET){
+			AudioTask_ResetCodec();
+		}
 		vTaskDelay(100);
 	}
 }
-
-static uint8_t mic_count = 8;
-static uint8_t _mic_test_stop(void * unused){
-
-	DISP("Mic test count %d\n",mic_count);
-	return (--mic_count == 0);
-}
-
-
 

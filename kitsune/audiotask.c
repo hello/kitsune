@@ -267,6 +267,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	}
 	DISP("Playback Task Finished %d\r\n", ret);
 }
+void SetAudioSignal(int i);
 void AudioPlaybackTask(void * data) {
 	_playback_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	assert(_playback_queue);
@@ -280,7 +281,7 @@ void AudioPlaybackTask(void * data) {
 
 	while(1){
 		AudioMessage_t  m;
-		if (xQueueReceive( _playback_queue,(void *) &m, portMAX_DELAY )) {
+		if (xQueueReceive( _playback_queue,(void *) &m, AUDIO_TASK_IDLE_RESET_TIME )) {
 			switch (m.command) {
 
 				case eAudioPlaybackStart:
@@ -296,17 +297,41 @@ void AudioPlaybackTask(void * data) {
 					if (m.message.playbackdesc.onFinished) {
 						m.message.playbackdesc.onFinished(m.message.playbackdesc.context);
 					}
-				}   break;
+				}
+				break;
+				case eAudioResetCodec:
+					LOGI("Codec Reset...");
+					analytics_event("{codec: reset}");
+					reset_audio();
+					LOGI("done.\r\n");
+					hlo_future_write(m.message.reset_sync, NULL,0, 0);
+					break;
 				default:
 					break;
 			}
+		}else{
+			//signal codec reset
+			//this signals synchronizes the reset so that audio stream isn't being used in the meantime.
+			LOGI("Codec Needs Reset\r\n");
+			SetAudioSignal(FILTER_SIG_RESET);
 		}
 	}
 
 	//hlo_future_destroy(state_update_task);
 
 }
-
+void AudioTask_ResetCodec(void) {
+	AudioMessage_t m;
+	memset(&m,0,sizeof(m));
+	m.command = eAudioResetCodec;
+	if (_playback_queue) {
+		hlo_future_t * sync = hlo_future_create();
+		assert(sync);
+		m.message.reset_sync = sync;
+		xQueueSend(_playback_queue,(void *)&m,0);
+		hlo_future_read_once(sync, NULL,0);
+	}
+}
 void AudioTask_StopPlayback(void) {
 	AudioMessage_t m;
 	memset(&m,0,sizeof(m));
@@ -353,4 +378,3 @@ int Cmd_AudioPlayback(int argc, char * argv[]){
 	}
 	return -1;
 }
-

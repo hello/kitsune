@@ -194,6 +194,27 @@ hlo_stream_t * random_stream_open(void){
 	return rng;
 }
 ////==========================================================
+//zero Stream
+static int zero_read(void * ctx, void * buf, size_t size){
+	memset(buf, 0, size);
+	return size;
+}
+static int zero_write(void *ctx, const void * buf, size_t size){
+	//TODO seed rng
+	return size;
+}
+static hlo_stream_vftbl_t zero_stream_impl = {
+		.read = zero_read,
+		.write = zero_write,
+};
+hlo_stream_t * zero_stream_open(void){
+	static hlo_stream_t * z;
+	if(!z){
+		z = hlo_stream_new(&zero_stream_impl,NULL,HLO_STREAM_READ);
+	}
+	return z;
+}
+////==========================================================
 //Debugging Stream, prints things out
 static int debug_write(void * ctx, const void * buf, size_t size){
 	DISP("Wrote %d bytes\r\n", size);
