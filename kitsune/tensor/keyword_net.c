@@ -13,9 +13,14 @@
 #include "arm_const_structs.h"
 #include "fft.h"
 
+#include "hlo_http.h"
+
 #define NEURAL_NET_MODEL "model_nov07_lstm_med_adam_okay_sense_stop_snooze_tiny_end0_plus_1115_ep065.c"
 #include NEURAL_NET_MODEL
 const static char * k_net_id = NEURAL_NET_MODEL;
+
+
+#define DEBUG_IP_ADDRESS "192.168.128.201"
 
 static volatile int _is_net_running = 1;
 
@@ -41,6 +46,9 @@ typedef struct {
     void * speech_callback_context;
 
     NetStats_t stats;
+
+	hlo_stream_t * debug_stream;
+
 
 } KeywordNetContext_t;
 
@@ -98,6 +106,15 @@ static void feats_callback(void * p, Weight_t * feats) {
 	uint32_t i;
 	int j;
 	DECLCHKCYC
+
+	const uint8_t preamble[] = {0x31,0x41,0x59,0x80,0xFF};
+
+
+	if (context->debug_stream) {
+		context->debug_stream->impl.write(context->debug_stream->ctx,preamble,sizeof(preamble));
+		context->debug_stream->impl.write(context->debug_stream->ctx,feats,sizeof(Weight_t)*NUM_MEL_BINS);
+
+	}
 
 	if (!_is_net_running) {
 		return;
@@ -226,6 +243,8 @@ void keyword_net_initialize(void) {
     tinytensor_allocate_states(&_context.state, &_context.net);
 
 	tinytensor_features_initialize(&_context,feats_callback, speech_detect_callback);
+
+	_context.debug_stream =  hlo_http_post(DEBUG_IP_ADDRESS,NULL);
 }
 
 __attribute__((section(".ramcode")))
@@ -233,6 +252,10 @@ void keyword_net_deinitialize(void) {
 	tinytensor_features_deinitialize();
 
 	tinytensor_free_states(&_context.state,&_context.net);
+
+	if (_context.debug_stream && _context.debug_stream->impl.close) {
+		_context.debug_stream->impl.close(_context.debug_stream->ctx);
+	}
 }
 
 __attribute__((section(".ramcode")))
