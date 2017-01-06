@@ -241,7 +241,7 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
     uint16_t max;
 
     //num_samples must be NUM_SAMPLES_TO_RUN_FFT...
-    if (audio_buffering(fr,samples,num_samples) == 0) {
+    if (audio_buffering_add(fr,samples,num_samples) == 0) {
         return 0;
     }
 
