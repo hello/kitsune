@@ -27,21 +27,51 @@ TEST_F(TestAudioBuffering,TestExact) {
     int16_t outbuf[FEATURES_FFT_SIZE];
     audio_buffering_init();
     int count = 0;
-    int16_t buf[240];
+    int16_t buf[NUM_SAMPLES_TO_RUN_FFT];
+    int i;
+   
+
+    for (int ibuf = 0; ibuf < FFT_UNPADDED_SIZE/NUM_SAMPLES_TO_RUN_FFT; ibuf++) {
+        for (i = 0; i < NUM_SAMPLES_TO_RUN_FFT; i++) {
+            buf[i] = count++;
+        }
+        
+        memset(outbuf,0,sizeof(outbuf));
+        ASSERT_TRUE(audio_buffering_add(outbuf, buf, NUM_SAMPLES_TO_RUN_FFT) == 0);
+    }
     
-    for (int i = 0; i < 240; i++) {
+    for (i = 0; i < NUM_SAMPLES_TO_RUN_FFT; i++) {
         buf[i] = count++;
     }
 
     memset(outbuf,0,sizeof(outbuf));
-    ASSERT_TRUE(audio_buffering_add(outbuf, buf, 240) == 1);
+    ASSERT_TRUE(audio_buffering_add(outbuf, buf, NUM_SAMPLES_TO_RUN_FFT) == 1);
+    
+    int istart = ((FFT_UNPADDED_SIZE/NUM_SAMPLES_TO_RUN_FFT + 1) * NUM_SAMPLES_TO_RUN_FFT) % FFT_UNPADDED_SIZE;
 
-    for (int i = 0; i < 240; i++) {
-        ASSERT_EQ(outbuf[i],i);
+    for (i = 0; i < FFT_UNPADDED_SIZE; i++) {
+        ASSERT_EQ(i + istart, outbuf[i]);
     }
     
-    ASSERT_EQ(outbuf[240],0);
-    
-    
+    for (i = 0; i < NUM_SAMPLES_TO_RUN_FFT; i++) {
+        buf[i] = count++;
+    }
 
+    memset(outbuf,0,sizeof(outbuf));
+    ASSERT_TRUE(audio_buffering_add(outbuf, buf, NUM_SAMPLES_TO_RUN_FFT) == 1);
+
+    for (i = 0; i < FFT_UNPADDED_SIZE; i++) {
+        ASSERT_EQ(i + istart + NUM_SAMPLES_TO_RUN_FFT, outbuf[i]);
+    }
+    
+    for (i = 0; i < NUM_SAMPLES_TO_RUN_FFT; i++) {
+        buf[i] = count++;
+    }
+    
+    memset(outbuf,0,sizeof(outbuf));
+    ASSERT_TRUE(audio_buffering_add(outbuf, buf, NUM_SAMPLES_TO_RUN_FFT) == 1);
+    
+    for (i = 0; i < FFT_UNPADDED_SIZE; i++) {
+        ASSERT_EQ(i + istart + 2*NUM_SAMPLES_TO_RUN_FFT, outbuf[i]);
+    }
 }

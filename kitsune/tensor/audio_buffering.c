@@ -5,7 +5,7 @@
 typedef struct {
     int16_t storage_buf[FFT_UNPADDED_SIZE];
     uint32_t current_idx;
-    uint32_t num_fresh_samples;
+    uint32_t num_samples;
 } AudioCircularBuf_t;
 
 static AudioCircularBuf_t _data;
@@ -42,9 +42,9 @@ int audio_buffering_add(int16_t * outbuf, const int16_t * samples, const uint32_
     
     _data.current_idx = (_data.current_idx + num_samples) % FFT_UNPADDED_SIZE;
     
-    _data.num_fresh_samples += num_samples;
+    _data.num_samples += num_samples;
     
-    if (_data.num_fresh_samples >= NUM_SAMPLES_TO_RUN_FFT) {
+    if (_data.num_samples >= FFT_UNPADDED_SIZE) {
         num_samples_to_write = FFT_UNPADDED_SIZE - _data.current_idx;
         num_samples_leftover = FFT_UNPADDED_SIZE - num_samples_to_write;
 
@@ -55,7 +55,7 @@ int audio_buffering_add(int16_t * outbuf, const int16_t * samples, const uint32_
             memcpy(&outbuf[num_samples_to_write],&_data.storage_buf[0],num_samples_leftover*sizeof(int16_t));
         }
         
-        _data.num_fresh_samples -= NUM_SAMPLES_TO_RUN_FFT;
+        _data.num_samples -= NUM_SAMPLES_TO_RUN_FFT;
         
         return 1;
     }
