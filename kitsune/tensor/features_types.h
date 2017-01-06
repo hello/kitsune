@@ -3,6 +3,11 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 #define NUM_SAMPLES_TO_RUN_FFT (240)
 #define FFT_UNPADDED_SIZE (400)
 #define BUF_SIZE_IN_SAMPLES (600)
@@ -21,4 +26,9 @@ typedef enum {
 
 typedef void(*tinytensor_speech_detector_callback_t)(void * context, SpeechTransition_t transition);
 
+#ifdef __cplusplus
+}
+#endif
+
+    
 #endif //FEATURESTYPES_H_

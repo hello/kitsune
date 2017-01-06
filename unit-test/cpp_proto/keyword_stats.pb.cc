@@ -7,7 +7,6 @@
 #include <algorithm>
 
 #include <google/protobuf/stubs/common.h>
-#include <google/protobuf/stubs/port.h>
 #include <google/protobuf/stubs/once.h>
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/wire_format_lite_inl.h>
@@ -32,7 +31,6 @@ const ::google::protobuf::internal::GeneratedMessageReflection*
 }  // namespace
 
 
-void protobuf_AssignDesc_keyword_5fstats_2eproto() GOOGLE_ATTRIBUTE_COLD;
 void protobuf_AssignDesc_keyword_5fstats_2eproto() {
   protobuf_AddDesc_keyword_5fstats_2eproto();
   const ::google::protobuf::FileDescriptor* file =
@@ -45,30 +43,32 @@ void protobuf_AssignDesc_keyword_5fstats_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(IndividualKeywordHistogram, key_word_index_),
   };
   IndividualKeywordHistogram_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       IndividualKeywordHistogram_descriptor_,
-      IndividualKeywordHistogram::internal_default_instance(),
+      IndividualKeywordHistogram::default_instance_,
       IndividualKeywordHistogram_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(IndividualKeywordHistogram, _has_bits_),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(IndividualKeywordHistogram, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(IndividualKeywordHistogram, _unknown_fields_),
       -1,
-      -1,
-      sizeof(IndividualKeywordHistogram),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(IndividualKeywordHistogram, _internal_metadata_));
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(IndividualKeywordHistogram));
   KeywordActivation_descriptor_ = file->message_type(1);
   static const int KeywordActivation_offsets_[2] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(KeywordActivation, time_counter_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(KeywordActivation, key_word_index_),
   };
   KeywordActivation_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       KeywordActivation_descriptor_,
-      KeywordActivation::internal_default_instance(),
+      KeywordActivation::default_instance_,
       KeywordActivation_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(KeywordActivation, _has_bits_),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(KeywordActivation, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(KeywordActivation, _unknown_fields_),
       -1,
-      -1,
-      sizeof(KeywordActivation),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(KeywordActivation, _internal_metadata_));
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(KeywordActivation));
   KeywordStats_descriptor_ = file->message_type(2);
   static const int KeywordStats_offsets_[3] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(KeywordStats, net_model_),
@@ -76,68 +76,53 @@ void protobuf_AssignDesc_keyword_5fstats_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(KeywordStats, keyword_activations_),
   };
   KeywordStats_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       KeywordStats_descriptor_,
-      KeywordStats::internal_default_instance(),
+      KeywordStats::default_instance_,
       KeywordStats_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(KeywordStats, _has_bits_),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(KeywordStats, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(KeywordStats, _unknown_fields_),
       -1,
-      -1,
-      sizeof(KeywordStats),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(KeywordStats, _internal_metadata_));
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(KeywordStats));
 }
 
 namespace {
 
 GOOGLE_PROTOBUF_DECLARE_ONCE(protobuf_AssignDescriptors_once_);
-void protobuf_AssignDescriptorsOnce() {
+inline void protobuf_AssignDescriptorsOnce() {
   ::google::protobuf::GoogleOnceInit(&protobuf_AssignDescriptors_once_,
                  &protobuf_AssignDesc_keyword_5fstats_2eproto);
 }
 
-void protobuf_RegisterTypes(const ::std::string&) GOOGLE_ATTRIBUTE_COLD;
 void protobuf_RegisterTypes(const ::std::string&) {
   protobuf_AssignDescriptorsOnce();
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      IndividualKeywordHistogram_descriptor_, IndividualKeywordHistogram::internal_default_instance());
+    IndividualKeywordHistogram_descriptor_, &IndividualKeywordHistogram::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      KeywordActivation_descriptor_, KeywordActivation::internal_default_instance());
+    KeywordActivation_descriptor_, &KeywordActivation::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      KeywordStats_descriptor_, KeywordStats::internal_default_instance());
+    KeywordStats_descriptor_, &KeywordStats::default_instance());
 }
 
 }  // namespace
 
 void protobuf_ShutdownFile_keyword_5fstats_2eproto() {
-  IndividualKeywordHistogram_default_instance_.Shutdown();
+  delete IndividualKeywordHistogram::default_instance_;
   delete IndividualKeywordHistogram_reflection_;
-  KeywordActivation_default_instance_.Shutdown();
+  delete KeywordActivation::default_instance_;
   delete KeywordActivation_reflection_;
-  KeywordStats_default_instance_.Shutdown();
+  delete KeywordStats::default_instance_;
   delete KeywordStats_reflection_;
 }
 
-void protobuf_InitDefaults_keyword_5fstats_2eproto_impl() {
+void protobuf_AddDesc_keyword_5fstats_2eproto() {
+  static bool already_here = false;
+  if (already_here) return;
+  already_here = true;
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  IndividualKeywordHistogram_default_instance_.DefaultConstruct();
-  KeywordActivation_default_instance_.DefaultConstruct();
-  ::google::protobuf::internal::GetEmptyString();
-  KeywordStats_default_instance_.DefaultConstruct();
-  IndividualKeywordHistogram_default_instance_.get_mutable()->InitAsDefaultInstance();
-  KeywordActivation_default_instance_.get_mutable()->InitAsDefaultInstance();
-  KeywordStats_default_instance_.get_mutable()->InitAsDefaultInstance();
-}
-
-GOOGLE_PROTOBUF_DECLARE_ONCE(protobuf_InitDefaults_keyword_5fstats_2eproto_once_);
-void protobuf_InitDefaults_keyword_5fstats_2eproto() {
-  ::google::protobuf::GoogleOnceInit(&protobuf_InitDefaults_keyword_5fstats_2eproto_once_,
-                 &protobuf_InitDefaults_keyword_5fstats_2eproto_impl);
-}
-void protobuf_AddDesc_keyword_5fstats_2eproto_impl() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  protobuf_InitDefaults_keyword_5fstats_2eproto();
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\023keyword_stats.proto\"N\n\032IndividualKeywo"
     "rdHistogram\022\030\n\020histogram_counts\030\001 \003(\021\022\026\n"
@@ -146,17 +131,19 @@ void protobuf_AddDesc_keyword_5fstats_2eproto_impl() {
     "ex\030\002 \001(\021\"\203\001\n\014KeywordStats\022\021\n\tnet_model\030\001"
     " \001(\t\022/\n\nhistograms\030\002 \003(\0132\033.IndividualKey"
     "wordHistogram\022/\n\023keyword_activations\030\003 \003"
-    "(\0132\022.KeywordActivation", 302);
+    "(\0132\022.KeywordActivationB0\n\032com.hello.suri"
+    "pu.api.inputB\022KeywordStatsProtos", 352);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "keyword_stats.proto", &protobuf_RegisterTypes);
+  IndividualKeywordHistogram::default_instance_ = new IndividualKeywordHistogram();
+  KeywordActivation::default_instance_ = new KeywordActivation();
+  KeywordStats::default_instance_ = new KeywordStats();
+  IndividualKeywordHistogram::default_instance_->InitAsDefaultInstance();
+  KeywordActivation::default_instance_->InitAsDefaultInstance();
+  KeywordStats::default_instance_->InitAsDefaultInstance();
   ::google::protobuf::internal::OnShutdown(&protobuf_ShutdownFile_keyword_5fstats_2eproto);
 }
 
-GOOGLE_PROTOBUF_DECLARE_ONCE(protobuf_AddDesc_keyword_5fstats_2eproto_once_);
-void protobuf_AddDesc_keyword_5fstats_2eproto() {
-  ::google::protobuf::GoogleOnceInit(&protobuf_AddDesc_keyword_5fstats_2eproto_once_,
-                 &protobuf_AddDesc_keyword_5fstats_2eproto_impl);
-}
 // Force AddDescriptors() to be called at static initialization time.
 struct StaticDescriptorInitializer_keyword_5fstats_2eproto {
   StaticDescriptorInitializer_keyword_5fstats_2eproto() {
@@ -164,26 +151,15 @@ struct StaticDescriptorInitializer_keyword_5fstats_2eproto {
   }
 } static_descriptor_initializer_keyword_5fstats_2eproto_;
 
-namespace {
-
-static void MergeFromFail(int line) GOOGLE_ATTRIBUTE_COLD GOOGLE_ATTRIBUTE_NORETURN;
-static void MergeFromFail(int line) {
-  ::google::protobuf::internal::MergeFromFail(__FILE__, line);
-}
-
-}  // namespace
-
-
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int IndividualKeywordHistogram::kHistogramCountsFieldNumber;
 const int IndividualKeywordHistogram::kKeyWordIndexFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 IndividualKeywordHistogram::IndividualKeywordHistogram()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
-  if (this != internal_default_instance()) protobuf_InitDefaults_keyword_5fstats_2eproto();
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:IndividualKeywordHistogram)
 }
@@ -192,16 +168,16 @@ void IndividualKeywordHistogram::InitAsDefaultInstance() {
 }
 
 IndividualKeywordHistogram::IndividualKeywordHistogram(const IndividualKeywordHistogram& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
-  UnsafeMergeFrom(from);
+  MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:IndividualKeywordHistogram)
 }
 
 void IndividualKeywordHistogram::SharedCtor() {
   _cached_size_ = 0;
   key_word_index_ = 0;
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
 IndividualKeywordHistogram::~IndividualKeywordHistogram() {
@@ -210,6 +186,8 @@ IndividualKeywordHistogram::~IndividualKeywordHistogram() {
 }
 
 void IndividualKeywordHistogram::SharedDtor() {
+  if (this != default_instance_) {
+  }
 }
 
 void IndividualKeywordHistogram::SetCachedSize(int size) const {
@@ -223,33 +201,26 @@ const ::google::protobuf::Descriptor* IndividualKeywordHistogram::descriptor() {
 }
 
 const IndividualKeywordHistogram& IndividualKeywordHistogram::default_instance() {
-  protobuf_InitDefaults_keyword_5fstats_2eproto();
-  return *internal_default_instance();
+  if (default_instance_ == NULL) protobuf_AddDesc_keyword_5fstats_2eproto();
+  return *default_instance_;
 }
 
-::google::protobuf::internal::ExplicitlyConstructed<IndividualKeywordHistogram> IndividualKeywordHistogram_default_instance_;
+IndividualKeywordHistogram* IndividualKeywordHistogram::default_instance_ = NULL;
 
-IndividualKeywordHistogram* IndividualKeywordHistogram::New(::google::protobuf::Arena* arena) const {
-  IndividualKeywordHistogram* n = new IndividualKeywordHistogram;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+IndividualKeywordHistogram* IndividualKeywordHistogram::New() const {
+  return new IndividualKeywordHistogram;
 }
 
 void IndividualKeywordHistogram::Clear() {
-// @@protoc_insertion_point(message_clear_start:IndividualKeywordHistogram)
   key_word_index_ = 0;
   histogram_counts_.Clear();
-  _has_bits_.Clear();
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+  mutable_unknown_fields()->Clear();
 }
 
 bool IndividualKeywordHistogram::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:IndividualKeywordHistogram)
   for (;;) {
@@ -280,10 +251,10 @@ bool IndividualKeywordHistogram::MergePartialFromCodedStream(
       case 2: {
         if (tag == 16) {
          parse_key_word_index:
-          set_has_key_word_index();
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_SINT32>(
                  input, &key_word_index_)));
+          set_has_key_word_index();
         } else {
           goto handle_unusual;
         }
@@ -327,16 +298,15 @@ void IndividualKeywordHistogram::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteSInt32(2, this->key_word_index(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:IndividualKeywordHistogram)
 }
 
-::google::protobuf::uint8* IndividualKeywordHistogram::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
-  (void)deterministic; // Unused
+::google::protobuf::uint8* IndividualKeywordHistogram::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:IndividualKeywordHistogram)
   // repeated sint32 histogram_counts = 1;
   for (int i = 0; i < this->histogram_counts_size(); i++) {
@@ -349,7 +319,7 @@ void IndividualKeywordHistogram::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteSInt32ToArray(2, this->key_word_index(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -357,92 +327,72 @@ void IndividualKeywordHistogram::SerializeWithCachedSizes(
   return target;
 }
 
-size_t IndividualKeywordHistogram::ByteSizeLong() const {
-// @@protoc_insertion_point(message_byte_size_start:IndividualKeywordHistogram)
-  size_t total_size = 0;
+int IndividualKeywordHistogram::ByteSize() const {
+  int total_size = 0;
 
-  // optional sint32 key_word_index = 2;
-  if (has_key_word_index()) {
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::SInt32Size(
-        this->key_word_index());
+  if (_has_bits_[1 / 32] & (0xffu << (1 % 32))) {
+    // optional sint32 key_word_index = 2;
+    if (has_key_word_index()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::SInt32Size(
+          this->key_word_index());
+    }
+
   }
-
   // repeated sint32 histogram_counts = 1;
   {
-    size_t data_size = 0;
-    unsigned int count = this->histogram_counts_size();
-    for (unsigned int i = 0; i < count; i++) {
+    int data_size = 0;
+    for (int i = 0; i < this->histogram_counts_size(); i++) {
       data_size += ::google::protobuf::internal::WireFormatLite::
         SInt32Size(this->histogram_counts(i));
     }
-    total_size += 1 *
-                  ::google::protobuf::internal::FromIntSize(this->histogram_counts_size());
-    total_size += data_size;
+    total_size += 1 * this->histogram_counts_size() + data_size;
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
   }
-  int cached_size = ::google::protobuf::internal::ToCachedSize(total_size);
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
-  _cached_size_ = cached_size;
+  _cached_size_ = total_size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
   return total_size;
 }
 
 void IndividualKeywordHistogram::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:IndividualKeywordHistogram)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
+  GOOGLE_CHECK_NE(&from, this);
   const IndividualKeywordHistogram* source =
-      ::google::protobuf::internal::DynamicCastToGenerated<const IndividualKeywordHistogram>(
-          &from);
+    ::google::protobuf::internal::dynamic_cast_if_available<const IndividualKeywordHistogram*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:IndividualKeywordHistogram)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:IndividualKeywordHistogram)
-    UnsafeMergeFrom(*source);
+    MergeFrom(*source);
   }
 }
 
 void IndividualKeywordHistogram::MergeFrom(const IndividualKeywordHistogram& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:IndividualKeywordHistogram)
-  if (GOOGLE_PREDICT_TRUE(&from != this)) {
-    UnsafeMergeFrom(from);
-  } else {
-    MergeFromFail(__LINE__);
-  }
-}
-
-void IndividualKeywordHistogram::UnsafeMergeFrom(const IndividualKeywordHistogram& from) {
-  GOOGLE_DCHECK(&from != this);
-  histogram_counts_.UnsafeMergeFrom(from.histogram_counts_);
+  GOOGLE_CHECK_NE(&from, this);
+  histogram_counts_.MergeFrom(from.histogram_counts_);
   if (from._has_bits_[1 / 32] & (0xffu << (1 % 32))) {
     if (from.has_key_word_index()) {
       set_key_word_index(from.key_word_index());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    ::google::protobuf::UnknownFieldSet::MergeToInternalMetdata(
-      from.unknown_fields(), &_internal_metadata_);
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void IndividualKeywordHistogram::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:IndividualKeywordHistogram)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void IndividualKeywordHistogram::CopyFrom(const IndividualKeywordHistogram& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:IndividualKeywordHistogram)
   if (&from == this) return;
   Clear();
-  UnsafeMergeFrom(from);
+  MergeFrom(from);
 }
 
 bool IndividualKeywordHistogram::IsInitialized() const {
@@ -451,15 +401,13 @@ bool IndividualKeywordHistogram::IsInitialized() const {
 }
 
 void IndividualKeywordHistogram::Swap(IndividualKeywordHistogram* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void IndividualKeywordHistogram::InternalSwap(IndividualKeywordHistogram* other) {
-  histogram_counts_.UnsafeArenaSwap(&other->histogram_counts_);
-  std::swap(key_word_index_, other->key_word_index_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    histogram_counts_.Swap(&other->histogram_counts_);
+    std::swap(key_word_index_, other->key_word_index_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata IndividualKeywordHistogram::GetMetadata() const {
@@ -470,78 +418,16 @@ void IndividualKeywordHistogram::InternalSwap(IndividualKeywordHistogram* other)
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// IndividualKeywordHistogram
-
-// repeated sint32 histogram_counts = 1;
-int IndividualKeywordHistogram::histogram_counts_size() const {
-  return histogram_counts_.size();
-}
-void IndividualKeywordHistogram::clear_histogram_counts() {
-  histogram_counts_.Clear();
-}
-::google::protobuf::int32 IndividualKeywordHistogram::histogram_counts(int index) const {
-  // @@protoc_insertion_point(field_get:IndividualKeywordHistogram.histogram_counts)
-  return histogram_counts_.Get(index);
-}
-void IndividualKeywordHistogram::set_histogram_counts(int index, ::google::protobuf::int32 value) {
-  histogram_counts_.Set(index, value);
-  // @@protoc_insertion_point(field_set:IndividualKeywordHistogram.histogram_counts)
-}
-void IndividualKeywordHistogram::add_histogram_counts(::google::protobuf::int32 value) {
-  histogram_counts_.Add(value);
-  // @@protoc_insertion_point(field_add:IndividualKeywordHistogram.histogram_counts)
-}
-const ::google::protobuf::RepeatedField< ::google::protobuf::int32 >&
-IndividualKeywordHistogram::histogram_counts() const {
-  // @@protoc_insertion_point(field_list:IndividualKeywordHistogram.histogram_counts)
-  return histogram_counts_;
-}
-::google::protobuf::RepeatedField< ::google::protobuf::int32 >*
-IndividualKeywordHistogram::mutable_histogram_counts() {
-  // @@protoc_insertion_point(field_mutable_list:IndividualKeywordHistogram.histogram_counts)
-  return &histogram_counts_;
-}
-
-// optional sint32 key_word_index = 2;
-bool IndividualKeywordHistogram::has_key_word_index() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void IndividualKeywordHistogram::set_has_key_word_index() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void IndividualKeywordHistogram::clear_has_key_word_index() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void IndividualKeywordHistogram::clear_key_word_index() {
-  key_word_index_ = 0;
-  clear_has_key_word_index();
-}
-::google::protobuf::int32 IndividualKeywordHistogram::key_word_index() const {
-  // @@protoc_insertion_point(field_get:IndividualKeywordHistogram.key_word_index)
-  return key_word_index_;
-}
-void IndividualKeywordHistogram::set_key_word_index(::google::protobuf::int32 value) {
-  set_has_key_word_index();
-  key_word_index_ = value;
-  // @@protoc_insertion_point(field_set:IndividualKeywordHistogram.key_word_index)
-}
-
-inline const IndividualKeywordHistogram* IndividualKeywordHistogram::internal_default_instance() {
-  return &IndividualKeywordHistogram_default_instance_.get();
-}
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int KeywordActivation::kTimeCounterFieldNumber;
 const int KeywordActivation::kKeyWordIndexFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 KeywordActivation::KeywordActivation()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
-  if (this != internal_default_instance()) protobuf_InitDefaults_keyword_5fstats_2eproto();
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KeywordActivation)
 }
@@ -550,17 +436,17 @@ void KeywordActivation::InitAsDefaultInstance() {
 }
 
 KeywordActivation::KeywordActivation(const KeywordActivation& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
-  UnsafeMergeFrom(from);
+  MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KeywordActivation)
 }
 
 void KeywordActivation::SharedCtor() {
   _cached_size_ = 0;
-  ::memset(&time_counter_, 0, reinterpret_cast<char*>(&key_word_index_) -
-    reinterpret_cast<char*>(&time_counter_) + sizeof(key_word_index_));
+  time_counter_ = GOOGLE_LONGLONG(0);
+  key_word_index_ = 0;
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
 KeywordActivation::~KeywordActivation() {
@@ -569,6 +455,8 @@ KeywordActivation::~KeywordActivation() {
 }
 
 void KeywordActivation::SharedDtor() {
+  if (this != default_instance_) {
+  }
 }
 
 void KeywordActivation::SetCachedSize(int size) const {
@@ -582,52 +470,39 @@ const ::google::protobuf::Descriptor* KeywordActivation::descriptor() {
 }
 
 const KeywordActivation& KeywordActivation::default_instance() {
-  protobuf_InitDefaults_keyword_5fstats_2eproto();
-  return *internal_default_instance();
+  if (default_instance_ == NULL) protobuf_AddDesc_keyword_5fstats_2eproto();
+  return *default_instance_;
 }
 
-::google::protobuf::internal::ExplicitlyConstructed<KeywordActivation> KeywordActivation_default_instance_;
+KeywordActivation* KeywordActivation::default_instance_ = NULL;
 
-KeywordActivation* KeywordActivation::New(::google::protobuf::Arena* arena) const {
-  KeywordActivation* n = new KeywordActivation;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+KeywordActivation* KeywordActivation::New() const {
+  return new KeywordActivation;
 }
 
 void KeywordActivation::Clear() {
-// @@protoc_insertion_point(message_clear_start:KeywordActivation)
-#if defined(__clang__)
-#define ZR_HELPER_(f) \
-  _Pragma("clang diagnostic push") \
-  _Pragma("clang diagnostic ignored \"-Winvalid-offsetof\"") \
-  __builtin_offsetof(KeywordActivation, f) \
-  _Pragma("clang diagnostic pop")
-#else
-#define ZR_HELPER_(f) reinterpret_cast<char*>(\
-  &reinterpret_cast<KeywordActivation*>(16)->f)
-#endif
+#define OFFSET_OF_FIELD_(f) (reinterpret_cast<char*>(      \
+  &reinterpret_cast<KeywordActivation*>(16)->f) - \
+   reinterpret_cast<char*>(16))
 
-#define ZR_(first, last) do {\
-  ::memset(&(first), 0,\
-           ZR_HELPER_(last) - ZR_HELPER_(first) + sizeof(last));\
-} while (0)
+#define ZR_(first, last) do {                              \
+    size_t f = OFFSET_OF_FIELD_(first);                    \
+    size_t n = OFFSET_OF_FIELD_(last) - f + sizeof(last);  \
+    ::memset(&first, 0, n);                                \
+  } while (0)
 
   ZR_(time_counter_, key_word_index_);
 
-#undef ZR_HELPER_
+#undef OFFSET_OF_FIELD_
 #undef ZR_
 
-  _has_bits_.Clear();
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+  mutable_unknown_fields()->Clear();
 }
 
 bool KeywordActivation::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KeywordActivation)
   for (;;) {
@@ -638,10 +513,10 @@ bool KeywordActivation::MergePartialFromCodedStream(
       // optional sint64 time_counter = 1;
       case 1: {
         if (tag == 8) {
-          set_has_time_counter();
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::int64, ::google::protobuf::internal::WireFormatLite::TYPE_SINT64>(
                  input, &time_counter_)));
+          set_has_time_counter();
         } else {
           goto handle_unusual;
         }
@@ -653,10 +528,10 @@ bool KeywordActivation::MergePartialFromCodedStream(
       case 2: {
         if (tag == 16) {
          parse_key_word_index:
-          set_has_key_word_index();
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_SINT32>(
                  input, &key_word_index_)));
+          set_has_key_word_index();
         } else {
           goto handle_unusual;
         }
@@ -699,16 +574,15 @@ void KeywordActivation::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteSInt32(2, this->key_word_index(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KeywordActivation)
 }
 
-::google::protobuf::uint8* KeywordActivation::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
-  (void)deterministic; // Unused
+::google::protobuf::uint8* KeywordActivation::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KeywordActivation)
   // optional sint64 time_counter = 1;
   if (has_time_counter()) {
@@ -720,7 +594,7 @@ void KeywordActivation::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteSInt32ToArray(2, this->key_word_index(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -728,11 +602,10 @@ void KeywordActivation::SerializeWithCachedSizes(
   return target;
 }
 
-size_t KeywordActivation::ByteSizeLong() const {
-// @@protoc_insertion_point(message_byte_size_start:KeywordActivation)
-  size_t total_size = 0;
+int KeywordActivation::ByteSize() const {
+  int total_size = 0;
 
-  if (_has_bits_[0 / 32] & 3u) {
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     // optional sint64 time_counter = 1;
     if (has_time_counter()) {
       total_size += 1 +
@@ -748,44 +621,31 @@ size_t KeywordActivation::ByteSizeLong() const {
     }
 
   }
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
   }
-  int cached_size = ::google::protobuf::internal::ToCachedSize(total_size);
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
-  _cached_size_ = cached_size;
+  _cached_size_ = total_size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
   return total_size;
 }
 
 void KeywordActivation::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KeywordActivation)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
+  GOOGLE_CHECK_NE(&from, this);
   const KeywordActivation* source =
-      ::google::protobuf::internal::DynamicCastToGenerated<const KeywordActivation>(
-          &from);
+    ::google::protobuf::internal::dynamic_cast_if_available<const KeywordActivation*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KeywordActivation)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KeywordActivation)
-    UnsafeMergeFrom(*source);
+    MergeFrom(*source);
   }
 }
 
 void KeywordActivation::MergeFrom(const KeywordActivation& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KeywordActivation)
-  if (GOOGLE_PREDICT_TRUE(&from != this)) {
-    UnsafeMergeFrom(from);
-  } else {
-    MergeFromFail(__LINE__);
-  }
-}
-
-void KeywordActivation::UnsafeMergeFrom(const KeywordActivation& from) {
-  GOOGLE_DCHECK(&from != this);
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_time_counter()) {
       set_time_counter(from.time_counter());
@@ -794,24 +654,19 @@ void KeywordActivation::UnsafeMergeFrom(const KeywordActivation& from) {
       set_key_word_index(from.key_word_index());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    ::google::protobuf::UnknownFieldSet::MergeToInternalMetdata(
-      from.unknown_fields(), &_internal_metadata_);
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void KeywordActivation::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KeywordActivation)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void KeywordActivation::CopyFrom(const KeywordActivation& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KeywordActivation)
   if (&from == this) return;
   Clear();
-  UnsafeMergeFrom(from);
+  MergeFrom(from);
 }
 
 bool KeywordActivation::IsInitialized() const {
@@ -820,15 +675,13 @@ bool KeywordActivation::IsInitialized() const {
 }
 
 void KeywordActivation::Swap(KeywordActivation* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void KeywordActivation::InternalSwap(KeywordActivation* other) {
-  std::swap(time_counter_, other->time_counter_);
-  std::swap(key_word_index_, other->key_word_index_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(time_counter_, other->time_counter_);
+    std::swap(key_word_index_, other->key_word_index_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata KeywordActivation::GetMetadata() const {
@@ -839,73 +692,17 @@ void KeywordActivation::InternalSwap(KeywordActivation* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// KeywordActivation
-
-// optional sint64 time_counter = 1;
-bool KeywordActivation::has_time_counter() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void KeywordActivation::set_has_time_counter() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void KeywordActivation::clear_has_time_counter() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void KeywordActivation::clear_time_counter() {
-  time_counter_ = GOOGLE_LONGLONG(0);
-  clear_has_time_counter();
-}
-::google::protobuf::int64 KeywordActivation::time_counter() const {
-  // @@protoc_insertion_point(field_get:KeywordActivation.time_counter)
-  return time_counter_;
-}
-void KeywordActivation::set_time_counter(::google::protobuf::int64 value) {
-  set_has_time_counter();
-  time_counter_ = value;
-  // @@protoc_insertion_point(field_set:KeywordActivation.time_counter)
-}
-
-// optional sint32 key_word_index = 2;
-bool KeywordActivation::has_key_word_index() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void KeywordActivation::set_has_key_word_index() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void KeywordActivation::clear_has_key_word_index() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void KeywordActivation::clear_key_word_index() {
-  key_word_index_ = 0;
-  clear_has_key_word_index();
-}
-::google::protobuf::int32 KeywordActivation::key_word_index() const {
-  // @@protoc_insertion_point(field_get:KeywordActivation.key_word_index)
-  return key_word_index_;
-}
-void KeywordActivation::set_key_word_index(::google::protobuf::int32 value) {
-  set_has_key_word_index();
-  key_word_index_ = value;
-  // @@protoc_insertion_point(field_set:KeywordActivation.key_word_index)
-}
-
-inline const KeywordActivation* KeywordActivation::internal_default_instance() {
-  return &KeywordActivation_default_instance_.get();
-}
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int KeywordStats::kNetModelFieldNumber;
 const int KeywordStats::kHistogramsFieldNumber;
 const int KeywordStats::kKeywordActivationsFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 KeywordStats::KeywordStats()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
-  if (this != internal_default_instance()) protobuf_InitDefaults_keyword_5fstats_2eproto();
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KeywordStats)
 }
@@ -914,16 +711,17 @@ void KeywordStats::InitAsDefaultInstance() {
 }
 
 KeywordStats::KeywordStats(const KeywordStats& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
-  UnsafeMergeFrom(from);
+  MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KeywordStats)
 }
 
 void KeywordStats::SharedCtor() {
+  ::google::protobuf::internal::GetEmptyString();
   _cached_size_ = 0;
-  net_model_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  net_model_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
 KeywordStats::~KeywordStats() {
@@ -932,7 +730,11 @@ KeywordStats::~KeywordStats() {
 }
 
 void KeywordStats::SharedDtor() {
-  net_model_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  if (net_model_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete net_model_;
+  }
+  if (this != default_instance_) {
+  }
 }
 
 void KeywordStats::SetCachedSize(int size) const {
@@ -946,36 +748,31 @@ const ::google::protobuf::Descriptor* KeywordStats::descriptor() {
 }
 
 const KeywordStats& KeywordStats::default_instance() {
-  protobuf_InitDefaults_keyword_5fstats_2eproto();
-  return *internal_default_instance();
+  if (default_instance_ == NULL) protobuf_AddDesc_keyword_5fstats_2eproto();
+  return *default_instance_;
 }
 
-::google::protobuf::internal::ExplicitlyConstructed<KeywordStats> KeywordStats_default_instance_;
+KeywordStats* KeywordStats::default_instance_ = NULL;
 
-KeywordStats* KeywordStats::New(::google::protobuf::Arena* arena) const {
-  KeywordStats* n = new KeywordStats;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+KeywordStats* KeywordStats::New() const {
+  return new KeywordStats;
 }
 
 void KeywordStats::Clear() {
-// @@protoc_insertion_point(message_clear_start:KeywordStats)
   if (has_net_model()) {
-    net_model_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+    if (net_model_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+      net_model_->clear();
+    }
   }
   histograms_.Clear();
   keyword_activations_.Clear();
-  _has_bits_.Clear();
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+  mutable_unknown_fields()->Clear();
 }
 
 bool KeywordStats::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KeywordStats)
   for (;;) {
@@ -991,7 +788,7 @@ bool KeywordStats::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->net_model().data(), this->net_model().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KeywordStats.net_model");
+            "net_model");
         } else {
           goto handle_unusual;
         }
@@ -1003,31 +800,26 @@ bool KeywordStats::MergePartialFromCodedStream(
       case 2: {
         if (tag == 18) {
          parse_histograms:
-          DO_(input->IncrementRecursionDepth());
-         parse_loop_histograms:
-          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtualNoRecursionDepth(
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
                 input, add_histograms()));
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(18)) goto parse_loop_histograms;
-        if (input->ExpectTag(26)) goto parse_loop_keyword_activations;
-        input->UnsafeDecrementRecursionDepth();
+        if (input->ExpectTag(18)) goto parse_histograms;
+        if (input->ExpectTag(26)) goto parse_keyword_activations;
         break;
       }
 
       // repeated .KeywordActivation keyword_activations = 3;
       case 3: {
         if (tag == 26) {
-          DO_(input->IncrementRecursionDepth());
-         parse_loop_keyword_activations:
-          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtualNoRecursionDepth(
+         parse_keyword_activations:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
                 input, add_keyword_activations()));
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(26)) goto parse_loop_keyword_activations;
-        input->UnsafeDecrementRecursionDepth();
+        if (input->ExpectTag(26)) goto parse_keyword_activations;
         if (input->ExpectAtEnd()) goto success;
         break;
       }
@@ -1062,60 +854,59 @@ void KeywordStats::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->net_model().data(), this->net_model().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KeywordStats.net_model");
+      "net_model");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       1, this->net_model(), output);
   }
 
   // repeated .IndividualKeywordHistogram histograms = 2;
-  for (unsigned int i = 0, n = this->histograms_size(); i < n; i++) {
+  for (int i = 0; i < this->histograms_size(); i++) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
       2, this->histograms(i), output);
   }
 
   // repeated .KeywordActivation keyword_activations = 3;
-  for (unsigned int i = 0, n = this->keyword_activations_size(); i < n; i++) {
+  for (int i = 0; i < this->keyword_activations_size(); i++) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
       3, this->keyword_activations(i), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KeywordStats)
 }
 
-::google::protobuf::uint8* KeywordStats::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
-  (void)deterministic; // Unused
+::google::protobuf::uint8* KeywordStats::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KeywordStats)
   // optional string net_model = 1;
   if (has_net_model()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->net_model().data(), this->net_model().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KeywordStats.net_model");
+      "net_model");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         1, this->net_model(), target);
   }
 
   // repeated .IndividualKeywordHistogram histograms = 2;
-  for (unsigned int i = 0, n = this->histograms_size(); i < n; i++) {
+  for (int i = 0; i < this->histograms_size(); i++) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        2, this->histograms(i), false, target);
+      WriteMessageNoVirtualToArray(
+        2, this->histograms(i), target);
   }
 
   // repeated .KeywordActivation keyword_activations = 3;
-  for (unsigned int i = 0, n = this->keyword_activations_size(); i < n; i++) {
+  for (int i = 0; i < this->keyword_activations_size(); i++) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        3, this->keyword_activations(i), false, target);
+      WriteMessageNoVirtualToArray(
+        3, this->keyword_activations(i), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -1123,103 +914,79 @@ void KeywordStats::SerializeWithCachedSizes(
   return target;
 }
 
-size_t KeywordStats::ByteSizeLong() const {
-// @@protoc_insertion_point(message_byte_size_start:KeywordStats)
-  size_t total_size = 0;
+int KeywordStats::ByteSize() const {
+  int total_size = 0;
 
-  // optional string net_model = 1;
-  if (has_net_model()) {
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->net_model());
-  }
-
-  // repeated .IndividualKeywordHistogram histograms = 2;
-  {
-    unsigned int count = this->histograms_size();
-    total_size += 1UL * count;
-    for (unsigned int i = 0; i < count; i++) {
-      total_size +=
-        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          this->histograms(i));
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    // optional string net_model = 1;
+    if (has_net_model()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->net_model());
     }
+
+  }
+  // repeated .IndividualKeywordHistogram histograms = 2;
+  total_size += 1 * this->histograms_size();
+  for (int i = 0; i < this->histograms_size(); i++) {
+    total_size +=
+      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+        this->histograms(i));
   }
 
   // repeated .KeywordActivation keyword_activations = 3;
-  {
-    unsigned int count = this->keyword_activations_size();
-    total_size += 1UL * count;
-    for (unsigned int i = 0; i < count; i++) {
-      total_size +=
-        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          this->keyword_activations(i));
-    }
+  total_size += 1 * this->keyword_activations_size();
+  for (int i = 0; i < this->keyword_activations_size(); i++) {
+    total_size +=
+      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+        this->keyword_activations(i));
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
   }
-  int cached_size = ::google::protobuf::internal::ToCachedSize(total_size);
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
-  _cached_size_ = cached_size;
+  _cached_size_ = total_size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
   return total_size;
 }
 
 void KeywordStats::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KeywordStats)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
+  GOOGLE_CHECK_NE(&from, this);
   const KeywordStats* source =
-      ::google::protobuf::internal::DynamicCastToGenerated<const KeywordStats>(
-          &from);
+    ::google::protobuf::internal::dynamic_cast_if_available<const KeywordStats*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KeywordStats)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KeywordStats)
-    UnsafeMergeFrom(*source);
+    MergeFrom(*source);
   }
 }
 
 void KeywordStats::MergeFrom(const KeywordStats& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KeywordStats)
-  if (GOOGLE_PREDICT_TRUE(&from != this)) {
-    UnsafeMergeFrom(from);
-  } else {
-    MergeFromFail(__LINE__);
-  }
-}
-
-void KeywordStats::UnsafeMergeFrom(const KeywordStats& from) {
-  GOOGLE_DCHECK(&from != this);
+  GOOGLE_CHECK_NE(&from, this);
   histograms_.MergeFrom(from.histograms_);
   keyword_activations_.MergeFrom(from.keyword_activations_);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_net_model()) {
-      set_has_net_model();
-      net_model_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.net_model_);
+      set_net_model(from.net_model());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    ::google::protobuf::UnknownFieldSet::MergeToInternalMetdata(
-      from.unknown_fields(), &_internal_metadata_);
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void KeywordStats::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KeywordStats)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void KeywordStats::CopyFrom(const KeywordStats& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KeywordStats)
   if (&from == this) return;
   Clear();
-  UnsafeMergeFrom(from);
+  MergeFrom(from);
 }
 
 bool KeywordStats::IsInitialized() const {
@@ -1228,16 +995,14 @@ bool KeywordStats::IsInitialized() const {
 }
 
 void KeywordStats::Swap(KeywordStats* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void KeywordStats::InternalSwap(KeywordStats* other) {
-  net_model_.Swap(&other->net_model_);
-  histograms_.UnsafeArenaSwap(&other->histograms_);
-  keyword_activations_.UnsafeArenaSwap(&other->keyword_activations_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(net_model_, other->net_model_);
+    histograms_.Swap(&other->histograms_);
+    keyword_activations_.Swap(&other->keyword_activations_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata KeywordStats::GetMetadata() const {
@@ -1248,127 +1013,6 @@ void KeywordStats::InternalSwap(KeywordStats* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// KeywordStats
-
-// optional string net_model = 1;
-bool KeywordStats::has_net_model() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void KeywordStats::set_has_net_model() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void KeywordStats::clear_has_net_model() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void KeywordStats::clear_net_model() {
-  net_model_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_net_model();
-}
-const ::std::string& KeywordStats::net_model() const {
-  // @@protoc_insertion_point(field_get:KeywordStats.net_model)
-  return net_model_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
-void KeywordStats::set_net_model(const ::std::string& value) {
-  set_has_net_model();
-  net_model_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KeywordStats.net_model)
-}
-void KeywordStats::set_net_model(const char* value) {
-  set_has_net_model();
-  net_model_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KeywordStats.net_model)
-}
-void KeywordStats::set_net_model(const char* value, size_t size) {
-  set_has_net_model();
-  net_model_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KeywordStats.net_model)
-}
-::std::string* KeywordStats::mutable_net_model() {
-  set_has_net_model();
-  // @@protoc_insertion_point(field_mutable:KeywordStats.net_model)
-  return net_model_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
-::std::string* KeywordStats::release_net_model() {
-  // @@protoc_insertion_point(field_release:KeywordStats.net_model)
-  clear_has_net_model();
-  return net_model_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
-void KeywordStats::set_allocated_net_model(::std::string* net_model) {
-  if (net_model != NULL) {
-    set_has_net_model();
-  } else {
-    clear_has_net_model();
-  }
-  net_model_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), net_model);
-  // @@protoc_insertion_point(field_set_allocated:KeywordStats.net_model)
-}
-
-// repeated .IndividualKeywordHistogram histograms = 2;
-int KeywordStats::histograms_size() const {
-  return histograms_.size();
-}
-void KeywordStats::clear_histograms() {
-  histograms_.Clear();
-}
-const ::IndividualKeywordHistogram& KeywordStats::histograms(int index) const {
-  // @@protoc_insertion_point(field_get:KeywordStats.histograms)
-  return histograms_.Get(index);
-}
-::IndividualKeywordHistogram* KeywordStats::mutable_histograms(int index) {
-  // @@protoc_insertion_point(field_mutable:KeywordStats.histograms)
-  return histograms_.Mutable(index);
-}
-::IndividualKeywordHistogram* KeywordStats::add_histograms() {
-  // @@protoc_insertion_point(field_add:KeywordStats.histograms)
-  return histograms_.Add();
-}
-::google::protobuf::RepeatedPtrField< ::IndividualKeywordHistogram >*
-KeywordStats::mutable_histograms() {
-  // @@protoc_insertion_point(field_mutable_list:KeywordStats.histograms)
-  return &histograms_;
-}
-const ::google::protobuf::RepeatedPtrField< ::IndividualKeywordHistogram >&
-KeywordStats::histograms() const {
-  // @@protoc_insertion_point(field_list:KeywordStats.histograms)
-  return histograms_;
-}
-
-// repeated .KeywordActivation keyword_activations = 3;
-int KeywordStats::keyword_activations_size() const {
-  return keyword_activations_.size();
-}
-void KeywordStats::clear_keyword_activations() {
-  keyword_activations_.Clear();
-}
-const ::KeywordActivation& KeywordStats::keyword_activations(int index) const {
-  // @@protoc_insertion_point(field_get:KeywordStats.keyword_activations)
-  return keyword_activations_.Get(index);
-}
-::KeywordActivation* KeywordStats::mutable_keyword_activations(int index) {
-  // @@protoc_insertion_point(field_mutable:KeywordStats.keyword_activations)
-  return keyword_activations_.Mutable(index);
-}
-::KeywordActivation* KeywordStats::add_keyword_activations() {
-  // @@protoc_insertion_point(field_add:KeywordStats.keyword_activations)
-  return keyword_activations_.Add();
-}
-::google::protobuf::RepeatedPtrField< ::KeywordActivation >*
-KeywordStats::mutable_keyword_activations() {
-  // @@protoc_insertion_point(field_mutable_list:KeywordStats.keyword_activations)
-  return &keyword_activations_;
-}
-const ::google::protobuf::RepeatedPtrField< ::KeywordActivation >&
-KeywordStats::keyword_activations() const {
-  // @@protoc_insertion_point(field_list:KeywordStats.keyword_activations)
-  return keyword_activations_;
-}
-
-inline const KeywordStats* KeywordStats::internal_default_instance() {
-  return &KeywordStats_default_instance_.get();
-}
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // @@protoc_insertion_point(namespace_scope)
 
