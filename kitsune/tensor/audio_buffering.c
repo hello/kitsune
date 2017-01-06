@@ -21,8 +21,11 @@ void audio_buffering_init(void) {
     memset(&_data,0,sizeof(_data));
 }
 
+#ifdef DESKTOP
 int audio_buffering_add(int16_t * outbuf, const int16_t * samples, const uint32_t num_samples) {
-    
+#else
+    __attribute__((section(".ramcode"))) int audio_buffering_add(int16_t * outbuf, const int16_t * samples, const uint32_t num_samples) {
+#endif
     
     uint32_t num_samples_to_write = FFT_UNPADDED_SIZE - _data.current_idx;
     uint32_t num_samples_leftover = 0;

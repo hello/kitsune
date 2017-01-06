@@ -1,5 +1,6 @@
 #include "tinytensor_features.h"
 #include "tinytensor_memory.h"
+#include "audio_buffering.h"
 
 #include "uart_logger.h"
 #include "FreeRTOS.h"
@@ -62,23 +63,12 @@ __attribute__((section(".data")))
 const static uint8_t k_fft_index_pairs[40][2] = {{1,1},{2,3},{3,5},{5,7},{7,9},{9,11},{11,13},{13,15},{15,18},{17,20},{20,23},{22,26},{25,29},{28,32},{31,36},{34,40},{38,44},{42,48},{46,53},{50,58},{55,63},{60,68},{65,74},{70,80},{76,87},{82,94},{89,102},{96,109},{104,118},{111,127},{120,136},{129,147},{138,157},{149,169},{159,181},{171,194},{183,208},{196,223},{210,238},{225,255}};
 
 typedef struct {
-#if 0
-    int16_t * buf;
-    int16_t * pbuf_write;
-    int16_t * pbuf_read;
-    int16_t * end;
-    uint32_t num_samples_in_buffer;
-#endif
     int16_t melbank_avg[NUM_MEL_BINS];
     void * results_context;
     tinytensor_audio_feat_callback_t results_callback;
     tinytensor_speech_detector_callback_t speech_detector_callback;
     uint8_t passed_first;
     int16_t max_mel_lpf;
-    
-    int16_t bins[2][NUM_SAMPLES_TO_RUN_FFT];
-    uint32_t binidx;
-    uint32_t bintot;
     
     int16_t log_speech_lpf;
     
@@ -92,12 +82,8 @@ typedef struct {
 static TinyTensorFeatures_t _this;
 
 void tinytensor_features_initialize(void * results_context, tinytensor_audio_feat_callback_t results_callback,tinytensor_speech_detector_callback_t speech_detector_callback) {
+    audio_buffering_init();
     memset(&_this,0,sizeof(TinyTensorFeatures_t));
-   // _this.buf = MALLOC(BUF_SIZE_IN_SAMPLES*sizeof(int16_t));
-  //  memset(_this.buf,0,BUF_SIZE_IN_SAMPLES*sizeof(int16_t));
-  //  _this.pbuf_write = _this.buf;
-  //  _this.pbuf_read = _this.buf;
- //   _this.end = _this.buf + BUF_SIZE_IN_SAMPLES;
     _this.results_callback = results_callback;
     _this.speech_detector_callback = speech_detector_callback;
     _this.results_context = results_context;
@@ -105,7 +91,6 @@ void tinytensor_features_initialize(void * results_context, tinytensor_audio_fea
 }
 
 void tinytensor_features_deinitialize(void) {
-//    FREE(_this.buf);
 }
 
 __attribute__((section(".ramcode")))
@@ -254,34 +239,11 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
     int16_t temp16;
     int16_t last;
     uint16_t max;
-    /* add samples to circular buffer
-       
-        while current pointer is NUM_SAMPLES_TO_RUN_FFT behind the buffer pointer
-        then we copy the last FFT_UNPADDED_SIZE samples to the FFT buf, zero pad it up to FEATURES_FFT_SIZE
-    
-     */
-
-    /*
-    tiny_tensor_features_add_to_buffer(samples,num_samples);
-
-    if (_this.num_samples_in_buffer < FFT_UNPADDED_SIZE) {
-        return 0;
-    }
-     */
 
     //num_samples must be NUM_SAMPLES_TO_RUN_FFT...
-    memcpy( (void*)_this.bins[_this.binidx], (void*)samples, num_samples*sizeof(int16_t) );
-    _this.binidx = (_this.binidx+1)% 2;
-    if( ++_this.bintot < 2 ) return 0;
-    _this.bintot = 2;
-    if( _this.binidx == 0 ) {
-    	memcpy( fr, _this.bins, 400*2);
-        CHKCYC("copy 0");
-    } else if( _this.binidx == 1 )  {
-		memcpy( fr+320, _this.bins[0], 160*2);
-		memcpy( fr, _this.bins[1], 240*2);
-        CHKCYC("copy 1");
-    }//tiny_tensor_features_get_latest_samples(fr,FFT_UNPADDED_SIZE);
+    if (audio_buffering(fr,samples,num_samples) == 0) {
+        return 0;
+    }
 
     last = 0;
     max = 0;
