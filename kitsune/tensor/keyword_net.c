@@ -19,7 +19,7 @@
 #include NEURAL_NET_MODEL
 const static char * k_net_id = NEURAL_NET_MODEL;
 
-#define DEBUG_STREAM
+//#define DEBUG_STREAM
 #define DEBUG_IP_ADDRESS "192.168.1.117"
 
 static volatile int _is_net_running = 1;

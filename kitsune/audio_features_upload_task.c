@@ -25,7 +25,7 @@
 //once per five minutes
 #define TICKS_PER_UPLOAD (300000)
 #define MAX_UPLOADS_PER_PERIOD (2)
-#define CIRCULAR_BUFFER_SIZE_BYTES (8192)
+#define CIRCULAR_BUFFER_SIZE_BYTES (16000)
 #define MAX_NUM_TICKS_TO_RESET (1 << 30)
 
 #define QUEUE_LENGTH (1)
