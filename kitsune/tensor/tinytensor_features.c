@@ -241,11 +241,11 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel,int16_t * avgmel, int16_
     uint16_t max;
 
     //num_samples must be NUM_SAMPLES_TO_RUN_FFT...
-    if (audio_buffering_add(fr,samples,num_samples) == 0) {
+    if (!audio_buffering_add(fr,samples,num_samples)) {
         return 0;
     }
 
-    last = 0;
+    last = fr[0];
     max = 0;
     //"preemphasis", and apply window as you go
     for (i = 1; i < FFT_UNPADDED_SIZE; i++) {

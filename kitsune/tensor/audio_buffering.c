@@ -58,7 +58,7 @@ int audio_buffering_add(int16_t * outbuf, const int16_t * samples, const uint32_
             memcpy(&outbuf[num_samples_to_write],&_data.storage_buf[0],num_samples_leftover*sizeof(int16_t));
         }
         
-        _data.num_samples -= NUM_SAMPLES_TO_RUN_FFT;
+        _data.num_samples -= num_samples;
         
         return 1;
     }

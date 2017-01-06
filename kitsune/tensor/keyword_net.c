@@ -19,8 +19,8 @@
 #include NEURAL_NET_MODEL
 const static char * k_net_id = NEURAL_NET_MODEL;
 
-
-#define DEBUG_IP_ADDRESS "192.168.128.201"
+#define DEBUG_STREAM
+#define DEBUG_IP_ADDRESS "192.168.1.117"
 
 static volatile int _is_net_running = 1;
 
@@ -107,14 +107,13 @@ static void feats_callback(void * p, Weight_t * feats) {
 	int j;
 	DECLCHKCYC
 
-	const uint8_t preamble[] = {0x31,0x41,0x59,0x80,0xFF};
-
-
+#ifdef DEBUG_STREAM
 	if (context->debug_stream) {
+		const uint8_t preamble[] = {0x31,0x41,0x59,0x80,0xFF};
 		context->debug_stream->impl.write(context->debug_stream->ctx,preamble,sizeof(preamble));
 		context->debug_stream->impl.write(context->debug_stream->ctx,feats,sizeof(Weight_t)*NUM_MEL_BINS);
-
 	}
+#endif
 
 	if (!_is_net_running) {
 		return;
@@ -244,7 +243,10 @@ void keyword_net_initialize(void) {
 
 	tinytensor_features_initialize(&_context,feats_callback, speech_detect_callback);
 
+#ifdef DEBUG_STREAM
 	_context.debug_stream =  hlo_http_post(DEBUG_IP_ADDRESS,NULL);
+#endif
+
 }
 
 __attribute__((section(".ramcode")))
@@ -253,9 +255,12 @@ void keyword_net_deinitialize(void) {
 
 	tinytensor_free_states(&_context.state,&_context.net);
 
+#ifdef DEBUG_STREAM
 	if (_context.debug_stream && _context.debug_stream->impl.close) {
 		_context.debug_stream->impl.close(_context.debug_stream->ctx);
 	}
+#endif
+
 }
 
 __attribute__((section(".ramcode")))
