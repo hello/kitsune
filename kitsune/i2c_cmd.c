@@ -398,6 +398,23 @@ inline static uint8_t _tvoc_read_status_reg(void){
 
 }
 
+inline static uint8_t _tvoc_read_err_id(void){
+
+	uint8_t err_id_cmd[2] = {0xE0, 0xFF};
+
+	if(xSemaphoreTakeRecursive(i2c_smphr, 30000)){
+
+		(I2C_IF_Write(tvoc_i2c_addr, err_id_cmd, 1, 1));
+		(I2C_IF_Read(tvoc_i2c_addr, &err_id_cmd[1], 1));
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+	LOGI("TV: err id: %x\n",err_id_cmd[1]);
+	return err_id_cmd[1];
+
+}
+
 inline static int _tvoc_reset(void){
 
 	uint8_t sw_reset_cmd[5] = {0xFF, 0x11, 0xE5, 0x72, 0x8A };
@@ -515,7 +532,7 @@ inline static uint8_t _tvoc_get_fw_boot_version(void){
 
 inline static uint8_t _tvoc_get_fw_app_version(void){
 
-	uint8_t fw_app_ver_cmd[3] = {0x25, 0xFF, 0xFF};
+	uint8_t fw_app_ver_cmd[3] = {0x24, 0xFF, 0xFF};
 
 	if(xSemaphoreTakeRecursive(i2c_smphr, 30000)){
 
@@ -615,6 +632,14 @@ int cmd_tvoc_get_ver(int argc, char *argv[]) {
 int cmd_tvoc_status(int argc, char *argv[]) {
 
 	LOGI("*TVOC STATUS REG* %x\n", _tvoc_read_status_reg());
+
+	return 0;
+}
+
+// Cmd to get TVOC error id
+int cmd_tvoc_errid(int argc, char *argv[]) {
+
+	LOGI("*TVOC ERR ID* %x\n", _tvoc_read_err_id());
 
 	return 0;
 }
