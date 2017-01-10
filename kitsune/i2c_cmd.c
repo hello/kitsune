@@ -393,7 +393,10 @@ inline static uint8_t _tvoc_read_status_reg(void){
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
+#if DBG_TVOC
 	LOGI("TV: status reg: %x\n",status_reg_cmd[1]);
+#endif
+
 	return status_reg_cmd[1];
 
 }
@@ -410,7 +413,10 @@ inline static uint8_t _tvoc_read_err_id(void){
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
+#if DBG_TVOC
 	LOGI("TV: err id: %x\n",err_id_cmd[1]);
+#endif
+
 	return err_id_cmd[1];
 
 }
@@ -440,7 +446,10 @@ inline static int _tvoc_erase_app(void){
 	vTaskDelay(500);
 
 	int ret = _tvoc_read_status_reg() & APP_VALID_MASK;
+
+#if DBG_TVOC
 	LOGI("TV:erase ret:%d, APP_VALID_MASK: %d\n",ret, APP_VALID_MASK);
+#endif
 
 	if(ret) return -1;
 	else return 0;
@@ -525,7 +534,10 @@ inline static uint8_t _tvoc_get_fw_boot_version(void){
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
+#if DBG_TVOC
 	LOGI("FW Boot: 0x%x%x\n",fw_boot_ver_cmd[1], fw_boot_ver_cmd[2] );
+#endif
+
 	return fw_boot_ver_cmd[1];
 
 }
@@ -542,7 +554,10 @@ inline static uint8_t _tvoc_get_fw_app_version(void){
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
+#if DBG_TVOC
 	LOGI("FW APP: 0x%x%x\n",fw_app_ver_cmd[1], fw_app_ver_cmd[2] );
+#endif
+
 	return fw_app_ver_cmd[1];
 
 }
@@ -569,7 +584,9 @@ int tvoc_fw_update(const char* file)
 
 	vTaskDelay(100);
 
+#if DBG_TVOC
 	LOGI("TV: Bootloader Mode: %x\n",_tvoc_read_status_reg());
+#endif
 
 	// erase application
 	if(_tvoc_erase_app()){
