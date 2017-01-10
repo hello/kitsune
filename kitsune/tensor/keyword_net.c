@@ -15,12 +15,11 @@
 
 #include "hlo_http.h"
 
-#define NEURAL_NET_MODEL "model_nov07_lstm_med_adam_okay_sense_stop_snooze_tiny_end0_plus_1115_ep065.c"
+#define DEBUG_STREAM
+
+#define NEURAL_NET_MODEL "model_aug30_lstm_med_stateful_okay_sense_stop_snooze_tiny_end0_plus_1115_ep050.c"
 #include NEURAL_NET_MODEL
 const static char * k_net_id = NEURAL_NET_MODEL;
-
-//#define DEBUG_STREAM
-#define DEBUG_IP_ADDRESS "192.168.1.117"
 
 static volatile int _is_net_running = 1;
 
@@ -55,6 +54,9 @@ typedef struct {
 static KeywordNetContext_t _context;
 static xSemaphoreHandle _stats_mutex;
 
+static char _debug_stream_target[128] = {0};
+static volatile int _is_debug_streaming = 0;
+
 const static char * k_okay_sense = "okay_sense";
 const static char * k_stop = "stop";
 const static char * k_snooze = "snooze";
@@ -84,6 +86,14 @@ static void speech_detect_callback(void * context, SpeechTransition_t transition
 	}
 }
 
+static void set_debug_stream_target(const char * target, int on) {
+	_is_debug_streaming = on;
+
+	if (target) {
+		strncpy(_debug_stream_target,target,sizeof(_debug_stream_target));
+	}
+}
+
 uint8_t keyword_net_get_and_reset_stats(NetStats_t * stats) {
     //copy out stats, and zero it out
     if( xSemaphoreTake(_stats_mutex, ( TickType_t ) 5 ) == pdTRUE )  {
@@ -108,7 +118,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 	DECLCHKCYC
 
 #ifdef DEBUG_STREAM
-	if (context->debug_stream) {
+	if (context->debug_stream && _is_debug_streaming) {
 		const uint8_t preamble[] = {0x31,0x41,0x59,0x80,0xFF};
 		context->debug_stream->impl.write(context->debug_stream->ctx,preamble,sizeof(preamble));
 		context->debug_stream->impl.write(context->debug_stream->ctx,feats,sizeof(Weight_t)*NUM_MEL_BINS);
@@ -244,7 +254,9 @@ void keyword_net_initialize(void) {
 	tinytensor_features_initialize(&_context,feats_callback, speech_detect_callback);
 
 #ifdef DEBUG_STREAM
-	_context.debug_stream =  hlo_http_post(DEBUG_IP_ADDRESS,NULL);
+	if (_is_debug_streaming) {
+		_context.debug_stream =  hlo_http_post(_debug_stream_target,NULL);
+	}
 #endif
 
 }
@@ -258,6 +270,7 @@ void keyword_net_deinitialize(void) {
 #ifdef DEBUG_STREAM
 	if (_context.debug_stream && _context.debug_stream->impl.close) {
 		_context.debug_stream->impl.close(_context.debug_stream->ctx);
+		_context.debug_stream = NULL;
 	}
 #endif
 
@@ -355,6 +368,26 @@ int cmd_test_neural_net2(int argc, char * argv[])
 		return 0;
     }
 #endif
+
+int cmd_set_debug_streaming(int argc, char * argv[]) {
+
+	if (argc < 2) {
+		return -1;
+	}
+
+	if (argv[1][0] == '0') {
+		set_debug_stream_target(NULL,0);
+	}
+	else if (argv[1][0] == '1' && argc >= 3) {
+		set_debug_stream_target(argv[2],1);
+	}
+	else {
+		return -1;
+	}
+
+
+	return 0;
+}
 
 int cmd_test_neural_net(int argc, char * argv[]) {
 	int16_t samples[160];
