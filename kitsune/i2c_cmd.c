@@ -595,6 +595,8 @@ int tvoc_fw_update(const char* file)
 			goto tvoc_fail;
 		}
 
+		init_tvoc(0x30);
+
 		return 0;
 	}
 	else{
