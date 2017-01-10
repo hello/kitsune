@@ -282,10 +282,13 @@ int init_tvoc(int measmode) {
 	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
 	(I2C_IF_Read(tvoc_i2c_addr, b, 2));
 
-	LOGE("TVOC FW %d.%d.%d\n",(b[0]>>4) & 0xf,b[0] & 0xf, b[1]);
+	LOGI("TVOC FW %d.%d.%d\n",(b[0]>>4) & 0xf,b[0] & 0xf, b[1]);
 	if (b[0] == 0x02 && b[1] == 0x4) {
 		LOGE("apply TVOC FW 0.2.4 workaround\n");
 		tvoc_wa = true;
+	}
+	else {
+		tvoc_wa = false;
 	}
 
 	xSemaphoreGiveRecursive(i2c_smphr);
@@ -393,9 +396,7 @@ inline static uint8_t _tvoc_read_status_reg(void){
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
-#if DBG_TVOC
-	LOGI("TV: status reg: %x\n",status_reg_cmd[1]);
-#endif
+	DBG_TVOC("TV: status reg: %x\n",status_reg_cmd[1]);
 
 	return status_reg_cmd[1];
 
@@ -413,9 +414,7 @@ inline static uint8_t _tvoc_read_err_id(void){
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
-#if DBG_TVOC
-	LOGI("TV: err id: %x\n",err_id_cmd[1]);
-#endif
+	DBG_TVOC("TV: err id: %x\n",err_id_cmd[1]);
 
 	return err_id_cmd[1];
 
@@ -447,9 +446,7 @@ inline static int _tvoc_erase_app(void){
 
 	int ret = _tvoc_read_status_reg() & APP_VALID_MASK;
 
-#if DBG_TVOC
-	LOGI("TV:erase ret:%d, APP_VALID_MASK: %d\n",ret, APP_VALID_MASK);
-#endif
+	DBG_TVOC("TV:erase ret:%d, APP_VALID_MASK: %d\n",ret, APP_VALID_MASK);
 
 	if(ret) return -1;
 	else return 0;
@@ -522,7 +519,7 @@ inline static uint8_t _tvoc_get_hw_version(void){
 	return hw_ver_cmd[1];
 }
 
-inline static uint8_t _tvoc_get_fw_boot_version(void){
+inline static uint16_t _tvoc_get_fw_boot_version(void){
 
 	uint8_t fw_boot_ver_cmd[3] = {0x23, 0xFF, 0xFF};
 
@@ -534,15 +531,15 @@ inline static uint8_t _tvoc_get_fw_boot_version(void){
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
-#if DBG_TVOC
-	LOGI("FW Boot: 0x%x%x\n",fw_boot_ver_cmd[1], fw_boot_ver_cmd[2] );
+#if 1
+	LOGI("FW Boot: 0x%x\n",fw_boot_ver_cmd[1]<<8 | fw_boot_ver_cmd[2] );
 #endif
 
-	return fw_boot_ver_cmd[1];
+	return (fw_boot_ver_cmd[1]<<8) | fw_boot_ver_cmd[2];
 
 }
 
-inline static uint8_t _tvoc_get_fw_app_version(void){
+inline static uint16_t _tvoc_get_fw_app_version(void){
 
 	uint8_t fw_app_ver_cmd[3] = {0x24, 0xFF, 0xFF};
 
@@ -554,11 +551,11 @@ inline static uint8_t _tvoc_get_fw_app_version(void){
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
-#if DBG_TVOC
-	LOGI("FW APP: 0x%x%x\n",fw_app_ver_cmd[1], fw_app_ver_cmd[2] );
+#if 1
+	LOGI("FW APP: 0x%x\n",(fw_app_ver_cmd[1] << 8) | fw_app_ver_cmd[2] );
 #endif
 
-	return fw_app_ver_cmd[1];
+	return (fw_app_ver_cmd[1] << 8) | fw_app_ver_cmd[2];
 
 }
 // CCS811 firmware update
@@ -584,9 +581,7 @@ int tvoc_fw_update(const char* file)
 
 	vTaskDelay(100);
 
-#if DBG_TVOC
-	LOGI("TV: Bootloader Mode: %x\n",_tvoc_read_status_reg());
-#endif
+	DBG_TVOC("TV: Bootloader Mode: %x\n",_tvoc_read_status_reg());
 
 	// erase application
 	if(_tvoc_erase_app()){
@@ -641,7 +636,7 @@ int cmd_tvoc_fw_update(int argc, char *argv[]) {
 // Cmd to get hardware and fw version of CCS811
 int cmd_tvoc_get_ver(int argc, char *argv[]) {
 
-	LOGI("*TVOC FW UPDATE* \n -Current HW version: 0x%x. FW Boot Version: 0x%x, FW App Version: 0x%x- \n",
+	LOGI("*TVOC VERSION* \n -Current HW version: 0x%x. FW Boot Version: 0x%x, FW App Version: 0x%x- \n",
 			_tvoc_get_hw_version(), _tvoc_get_fw_boot_version(), _tvoc_get_fw_app_version());
 
 	return 0;
