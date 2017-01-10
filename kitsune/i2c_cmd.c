@@ -508,8 +508,25 @@ inline static uint8_t _tvoc_get_fw_boot_version(void){
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
-	LOGI("FW: 0x%x%x\n",fw_boot_ver_cmd[1], fw_boot_ver_cmd[2] );
+	LOGI("FW Boot: 0x%x%x\n",fw_boot_ver_cmd[1], fw_boot_ver_cmd[2] );
 	return fw_boot_ver_cmd[1];
+
+}
+
+inline static uint8_t _tvoc_get_fw_app_version(void){
+
+	uint8_t fw_app_ver_cmd[3] = {0x25, 0xFF, 0xFF};
+
+	if(xSemaphoreTakeRecursive(i2c_smphr, 30000)){
+
+		(I2C_IF_Write(tvoc_i2c_addr, fw_app_ver_cmd, 1, 1));
+		(I2C_IF_Read(tvoc_i2c_addr, &fw_app_ver_cmd[1], 2));
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+	LOGI("FW APP: 0x%x%x\n",fw_app_ver_cmd[1], fw_app_ver_cmd[2] );
+	return fw_app_ver_cmd[1];
 
 }
 // CCS811 firmware update
@@ -518,8 +535,8 @@ int tvoc_fw_update(const char* file)
 {
 	int ret_val = 0;
 
-	LOGI("*TVOC FW UPDATE* \n -Current HW version: 0x%x. FW Boot Version: 0x%x- \n",
-			_tvoc_get_hw_version(), _tvoc_get_fw_boot_version());
+	LOGI("*TVOC FW UPDATE* \n -Current HW version: 0x%x. FW Boot Version: 0x%x, FW App Version: 0x%x- \n",
+			_tvoc_get_hw_version(), _tvoc_get_fw_boot_version(), _tvoc_get_fw_app_version());
 
 
 	if( !file ){
@@ -552,8 +569,15 @@ int tvoc_fw_update(const char* file)
 
 	// verify
 	if(!_tvoc_verify_app()){
-		LOGI("*TVOC FW UPDATE SUCCESSFUL* \n -HW version: 0x%x. FW Boot Version: 0x%x- \n",
-				_tvoc_get_hw_version(), _tvoc_get_fw_boot_version());
+		LOGI("*TVOC FW UPDATE* \n -Current HW version: 0x%x. FW Boot Version: 0x%x, FW App Version: 0x%x- \n",
+				_tvoc_get_hw_version(), _tvoc_get_fw_boot_version(), _tvoc_get_fw_app_version());
+
+		// reset CCS811
+		if(_tvoc_reset()){
+			ret_val = -2;
+			goto tvoc_fail;
+		}
+
 		return 0;
 	}
 	else{
@@ -581,8 +605,8 @@ int cmd_tvoc_fw_update(int argc, char *argv[]) {
 // Cmd to get hardware and fw version of CCS811
 int cmd_tvoc_get_ver(int argc, char *argv[]) {
 
-	LOGI("*TVOC VERSION* \n -Current HW version: 0x%x. FW Boot Version: 0x%x- \n",
-			_tvoc_get_hw_version(), _tvoc_get_fw_boot_version());
+	LOGI("*TVOC FW UPDATE* \n -Current HW version: 0x%x. FW Boot Version: 0x%x, FW App Version: 0x%x- \n",
+			_tvoc_get_hw_version(), _tvoc_get_fw_boot_version(), _tvoc_get_fw_app_version());
 
 	return 0;
 }
