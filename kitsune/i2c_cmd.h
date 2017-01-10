@@ -33,6 +33,8 @@ int Cmd_uvr(int argc, char *argv[]);
 int Cmd_uvw(int argc, char *argv[]);
 int Cmd_set_tvenv(int argc, char * argv[]);
 int cmd_tvoc_fw_update(int argc, char *argv[]);
+int cmd_tvoc_get_ver(int argc, char *argv[]);
+int cmd_tvoc_status(int argc, char *argv[]);
 int init_humid_sensor();
 int init_temp_sensor();
 

@@ -393,6 +393,7 @@ inline static uint8_t _tvoc_read_status_reg(void){
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
+	LOGI("TV: status reg: %x\n",status_reg_cmd[1]);
 	return status_reg_cmd[1];
 
 }
@@ -421,17 +422,48 @@ inline static int _tvoc_erase_app(void){
 
 	vTaskDelay(500);
 
-	return ( (_tvoc_read_status_reg() & APP_VALID_MASK == 0x00) ? 0:-1);
+	int ret = _tvoc_read_status_reg() & APP_VALID_MASK;
+	LOGI("TV:erase ret:%d, APP_VALID_MASK: %d\n",ret, APP_VALID_MASK);
+
+	if(ret) return -1;
+	else return 0;
 }
 
+#define PATH_BUF_MAX_SIZE		(64)
+#include "ff.h"
+#include "hellofilesystem.h"
 inline static int _tvoc_program_app(const char* file){
+	uint32_t bytes_to_read=0, bytes_read=0;
+	uint8_t i2c_payload[9] = {0};
+	FRESULT res;
+	FIL fp = {0};
 
-	// File open
+	//open file for read
+	res = hello_fs_open(&fp, file, FA_READ);
+	if (res) {
+		LOGE("TV: error opening file for read %d\n", res);
+		return res;
+	}
 
-	//loop:
-		// read bytes
+	// read into SHA
+	bytes_to_read = 8;
+	i2c_payload[0] = 0xF2;
+	res = hello_fs_read(&fp,&i2c_payload[1],bytes_to_read, &bytes_read);
 
-		// Write
+	LOGI("TV: program start.\n");
+	while ( (bytes_to_read == bytes_read) && (res == FR_OK) ) {
+
+
+		assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+
+		(I2C_IF_Write(tvoc_i2c_addr, i2c_payload, 9, 1));
+		xSemaphoreGiveRecursive(i2c_smphr);
+
+
+		res = hello_fs_read(&fp,&i2c_payload[1],bytes_to_read, &bytes_read);
+	}
+	LOGI("TV: program done. Bytes read: %d, res:%d\n", bytes_read, res);
+	hello_fs_close(&fp);
 	return 0;
 }
 
@@ -446,7 +478,7 @@ inline static int _tvoc_verify_app(void){
 
 	vTaskDelay(100);
 
-	return ( (_tvoc_read_status_reg() & APP_VALID_MASK == 0x00) ? 0:-1);
+	return ( (_tvoc_read_status_reg() & APP_VALID_MASK) ? 0:-1);
 }
 
 inline static uint8_t _tvoc_get_hw_version(void){
@@ -466,19 +498,19 @@ inline static uint8_t _tvoc_get_hw_version(void){
 
 inline static uint8_t _tvoc_get_fw_boot_version(void){
 
-	uint8_t fw_boot_ver_cmd[2] = {0x23, 0xFF};
+	uint8_t fw_boot_ver_cmd[3] = {0x23, 0xFF, 0xFF};
 
 	if(xSemaphoreTakeRecursive(i2c_smphr, 30000)){
 
 		(I2C_IF_Write(tvoc_i2c_addr, fw_boot_ver_cmd, 1, 1));
-		(I2C_IF_Read(tvoc_i2c_addr, &fw_boot_ver_cmd[1], 1));
+		(I2C_IF_Read(tvoc_i2c_addr, &fw_boot_ver_cmd[1], 2));
 
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
+	LOGI("FW: 0x%x%x\n",fw_boot_ver_cmd[1], fw_boot_ver_cmd[2] );
 	return fw_boot_ver_cmd[1];
 
-	return 0;
 }
 // CCS811 firmware update
 // Returns 0 if firmware update is successful, -1 otherwise
@@ -486,13 +518,14 @@ int tvoc_fw_update(const char* file)
 {
 	int ret_val = 0;
 
+	LOGI("*TVOC FW UPDATE* \n -Current HW version: 0x%x. FW Boot Version: 0x%x- \n",
+			_tvoc_get_hw_version(), _tvoc_get_fw_boot_version());
+
+
 	if( !file ){
 		ret_val = -5;
 		goto tvoc_fail;
 	}
-
-	LOGI("*TVOC FW UPDATE* \n -Current HW version: 0x%x. FW Boot Version: 0x%x- \n",
-			_tvoc_get_hw_version(), _tvoc_get_fw_boot_version());
 
 	// reset CCS811
 	if(_tvoc_reset()){
@@ -501,6 +534,8 @@ int tvoc_fw_update(const char* file)
 	}
 
 	vTaskDelay(100);
+
+	LOGI("TV: Bootloader Mode: %x\n",_tvoc_read_status_reg());
 
 	// erase application
 	if(_tvoc_erase_app()){
@@ -513,6 +548,7 @@ int tvoc_fw_update(const char* file)
 		ret_val = -1;
 		goto tvoc_fail;
 	}
+
 
 	// verify
 	if(!_tvoc_verify_app()){
@@ -540,6 +576,23 @@ int cmd_tvoc_fw_update(int argc, char *argv[]) {
 	}
 
 	return tvoc_fw_update(argv[1]);
+}
+
+// Cmd to get hardware and fw version of CCS811
+int cmd_tvoc_get_ver(int argc, char *argv[]) {
+
+	LOGI("*TVOC VERSION* \n -Current HW version: 0x%x. FW Boot Version: 0x%x- \n",
+			_tvoc_get_hw_version(), _tvoc_get_fw_boot_version());
+
+	return 0;
+}
+
+// Cmd to get hardware and fw version of CCS811
+int cmd_tvoc_status(int argc, char *argv[]) {
+
+	LOGI("*TVOC STATUS REG* %x\n", _tvoc_read_status_reg());
+
+	return 0;
 }
 
 /********************************************************************************

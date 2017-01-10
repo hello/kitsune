@@ -2057,6 +2057,8 @@ tCmdLineEntry g_sCmdTable[] = {
 	{ "tv", Cmd_meas_TVOC,	"" },
 	{"tvenv", Cmd_set_tvenv, ""},
 	{"tvfw",cmd_tvoc_fw_update, ""},
+	{"tvver",cmd_tvoc_get_ver, ""},
+	{"tvgets",cmd_tvoc_status, ""},
 
 	{ "uv", Cmd_read_uv, "" },
 	{ "light", Cmd_readlight, "" },
