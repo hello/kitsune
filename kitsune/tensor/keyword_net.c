@@ -15,8 +15,6 @@
 
 #include "hlo_http.h"
 
-#define DEBUG_STREAM
-
 #define NEURAL_NET_MODEL "model_aug30_lstm_med_stateful_okay_sense_stop_snooze_tiny_end0_plus_1115_ep050.c"
 #include NEURAL_NET_MODEL
 const static char * k_net_id = NEURAL_NET_MODEL;
@@ -117,13 +115,11 @@ static void feats_callback(void * p, Weight_t * feats) {
 	int j;
 	DECLCHKCYC
 
-#ifdef DEBUG_STREAM
 	if (context->debug_stream && _is_debug_streaming) {
 		const uint8_t preamble[] = {0x31,0x41,0x59,0x80,0xFF};
 		context->debug_stream->impl.write(context->debug_stream->ctx,preamble,sizeof(preamble));
 		context->debug_stream->impl.write(context->debug_stream->ctx,feats,sizeof(Weight_t)*NUM_MEL_BINS);
 	}
-#endif
 
 	if (!_is_net_running) {
 		return;
@@ -253,11 +249,9 @@ void keyword_net_initialize(void) {
 
 	tinytensor_features_initialize(&_context,feats_callback, speech_detect_callback);
 
-#ifdef DEBUG_STREAM
 	if (_is_debug_streaming) {
 		_context.debug_stream =  hlo_http_post(_debug_stream_target,NULL);
 	}
-#endif
 
 }
 
@@ -267,12 +261,8 @@ void keyword_net_deinitialize(void) {
 
 	tinytensor_free_states(&_context.state,&_context.net);
 
-#ifdef DEBUG_STREAM
-	if (_context.debug_stream && _context.debug_stream->impl.close) {
-		_context.debug_stream->impl.close(_context.debug_stream->ctx);
-		_context.debug_stream = NULL;
-	}
-#endif
+	//works even if debug_stream is null
+	hlo_stream_close(_context.debug_stream);
 
 }
 
