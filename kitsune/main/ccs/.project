@@ -1191,6 +1191,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/sync_response.pb.h</locationURI>
 		</link>
 		<link>
+			<name>tensor/audio_buffering.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/audio_buffering.c</locationURI>
+		</link>
+		<link>
+			<name>tensor/audio_buffering.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/audio_buffering.h</locationURI>
+		</link>
+		<link>
 			<name>tensor/features_types.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/tensor/features_types.h</locationURI>
