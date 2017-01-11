@@ -168,6 +168,8 @@ typedef struct{
 	int32_t  duration;
 }ramp_ctx_t;
 
+#define MAX_VOLUME 64
+
 int32_t set_volume(int v, unsigned int dly);
 
 static void _change_volume_task(hlo_future_t * result, void * ctx){
@@ -177,11 +179,17 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 		if ( (v->duration - (int32_t)(xTaskGetTickCount() - t0)) < 0 && v->duration > 0){
 			v->target = 0;
 		}
-		if(v->current > v->target){
+		if(v->current > v->target ){
 			vTaskDelay(v->ramp_down_ms);
 			v->current--;
+			if( v->current == 0 ) {
+				break;
+			}
 		}else if(v->current < v->target){
 			v->current++;
+			if( v->current > MAX_VOLUME ) {
+				break;
+			}
 			vTaskDelay(v->ramp_up_ms);
 		}else{
 			vTaskDelay(10);
