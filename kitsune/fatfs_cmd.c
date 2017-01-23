@@ -999,6 +999,8 @@ xQueueHandle download_queue = 0;
 
 hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint);
 
+int tvoc_fw_update(const char* file);
+
 void file_download_task( void * params ) {
     SyncResponse_FileDownload download_info;
     unsigned char top_sha_cache[SHA1_SIZE];
@@ -1193,6 +1195,14 @@ void file_download_task( void * params ) {
         if( download_info.has_reset_network_processor && download_info.reset_network_processor ) {
             LOGI( "reset nwp\n" );
             nwp_reset();
+        }
+        if(download_info.has_update_tvoc_fw && download_info.update_tvoc_fw ) {
+            // Update TVOC firmware
+            LOGI("Update TVOC fw \n");
+            int err_code = tvoc_fw_update(filename);
+            if( err_code ) {
+                LOGE("TVOC firmware update not successful %d\n", err_code);
+            }
         }
 next_one:
         free_download_info(&download_info);
