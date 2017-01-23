@@ -540,9 +540,11 @@ static bool _is_file_exists(char* path)
 #include "hellofilesystem.h"
 uint8_t get_alpha_from_light();
 extern volatile int sys_volume;
-
+/* give 5 minutes before alarm to reset the codec */
+#define TIME_TO_RESET_CODEC (5 * 60 * 1000 )
 void thread_alarm(void * unused) {
 	int alarm_led_id = -1;
+	bool codec_did_reset = false;
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
 
@@ -561,6 +563,11 @@ void thread_alarm(void * unused) {
 								alarm.start_time,
 								(time - alarm.start_time));
 				}
+			}
+			if( alarm.start_time - time < TIME_TO_RESET_CODEC && !codec_did_reset) {
+				codec_did_reset = true;
+				//reset codec
+				AudioTask_ResetCodec();
 			}
 			if ( time - alarm.start_time < 600 ) {
 				int has_valid_sound_file = 0;
@@ -635,6 +642,8 @@ void thread_alarm(void * unused) {
 				uint8_t trippy_base[3] = { 0, 0, 0 };
 				uint8_t trippy_range[3] = { 254, 254, 254 };
 				alarm_led_id = play_led_trippy(trippy_base, trippy_range,0,30, 120000);
+
+				codec_did_reset = false;	/* reset codec here for the next alarm */
 			}
 			
 			xSemaphoreGiveRecursive(alarm_smphr);
