@@ -320,8 +320,34 @@ int Cmd_set_tvenv(int argc, char * argv[]){
 #define DBG_TVOC LOGI
 int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, unsigned int humid ) {
 	unsigned char b[8];
+	static int last_tvoc, last_eco2;
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
-
+	/*
+	 * read status
+	 */
+	int tries = 3;
+	bool data_is_ready = false;
+	while(tries-- > 0){
+		b[0] = 0;
+		(I2C_IF_Write(0x5a, b, 1, 1));
+		memset(b,0, sizeof(b));
+		I2C_IF_Read(0x5a, b, 1);
+		if(b[0] & 0x08){
+			data_is_ready = true;
+			break;
+		}
+		vTaskDelay(1);
+	}
+	if(!data_is_ready){
+		LOGW("TVOC Data Not Ready\r\n");
+		xSemaphoreGiveRecursive(i2c_smphr);
+		*tvoc = last_tvoc;
+		*eco2 = last_eco2;
+		return 0;
+	}
+	/*
+	 * read alg_result_data
+	 */
 	b[0] = 2;
 	(I2C_IF_Write(0x5a, b, 1, 1));
 	memset(b,0, sizeof(b));
@@ -348,12 +374,12 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 		xSemaphoreGiveRecursive(i2c_smphr);
 		return -1;
 	}
-
 	*eco2 = (b[1] | (b[0]<<8));
 	*tvoc = (b[3] | (b[2]<<8));
 	*current = (b[6]>>2);
 	*voltage = (((b[6]&3)<<8) | (b[7]));
-
+	last_tvoc = *tvoc;
+	last_eco2 = *eco2;
 	vTaskDelay(10);
 	xSemaphoreGiveRecursive(i2c_smphr);
 	set_tvoc_env(temp,humid);
