@@ -598,7 +598,7 @@ int tvoc_fw_update(const char* file)
 
 	// verify
 	if(!_tvoc_verify_app()){
-		LOGI("*TVOC FW UPDATE* \n -Current HW version: 0x%x. FW Boot Version: 0x%x, FW App Version: 0x%x- \n",
+		LOGI("*TVOC FW UPDATE DONE* \n -Current HW version: 0x%x. FW Boot Version: 0x%x, FW App Version: 0x%x- \n",
 				_tvoc_get_hw_version(), _tvoc_get_fw_boot_version(), _tvoc_get_fw_app_version());
 
 		// reset CCS811
