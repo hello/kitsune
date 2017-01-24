@@ -504,7 +504,7 @@ inline static int _tvoc_verify_app(void){
 	return ( (_tvoc_read_status_reg() & APP_VALID_MASK) ? 0:-1);
 }
 
-inline static uint8_t _tvoc_get_hw_version(void){
+uint8_t tvoc_get_hw_version(void){
 
 	uint8_t hw_ver_cmd[2] = {0x21, 0xFF};
 
@@ -519,7 +519,7 @@ inline static uint8_t _tvoc_get_hw_version(void){
 	return hw_ver_cmd[1];
 }
 
-inline static uint16_t _tvoc_get_fw_boot_version(void){
+uint16_t tvoc_get_fw_boot_version(void){
 
 	uint8_t fw_boot_ver_cmd[3] = {0x23, 0xFF, 0xFF};
 
@@ -539,7 +539,7 @@ inline static uint16_t _tvoc_get_fw_boot_version(void){
 
 }
 
-inline static uint16_t _tvoc_get_fw_app_version(void){
+uint16_t tvoc_get_fw_app_version(void){
 
 	uint8_t fw_app_ver_cmd[3] = {0x24, 0xFF, 0xFF};
 
@@ -558,6 +558,7 @@ inline static uint16_t _tvoc_get_fw_app_version(void){
 	return (fw_app_ver_cmd[1] << 8) | fw_app_ver_cmd[2];
 
 }
+
 // CCS811 firmware update
 // Returns 0 if firmware update is successful, -1 otherwise
 int tvoc_fw_update(const char* file)
@@ -565,7 +566,7 @@ int tvoc_fw_update(const char* file)
 	int ret_val = 0;
 
 	LOGI("*TVOC FW UPDATE* \n -Current HW version: 0x%x. FW Boot Version: 0x%x, FW App Version: 0x%x- \n",
-			_tvoc_get_hw_version(), _tvoc_get_fw_boot_version(), _tvoc_get_fw_app_version());
+			tvoc_get_hw_version(), tvoc_get_fw_boot_version(), tvoc_get_fw_app_version());
 
 
 	if( !file ){
@@ -599,7 +600,7 @@ int tvoc_fw_update(const char* file)
 	// verify
 	if(!_tvoc_verify_app()){
 		LOGI("*TVOC FW UPDATE DONE* \n -Current HW version: 0x%x. FW Boot Version: 0x%x, FW App Version: 0x%x- \n",
-				_tvoc_get_hw_version(), _tvoc_get_fw_boot_version(), _tvoc_get_fw_app_version());
+				tvoc_get_hw_version(), tvoc_get_fw_boot_version(), tvoc_get_fw_app_version());
 
 		// reset CCS811
 		if(_tvoc_reset()){
@@ -637,7 +638,7 @@ int cmd_tvoc_fw_update(int argc, char *argv[]) {
 int cmd_tvoc_get_ver(int argc, char *argv[]) {
 
 	LOGI("*TVOC VERSION* \n -Current HW version: 0x%x. FW Boot Version: 0x%x, FW App Version: 0x%x- \n",
-			_tvoc_get_hw_version(), _tvoc_get_fw_boot_version(), _tvoc_get_fw_app_version());
+			tvoc_get_hw_version(), tvoc_get_fw_boot_version(), tvoc_get_fw_app_version());
 
 	return 0;
 }

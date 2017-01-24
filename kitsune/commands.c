@@ -1298,6 +1298,14 @@ void sample_sensor_data(periodic_data* data,NetStats_t * keyword_net_stats)
 				data->tvoc = tvoc;
 				data->has_co2 = true;
 				data->co2 = eco2;
+
+				data->has_tvoc_ver = true;
+				data->tvoc_ver.has_tvoc_app_fw_version = true;
+				data->tvoc_ver.tvoc_app_fw_version = tvoc_get_fw_app_version();
+				data->tvoc_ver.has_tvoc_boot_fw_version = true;
+				data->tvoc_ver.tvoc_boot_fw_version = tvoc_get_fw_boot_version();
+				data->tvoc_ver.has_tvoc_hw_version = true;
+				data->tvoc_ver.tvoc_hw_version = tvoc_get_hw_version();
 			}
 		}
 		}
