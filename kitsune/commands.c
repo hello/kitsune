@@ -571,7 +571,7 @@ void thread_alarm(void * unused) {
 			if( alarm.start_time - time < TIME_TO_RESET_CODEC && !codec_did_reset) {
 				codec_did_reset = true;
 				//reset codec
-				AudioTask_ResetCodec();
+				SetAudioSignal(FILTER_SIG_RESET);
 			}
 			if ( time - alarm.start_time < 600 ) {
 				int has_valid_sound_file = 0;
