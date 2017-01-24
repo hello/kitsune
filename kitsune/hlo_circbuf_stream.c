@@ -57,7 +57,7 @@ static hlo_stream_vftbl_t circ_stream_impl = {
 
 hlo_stream_t * hlo_circbuf_stream_open(size_t capacity){
 	size_t size = sizeof(hlo_circbuf_stream_t) + capacity;
-	hlo_circbuf_stream_t * circ = pvPortMalloc(size);
+	hlo_circbuf_stream_t * circ = pvPortMalloc(size + 32);
 
 	if(circ){
 		memset(circ, 0, size);

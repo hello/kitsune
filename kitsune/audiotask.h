@@ -6,12 +6,18 @@
 
 #include "hlo_stream.h"
 #include "hlo_pipe.h"
+#include "hlo_async.h"
 
 #include "codec_debug_config.h"
 
+/*This defines the number of idle ticks that is required before resetting the codec
+ * 									t/s	   s    m   h
+ */
+#define AUDIO_TASK_IDLE_RESET_TIME (1000 * 60 * 60 * 4)
 typedef enum {
 	eAudioPlaybackStart,
 	eAudioPlaybackStop,
+	eAudioResetCodec,
 } EAudioCommand_t;
 
 typedef struct {
@@ -35,6 +41,7 @@ typedef struct {
 
 	union {
 		AudioPlaybackDesc_t playbackdesc;
+		hlo_future_t * reset_sync;
 	} message;
 
 } AudioMessage_t;
@@ -44,6 +51,7 @@ void AudioPlaybackTask(void * data);
 #include "codec_debug_config.h"
 
 void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc);
+void AudioTask_ResetCodec(void);
 
 void AudioTask_StopPlayback(void);
 void AudioTask_DumpOncePerMinuteStats(AudioEnergyStats_t * pdata);
@@ -51,5 +59,4 @@ void AudioTask_DumpOncePerMinuteStats(AudioEnergyStats_t * pdata);
  * testing commands
  */
 int Cmd_AudioPlayback(int argc, char * argv[]);
-
 #endif //_AUDIOCAPTURETASK_H_

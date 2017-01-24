@@ -672,7 +672,7 @@ void play_startup_sound() {
 	// when the bond db is full, so you will never get zero after a phone bonds
 	// to Sense, unless user do factory reset and power cycle the device.
 
-	if(needs_startup_sound){
+	if( needs_startup_sound){
 		vTaskDelay(10);
 		AudioPlaybackDesc_t desc;
 		memset(&desc, 0, sizeof(desc));
@@ -691,9 +691,8 @@ void play_startup_sound() {
 	if( need_init_lights ) {
 		ble_proto_led_init();
 		need_init_lights = false;
+		display_pairing_animation();
 	}
-
-
 }
 
 #include "crypto.h"
@@ -834,7 +833,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     			needs_pairing_animation = true;
 				set_ble_mode(BLE_PAIRING);
 				LOGI( "PAIRING MODE \n");
-				if(xTaskGetTickCount() > 10000){
+				if( !need_init_lights ) {
 					display_pairing_animation();
 				}
 #if 0
