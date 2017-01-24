@@ -568,7 +568,7 @@ void thread_alarm(void * unused) {
 								(time - alarm.start_time));
 				}
 			}
-			if( alarm.start_time - time < TIME_TO_RESET_CODEC && !codec_did_reset) {
+			if( alarm.start_time > time && alarm.start_time - time < TIME_TO_RESET_CODEC && !codec_did_reset) {
 				codec_did_reset = true;
 				//reset codec
 				SetAudioSignal(FILTER_SIG_RESET);
@@ -647,7 +647,7 @@ void thread_alarm(void * unused) {
 				uint8_t trippy_range[3] = { 254, 254, 254 };
 				alarm_led_id = play_led_trippy(trippy_base, trippy_range,0,30, 120000);
 
-				codec_did_reset = false;	/* reset codec here for the next alarm */
+				codec_did_reset = false;	/* unset the flag so codec can be reset after this alarm */
 			}
 			
 			xSemaphoreGiveRecursive(alarm_smphr);
