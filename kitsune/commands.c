@@ -541,7 +541,11 @@ static bool _is_file_exists(char* path)
 uint8_t get_alpha_from_light();
 extern volatile int sys_volume;
 /* give 5 minutes before alarm to reset the codec */
+#if 1
 #define TIME_TO_RESET_CODEC (5 * 60 * 1000 )
+#else
+#define TIME_TO_RESET_CODEC 600
+#endif
 void thread_alarm(void * unused) {
 	int alarm_led_id = -1;
 	bool codec_did_reset = false;
