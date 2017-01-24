@@ -154,10 +154,6 @@ static uint8_t CheckForInterruptionDuringPlayback(void * unused) {
 			ret = FLAG_STOP;
 //			LOGI("Switching audio\r\n");
 		}
-		if (m.command == eAudioResetCodec) {
-			ret = FLAG_STOP;
-			LOGI("Codec needs reset\r\n");
-		}
 	}
 	return ret;
 }
