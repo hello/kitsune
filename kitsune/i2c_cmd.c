@@ -722,6 +722,34 @@ int32_t set_volume(int v, unsigned int dly) {
 
 }
 
+static bool codec_muted = true;
+void codec_watchdog() {
+	unsigned char cmd[2];
+	if( !codec_muted && xSemaphoreTakeRecursive(i2c_smphr, 0)) {
+
+		codec_set_book(0);
+		codec_set_page(0);
+
+		cmd[0] = 44;
+		cmd[1] = 0;
+		I2C_IF_Write(Codec_addr, cmd, 1, 1);
+		I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+		if( cmd[1] != 0 ) {
+			LOGE("codecstatus %x\n",cmd[1]);
+
+			codec_set_book(0);
+			codec_set_page(1);
+
+			cmd[0] = 45;
+			cmd[1] = 6;
+			I2C_IF_Write(Codec_addr, cmd, 2, 1);
+
+		}
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+}
 
 int cmd_codec(int argc, char *argv[]) {
 	unsigned char cmd[2];
@@ -888,6 +916,7 @@ void codec_mute_spkr(void)
 		cmd[1] = 0x00;
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+		codec_muted = true;
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
@@ -910,6 +939,7 @@ void codec_unmute_spkr(void)
 		cmd[1] = (SPK_VOLUME_6dB << 4);
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+		codec_muted = false;
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
