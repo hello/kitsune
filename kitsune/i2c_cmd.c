@@ -725,6 +725,7 @@ int32_t set_volume(int v, unsigned int dly) {
 static bool codec_muted = true;
 void codec_watchdog() {
 	unsigned char cmd[2];
+	bool overcurrent, spkr_off;
 	if( !codec_muted && xSemaphoreTakeRecursive(i2c_smphr, 0)) {
 
 		codec_set_book(0);
@@ -735,22 +736,31 @@ void codec_watchdog() {
 		I2C_IF_Write(Codec_addr, cmd, 1, 1);
 		I2C_IF_Read(Codec_addr, &cmd[1], 1);
 
-		if( cmd[1] ) {
-			LOGE("B0_P0_R44 %x\n",cmd[1]);
+		uint8_t b0p0r44 = cmd[1];
+		if( b0p0r44 ) {
+			LOGW("B0_P0_R44 %x\n",b0p0r44);
 		}
+		overcurrent = b0p0r44 & 0xC0;
 
-		if( cmd[1] & 0xC0 ) {
-			LOGE("overcurrent\n",cmd[1]);
+		codec_set_book(0);
+		codec_set_page(1);
 
-			codec_set_book(0);
-			codec_set_page(1);
+		cmd[0] = 45;
+		cmd[1] = 0;
+		I2C_IF_Write(Codec_addr, cmd, 1, 1);
+		I2C_IF_Read(Codec_addr, &cmd[1], 1);
+		uint8_t b0p1r45 = cmd[1];
+		spkr_off = b0p1r45 == 4;
 
-			cmd[0] = 45;
-			cmd[1] = 0;
-			I2C_IF_Write(Codec_addr, cmd, 1, 1);
-			I2C_IF_Read(Codec_addr, &cmd[1], 1);
-			LOGE("B0_P1_R45 %x\n",cmd[1]);
-
+		if( overcurrent ) {
+			LOGE("overcurrent\n");
+		}
+		if( spkr_off ) {
+			LOGE("spkrdisabled\n");
+			LOGW("B0_P1_R45 %x\n",b0p1r45);
+		}
+		if( overcurrent || spkr_off ) {
+			LOGW("restart codec\n");
 			cmd[0] = 45;
 			cmd[1] = 6;
 			I2C_IF_Write(Codec_addr, cmd, 2, 1);
