@@ -735,8 +735,12 @@ void codec_watchdog() {
 		I2C_IF_Write(Codec_addr, cmd, 1, 1);
 		I2C_IF_Read(Codec_addr, &cmd[1], 1);
 
+		if( cmd[1] ) {
+			LOGE("B0_P0_R44 %x\n",cmd[1]);
+		}
+
 		if( cmd[1] & 0xC0 ) {
-			LOGE("codecstatus %x\n",cmd[1]);
+			LOGE("overcurrent\n",cmd[1]);
 
 			codec_set_book(0);
 			codec_set_page(1);
@@ -745,12 +749,11 @@ void codec_watchdog() {
 			cmd[1] = 0;
 			I2C_IF_Write(Codec_addr, cmd, 1, 1);
 			I2C_IF_Read(Codec_addr, &cmd[1], 1);
+			LOGE("B0_P1_R45 %x\n",cmd[1]);
 
-			if( cmd[1] != 6 ) {
-				cmd[0] = 45;
-				cmd[1] = 6;
-				I2C_IF_Write(Codec_addr, cmd, 2, 1);
-			}
+			cmd[0] = 45;
+			cmd[1] = 6;
+			I2C_IF_Write(Codec_addr, cmd, 2, 1);
 		}
 
 		xSemaphoreGiveRecursive(i2c_smphr);
