@@ -1992,6 +1992,7 @@ int cmd_ch(int argc, char *argv[]) {
 int cmd_codec(int argc, char *argv[]);
 int cmd_confidence(int argc, char *argv[]);
 int cmd_pwr_speaker(int argc, char * argv[]);
+int cmd_codec_read(int argc, char *argv[]);
 
 
 int cmd_button(int argc, char *argv[]) {
@@ -2168,6 +2169,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"pn",cmd_audio_self_test,""},
 		{"tap", cmd_tap, ""},
 		{"flipped", cmd_flipped, ""},
+		{"codecr", cmd_codec_read, ""},
+		{"dbgfeats",cmd_set_debug_streaming,""},
 		{ 0, 0, 0 } };
 
 

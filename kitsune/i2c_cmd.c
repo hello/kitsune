@@ -327,8 +327,34 @@ int Cmd_set_tvenv(int argc, char * argv[]){
 #define DBG_TVOC LOGI
 int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, unsigned int humid ) {
 	unsigned char b[8];
+	static int last_tvoc, last_eco2;
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
-
+	/*
+	 * read status
+	 */
+	int tries = 3;
+	bool data_is_ready = false;
+	while(tries-- > 0){
+		b[0] = 0;
+		(I2C_IF_Write(0x5a, b, 1, 1));
+		memset(b,0, sizeof(b));
+		I2C_IF_Read(0x5a, b, 1);
+		if(b[0] & 0x08){
+			data_is_ready = true;
+			break;
+		}
+		vTaskDelay(1);
+	}
+	if(!data_is_ready){
+		LOGW("TVOC Data Not Ready\r\n");
+		xSemaphoreGiveRecursive(i2c_smphr);
+		*tvoc = last_tvoc;
+		*eco2 = last_eco2;
+		return 0;
+	}
+	/*
+	 * read alg_result_data
+	 */
 	b[0] = 2;
 	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
 	memset(b,0, sizeof(b));
@@ -355,12 +381,12 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 		xSemaphoreGiveRecursive(i2c_smphr);
 		return -1;
 	}
-
 	*eco2 = (b[1] | (b[0]<<8));
 	*tvoc = (b[3] | (b[2]<<8));
 	*current = (b[6]>>2);
 	*voltage = (((b[6]&3)<<8) | (b[7]));
-
+	last_tvoc = *tvoc;
+	last_eco2 = *eco2;
 	vTaskDelay(10);
 	xSemaphoreGiveRecursive(i2c_smphr);
 	set_tvoc_env(temp,humid);
@@ -1013,6 +1039,53 @@ int32_t set_volume(int v, unsigned int dly) {
 
 }
 
+static bool codec_muted = true;
+void codec_watchdog() {
+	unsigned char cmd[2];
+	bool overcurrent, spkr_off;
+	if( !codec_muted && xSemaphoreTakeRecursive(i2c_smphr, 0)) {
+
+		codec_set_book(0);
+		codec_set_page(0);
+
+		cmd[0] = 44;
+		cmd[1] = 0;
+		I2C_IF_Write(Codec_addr, cmd, 1, 1);
+		I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+		uint8_t b0p0r44 = cmd[1];
+		if( b0p0r44 ) {
+			LOGW("B0_P0_R44 %x\n",b0p0r44);
+		}
+		overcurrent = b0p0r44 & 0xC0;
+
+		codec_set_book(0);
+		codec_set_page(1);
+
+		cmd[0] = 45;
+		cmd[1] = 0;
+		I2C_IF_Write(Codec_addr, cmd, 1, 1);
+		I2C_IF_Read(Codec_addr, &cmd[1], 1);
+		uint8_t b0p1r45 = cmd[1];
+		spkr_off = b0p1r45 == 4;
+
+		if( overcurrent ) {
+			LOGE("overcurrent\n");
+		}
+		if( spkr_off ) {
+			LOGE("spkrdisabled\n");
+			LOGW("B0_P1_R45 %x\n",b0p1r45);
+		}
+		if( overcurrent || spkr_off ) {
+			LOGW("restart codec\n");
+			cmd[0] = 45;
+			cmd[1] = 6;
+			I2C_IF_Write(Codec_addr, cmd, 2, 1);
+		}
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+}
 
 int cmd_codec(int argc, char *argv[]) {
 	unsigned char cmd[2];
@@ -1027,6 +1100,29 @@ int cmd_codec(int argc, char *argv[]) {
 		I2C_IF_Write(Codec_addr, cmd, 2, 1);
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
+
+	return 0;
+}
+
+int cmd_codec_read(int argc, char *argv[]) {
+	unsigned char cmd[2]={0xFF,0xFF};
+	if(argc < 4){
+		LOGF("Usage: codecr <book> <page> <reg>\n");
+		return -1;
+	}
+	if( xSemaphoreTakeRecursive(i2c_smphr, 1000)){
+
+		codec_set_book(atoi(argv[1]));
+
+		codec_set_page(atoi(argv[2]));
+
+		cmd[0] = atoi(argv[3]);
+		I2C_IF_Write(Codec_addr, &cmd[0],1,1);
+		I2C_IF_Read(Codec_addr, &cmd[1], 1);
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+	LOGI("Codecr [%u][%u][%u] = 0x%x\n",atoi(argv[2]),atoi(argv[1]),cmd[0],cmd[1]);
 
 	return 0;
 }
@@ -1156,6 +1252,7 @@ void codec_mute_spkr(void)
 		cmd[1] = 0x00;
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+		codec_muted = true;
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
@@ -1175,9 +1272,10 @@ void codec_unmute_spkr(void)
 
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 		cmd[0] = 48;
-		cmd[1] = (SPK_VOLUME_12dB << 4);
+		cmd[1] = (SPK_VOLUME_6dB << 4);
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+		codec_muted = false;
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
