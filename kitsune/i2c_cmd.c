@@ -452,7 +452,7 @@ inline static int _tvoc_erase_app(void){
 	else return 0;
 }
 
-#define PATH_BUF_MAX_SIZE		(64)
+#define BIN_FILENAME_LENGTH		(64)
 #include "ff.h"
 #include "hellofilesystem.h"
 inline static int _tvoc_program_app(const char* file){
@@ -561,18 +561,34 @@ uint16_t tvoc_get_fw_app_version(void){
 
 // CCS811 firmware update
 // Returns 0 if firmware update is successful, -1 otherwise
-int tvoc_fw_update(const char* file)
+int tvoc_fw_update(const char* path, const char* filename)
 {
 	int ret_val = 0;
+	char bin_file[BIN_FILENAME_LENGTH];
 
 	LOGI("*TVOC FW UPDATE* \n -Current HW version: 0x%x. FW Boot Version: 0x%x, FW App Version: 0x%x- \n",
 			tvoc_get_hw_version(), tvoc_get_fw_boot_version(), tvoc_get_fw_app_version());
 
 
-	if( !file ){
+	if( !filename || !path ){
 		ret_val = -5;
 		goto tvoc_fail;
 	}
+
+    if(strlen(path) + strlen(filename) + 1 + 1 > BIN_FILENAME_LENGTH)
+    {
+        ret_val = -6;
+        goto tvoc_fail;
+    }
+
+    strncpy(bin_file,path,BIN_FILENAME_LENGTH);
+    if(strcmp("/", bin_file))
+    {
+        strcat(bin_file, "/");
+    }
+    strncat(bin_file, filename, BIN_FILENAME_LENGTH);
+
+    LOGI("TVOC FW Filename:%s\n",bin_file);
 
 	// reset CCS811
 	if(_tvoc_reset()){
@@ -591,7 +607,7 @@ int tvoc_fw_update(const char* file)
 	}
 
 	// read binary and write to CCS811
-	if(_tvoc_program_app(file)){
+	if(_tvoc_program_app(bin_file)){
 		ret_val = -1;
 		goto tvoc_fail;
 	}
@@ -626,12 +642,25 @@ tvoc_fail:
 // Cmd to firmware update CCS811
 int cmd_tvoc_fw_update(int argc, char *argv[]) {
 
-	if(argc < 2) {
-		LOGE("Usage: tvfw $full_path_to_file");
+	if(argc < 4) {
+		LOGE("Usage: tvfw <1-update directly, 2-update via task> <path> <filename> <url> <host>\n");
 		return -1;
 	}
 
-	return tvoc_fw_update(argv[1]);
+	if(atoi(argv[1]) == 1){
+	    // update firmware using filename and path
+	    tvoc_fw_update(argv[2],argv[3]);
+	}
+	else if(atoi(argv[1]) == 2) {
+	    // Update firmware using file download task
+
+	}
+	else {
+	    LOGE("Usage: tvfw <1-update directly, 2-update via task> <path> <filename> <url> <host>\n");
+	    return -1;
+	}
+
+	return 0;
 }
 
 // Cmd to get hardware and fw version of CCS811
