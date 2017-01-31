@@ -999,7 +999,7 @@ xQueueHandle download_queue = 0;
 
 hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint);
 
-int tvoc_fw_update(const char* file);
+int tvoc_fw_update(const char* path, const char* filename);
 
 void file_download_task( void * params ) {
     SyncResponse_FileDownload download_info;
@@ -1199,7 +1199,7 @@ void file_download_task( void * params ) {
         if(download_info.has_update_tvoc_fw && download_info.update_tvoc_fw ) {
             // Update TVOC firmware
             LOGI("Update TVOC fw \n");
-            int err_code = tvoc_fw_update(filename);
+            int err_code = tvoc_fw_update(path, filename);
             if( err_code ) {
                 LOGE("TVOC firmware update not successful %d\n", err_code);
             }
