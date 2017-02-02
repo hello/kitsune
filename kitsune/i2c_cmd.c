@@ -249,20 +249,13 @@ int Cmd_read_temp_hum_press(int argc, char *argv[]) {
  ********************************************************************************/
 bool tvoc_wa = false;
 uint8_t tvoc_i2c_addr = 0x5A;
+bool tvoc_app_fw_invalid = false;
 int init_tvoc(int measmode) {
 	unsigned char b[2];
+
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
-	b[0] = 0;
-	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
-	(I2C_IF_Read(tvoc_i2c_addr, b, 1));
-
-	if( !(b[0] & 0x10) ) {
-		LOGE("no valid fw for TVOC\n");
-		xSemaphoreGiveRecursive(i2c_smphr);
-		return -1;
-	}
-	//boot
+	//boot sensor and start application
 	b[0] = 0xf4;
 	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
 	vTaskDelay(100);
@@ -270,26 +263,36 @@ int init_tvoc(int measmode) {
 	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
 	(I2C_IF_Read(tvoc_i2c_addr, b, 1));
 	if( !(b[0] & 0x90) ) {
-		LOGE("fail to boot TVOC\n");
+	    UARTprintf("fail to boot TVOC\n");
 		xSemaphoreGiveRecursive(i2c_smphr);
 		return -1;
 	}
+    if( !(b[0] & 0x10) ) {
+        UARTprintf("no valid fw for TVOC\n");
+        tvoc_app_fw_invalid = true;
+        xSemaphoreGiveRecursive(i2c_smphr);
+        return -1;
+    }
+
+    tvoc_app_fw_invalid = false;
+
+    // Set Measure Mode
 	b[0] = 1;
 	b[1] = measmode;
 	(I2C_IF_Write(tvoc_i2c_addr, b, 2, 1));
 
+	// Read sensor firmware version
 	b[0] = 0x24;
 	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
 	(I2C_IF_Read(tvoc_i2c_addr, b, 2));
-
-	LOGI("TVOC FW %d.%d.%d\n",(b[0]>>4) & 0xf,b[0] & 0xf, b[1]);
-	if (b[0] == 0x02 && b[1] == 0x4) {
-		LOGE("apply TVOC FW 0.2.4 workaround\n");
-		tvoc_wa = true;
-	}
-	else {
-		tvoc_wa = false;
-	}
+    UARTprintf("TVOC FW %d.%d.%d\n",(b[0]>>4) & 0xf,b[0] & 0xf, b[1]);
+    if (b[0] == 0x02 && b[1] == 0x4) {
+        UARTprintf("apply TVOC FW 0.2.4 workaround\n");
+        tvoc_wa = true;
+    }
+    else {
+        tvoc_wa = false;
+    }
 
 	xSemaphoreGiveRecursive(i2c_smphr);
 	return 0;
