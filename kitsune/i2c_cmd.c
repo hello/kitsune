@@ -557,9 +557,7 @@ uint16_t tvoc_get_fw_boot_version(void){
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
-#if 1
-	LOGI("FW Boot: 0x%x\n",fw_boot_ver_cmd[1]<<8 | fw_boot_ver_cmd[2] );
-#endif
+	DBG_TVOC("FW Boot: 0x%x\n",fw_boot_ver_cmd[1]<<8 | fw_boot_ver_cmd[2] );
 
 	return (fw_boot_ver_cmd[1]<<8) | fw_boot_ver_cmd[2];
 
@@ -577,9 +575,7 @@ uint16_t tvoc_get_fw_app_version(void){
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
-#if 1
-	LOGI("FW APP: 0x%x\n",(fw_app_ver_cmd[1] << 8) | fw_app_ver_cmd[2] );
-#endif
+	DBG_TVOC("FW APP: 0x%x\n",(fw_app_ver_cmd[1] << 8) | fw_app_ver_cmd[2] );
 
 	return (fw_app_ver_cmd[1] << 8) | fw_app_ver_cmd[2];
 
@@ -668,23 +664,14 @@ tvoc_fail:
 // Cmd to firmware update CCS811
 int cmd_tvoc_fw_update(int argc, char *argv[]) {
 
-	if(argc < 4) {
-		LOGE("Usage: tvfw <1-update directly, 2-update via task> <path> <filename> <url> <host>\n");
+	if(argc < 3) {
+		LOGE("Usage: tvfw <path> <filename>\n");
 		return -1;
 	}
 
-	if(atoi(argv[1]) == 1){
-	    // update firmware using filename and path
-	    tvoc_fw_update(argv[2],argv[3]);
-	}
-	else if(atoi(argv[1]) == 2) {
-	    // Update firmware using file download task
+    // update firmware using filename and path
+    tvoc_fw_update(argv[1],argv[2]);
 
-	}
-	else {
-	    LOGE("Usage: tvfw <1-update directly, 2-update via task> <path> <filename> <url> <host>\n");
-	    return -1;
-	}
 
 	return 0;
 }
