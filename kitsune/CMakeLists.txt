@@ -16,6 +16,7 @@ include_directories ("../unit-test")
 
 #compile our alg code
 add_library(EmbeddedAlg STATIC
+tensor/audio_buffering.c
 hellomath.c
 audio_features_upload_task_helpers.c
 hlo_stream.c

@@ -13,7 +13,8 @@
 #include "FreeRTOS.h"
 #include "semphr.h"
 
-
+#define FILTER_SIG_STOP  1
+#define FILTER_SIG_RESET 2
 /**
  * filters are like pipes except it also processes data before dumping it out to output.
  */

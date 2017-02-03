@@ -28,8 +28,9 @@ cpp_proto/simple_matrix.pb.cc
 add_executable(unit-test
                main.cpp 
 	       testmath.cpp
-           testnetstats.cpp
-           testuploadfeats.cpp)
+               testnetstats.cpp
+               testuploadfeats.cpp
+               testaudiobuffering.cpp)
 
 target_link_libraries(unit-test gtest EmbeddedAlg cpp-protobuf-defs ${PROTOBUF_LIBRARY})
 

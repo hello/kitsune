@@ -168,6 +168,8 @@ typedef struct{
 	int32_t  duration;
 }ramp_ctx_t;
 
+#define MAX_VOLUME 64
+
 int32_t set_volume(int v, unsigned int dly);
 
 static void _change_volume_task(hlo_future_t * result, void * ctx){
@@ -177,11 +179,17 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 		if ( (v->duration - (int32_t)(xTaskGetTickCount() - t0)) < 0 && v->duration > 0){
 			v->target = 0;
 		}
-		if(v->current > v->target){
+		if(v->current > v->target ){
 			vTaskDelay(v->ramp_down_ms);
 			v->current--;
+			if( v->current == 0 ) {
+				break;
+			}
 		}else if(v->current < v->target){
 			v->current++;
+			if( v->current > MAX_VOLUME ) {
+				break;
+			}
 			vTaskDelay(v->ramp_up_ms);
 		}else{
 			vTaskDelay(10);
@@ -267,6 +275,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	}
 	DISP("Playback Task Finished %d\r\n", ret);
 }
+void SetAudioSignal(int i);
 void AudioPlaybackTask(void * data) {
 	_playback_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	assert(_playback_queue);
@@ -280,7 +289,7 @@ void AudioPlaybackTask(void * data) {
 
 	while(1){
 		AudioMessage_t  m;
-		if (xQueueReceive( _playback_queue,(void *) &m, portMAX_DELAY )) {
+		if (xQueueReceive( _playback_queue,(void *) &m, AUDIO_TASK_IDLE_RESET_TIME )) {
 			switch (m.command) {
 
 				case eAudioPlaybackStart:
@@ -296,17 +305,41 @@ void AudioPlaybackTask(void * data) {
 					if (m.message.playbackdesc.onFinished) {
 						m.message.playbackdesc.onFinished(m.message.playbackdesc.context);
 					}
-				}   break;
+				}
+				break;
+				case eAudioResetCodec:
+					LOGI("Codec Reset...");
+					analytics_event("{codec: reset}");
+					reset_audio();
+					LOGI("done.\r\n");
+					hlo_future_write(m.message.reset_sync, NULL,0, 0);
+					break;
 				default:
 					break;
 			}
+		}else{
+			//signal codec reset
+			//this signals synchronizes the reset so that audio stream isn't being used in the meantime.
+			LOGI("Codec Needs Reset\r\n");
+			SetAudioSignal(FILTER_SIG_RESET);
 		}
 	}
 
 	//hlo_future_destroy(state_update_task);
 
 }
-
+void AudioTask_ResetCodec(void) {
+	AudioMessage_t m;
+	memset(&m,0,sizeof(m));
+	m.command = eAudioResetCodec;
+	if (_playback_queue) {
+		hlo_future_t * sync = hlo_future_create();
+		assert(sync);
+		m.message.reset_sync = sync;
+		xQueueSend(_playback_queue,(void *)&m,0);
+		hlo_future_read_once(sync, NULL,0);
+	}
+}
 void AudioTask_StopPlayback(void) {
 	AudioMessage_t m;
 	memset(&m,0,sizeof(m));
@@ -353,4 +386,3 @@ int Cmd_AudioPlayback(int argc, char * argv[]){
 	}
 	return -1;
 }
-

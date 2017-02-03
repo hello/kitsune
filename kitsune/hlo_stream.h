@@ -98,7 +98,12 @@ hlo_stream_t * random_stream_open(void);
  * Both:  blocks for 2 millseconds, and returns the len passed in.  No effect on the buffer.
  */
 hlo_stream_t * debug_stream_open(void);
-
+/*
+ * zero stream (R/W)
+ * Read:  fills the requested buffer with 0.
+ * Write: does nothing
+ */
+hlo_stream_t * zero_stream_open(void);
 
 /**
  * blocking transfers of @buf_size bytes into/from the stream unless an error has occured.
