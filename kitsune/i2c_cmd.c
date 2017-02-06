@@ -486,9 +486,7 @@ uint16_t tvoc_get_fw_boot_version(void){
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
-#if 1
-	LOGI("FW Boot: 0x%x\n",fw_boot_ver_cmd[1]<<8 | fw_boot_ver_cmd[2] );
-#endif
+	DBG_TVOC("FW Boot: 0x%x\n",fw_boot_ver_cmd[1]<<8 | fw_boot_ver_cmd[2] );
 
 	return (fw_boot_ver_cmd[1]<<8) | fw_boot_ver_cmd[2];
 
@@ -506,9 +504,7 @@ uint16_t tvoc_get_fw_app_version(void){
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
-#if 1
-	LOGI("FW APP: 0x%x\n",(fw_app_ver_cmd[1] << 8) | fw_app_ver_cmd[2] );
-#endif
+	DBG_TVOC("FW APP: 0x%x\n",(fw_app_ver_cmd[1] << 8) | fw_app_ver_cmd[2] );
 
 	return (fw_app_ver_cmd[1] << 8) | fw_app_ver_cmd[2];
 
