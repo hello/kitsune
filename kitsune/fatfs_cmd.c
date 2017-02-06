@@ -1196,14 +1196,6 @@ void file_download_task( void * params ) {
             LOGI( "reset nwp\n" );
             nwp_reset();
         }
-        if(download_info.has_update_tvoc_fw && download_info.update_tvoc_fw ) {
-            // Update TVOC firmware
-            LOGI("Update TVOC fw \n");
-            int err_code = tvoc_fw_update(path, filename);
-            if( err_code ) {
-                LOGE("TVOC firmware update not successful %d\n", err_code);
-            }
-        }
 next_one:
         free_download_info(&download_info);
         continue;
