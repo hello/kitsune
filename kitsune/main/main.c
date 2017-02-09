@@ -308,6 +308,7 @@ void nwp_reset_thread(void* unused) {
 #endif
 extern bool disable_net_timeout;
 bool check_button();
+void codec_watchdog();
 void watchdog_thread(void* unused) {
 #ifdef NWP_WATCHDOG_TIMEOUT
 	int last_nwp_reset_time = 0;
@@ -333,6 +334,7 @@ void watchdog_thread(void* unused) {
 			last_nwp_reset_time = xTaskGetTickCount();
 		}
 #endif
+		codec_watchdog();
 		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
 		vTaskDelay(1000);
 	}
