@@ -206,19 +206,12 @@ int32_t codec_update_minidsp_mux(control_blocks_t type, uint32_t data){
 }
 
 // Only for testing
-int32_t codec_test_runtime_prop_update(void){
-
-	static bool switchit = true;
+int32_t codec_runtime_prop_update(control_blocks_t type, uint32_t value){
 	uint32_t read_data[10];
-	uint32_t test_data[1] = {(uint32_t)MUX_SELECT_MIC};
+	uint32_t test_data[1] = {(uint32_t)value};
 
-	test_data[0] = (switchit) ? (uint32_t)MUX_SELECT_MIC : (uint32_t)MUX_SELECT_LOOPBACK;
-
-	switchit = (switchit) ? false :true;
-
-	codec_update_minidsp_mux(MUX_LOOPBACK_SELECTOR, test_data[0]);
-
-	codec_update_cram(MUX_LOOPBACK_SELECTOR, read_data, codec_cram_read);
+	codec_update_minidsp_mux(type, test_data[0]);
+	codec_update_cram(type, read_data, codec_cram_read);
 
 	if(test_data[0] != read_data[0]){
 		UARTprintf("Runtime Update Error: Test %x, Read %x\n", test_data[0],read_data[0]);
@@ -227,6 +220,12 @@ int32_t codec_test_runtime_prop_update(void){
 
 	UARTprintf("Runtime Update Pass: Test %x, Read %x\n", test_data[0],read_data[0]);
 
+	return 0;
+}
+
+
+int cmd_codec_runtime_update(int argc, char *argv[]) {
+	codec_runtime_prop_update(atoi(argv[1]), atoi(argv[2]));
 	return 0;
 }
 
