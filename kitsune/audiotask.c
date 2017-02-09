@@ -179,7 +179,8 @@ extern volatile int16_t i2s_mon;	/* fun times */
 static void _change_volume_task(hlo_future_t * result, void * ctx){
 	volatile ramp_ctx_t * v = (ramp_ctx_t*)ctx;
 	portTickType t0 = xTaskGetTickCount();
-	int32_t count,pow = 0;
+	int32_t count,pow;
+	count = pow = 0;
 	codec_runtime_prop_update(0, 2);
 	while( v->target || v->current ){
 		if ( (v->duration - (int32_t)(xTaskGetTickCount() - t0)) < 0 && v->duration > 0){
@@ -200,8 +201,9 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 		}else{
 			vTaskDelay(10);
 			pow += abs(i2s_mon);
-			if (pow == 0 && count++ > 200) {
+			if (pow == 0 && count++ > 100) {
 				SetAudioSignal(FILTER_SIG_RESET);
+				LOGE("\r\nDAC Overflow Detected\r\n");
 				break;
 			} else {
 				continue;
