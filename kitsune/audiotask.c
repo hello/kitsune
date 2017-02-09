@@ -40,6 +40,7 @@
 #include "led_cmd.h"
 #include "led_animations.h"
 #include "hlo_audio_tools.h"
+#include "codec_runtime_update.h"
 
 #if 0
 #define PRINT_TIMING
@@ -174,10 +175,12 @@ typedef struct{
 int32_t set_volume(int v, unsigned int dly);
 
 extern volatile int16_t i2s_mon;	/* fun times */
+
 static void _change_volume_task(hlo_future_t * result, void * ctx){
 	volatile ramp_ctx_t * v = (ramp_ctx_t*)ctx;
 	portTickType t0 = xTaskGetTickCount();
 	int32_t count,pow = 0;
+	codec_runtime_prop_update(0, 2);
 	while( v->target || v->current ){
 		if ( (v->duration - (int32_t)(xTaskGetTickCount() - t0)) < 0 && v->duration > 0){
 			v->target = 0;
