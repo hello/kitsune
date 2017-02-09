@@ -200,7 +200,7 @@ void DMAPingPongCompleteAppCB_opt()
 #endif
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-			i2s_mon = pong[MUX_SELECT_LOOPBACK];
+			i2s_mon = pong[MUX_LOOPBACK_CHANNEL];
 			if (_pcm_ping_pong_incoming_stream_mode == PCM_PING_PONG_MODE_SINGLE_CHANNEL_HALF_RATE) {
 				int k=0;
 				for (i = 0; i<= CB_TRANSFER_SZ/2-2 ; i+=2 ) {
@@ -244,7 +244,7 @@ void DMAPingPongCompleteAppCB_opt()
 #endif
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-				i2s_mon = ping[MUX_SELECT_LOOPBACK];
+				i2s_mon = ping[MUX_LOOPBACK_CHANNEL];
 				if (_pcm_ping_pong_incoming_stream_mode == PCM_PING_PONG_MODE_SINGLE_CHANNEL_HALF_RATE) {
 					int k=0;
 					for (i = 0; i<= CB_TRANSFER_SZ/2-2; i+=2 ) {

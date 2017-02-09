@@ -7,6 +7,8 @@
 #define	MUX_SELECT_MIC      1
 #define	MUX_SELECT_LOOPBACK 2
 
+#define MUX_LOOPBACK_CHANNEL 2
+
 /********************************************************************************
  *                        IMPORTANT: PLEASE READ
  *
