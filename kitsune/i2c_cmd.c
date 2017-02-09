@@ -1096,8 +1096,6 @@ int32_t codec_init(void)
 
 	vTaskDelay(100);
 
-	codec_runtime_prop_update(0,2);
-
 #if 0
 	codec_after_init_test();
 #endif
