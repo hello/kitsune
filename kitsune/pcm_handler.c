@@ -153,7 +153,7 @@ void pcm_set_ping_pong_incoming_stream_mode(const int mode) {
  */
 #define MCASP_WR_DMA_DONE_INT_STS_ACTIVE ((1UL << 11) << 20)
 #define MCASP_RD_DMA_DONE_INT_STS_ACTIVE ((1UL << 10) << 20)
-static int16_t i2s_mon;
+volatile int16_t i2s_mon;
 
 /*ramcode*/
 void DMAPingPongCompleteAppCB_opt()
