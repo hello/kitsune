@@ -222,6 +222,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 		}
 	}
 	AudioTask_StopPlayback();
+	codec_runtime_prop_update(MUX_LOOPBACK_SELECTOR, MUX_SELECT_MIC);
 	hlo_future_write(result, NULL, 0, 0);
 
 
