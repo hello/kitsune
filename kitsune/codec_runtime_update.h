@@ -27,5 +27,6 @@ typedef enum{
 int32_t codec_update_minidsp_mux(control_blocks_t type, uint32_t data);
 
 int32_t codec_test_runtime_prop_update(void);
+int32_t codec_runtime_prop_update(control_blocks_t type, uint32_t value);
 #endif
 

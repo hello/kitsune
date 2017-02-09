@@ -180,7 +180,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 	volatile ramp_ctx_t * v = (ramp_ctx_t*)ctx;
 	portTickType t0 = xTaskGetTickCount();
 	int32_t count = 0;
-	codec_runtime_prop_update(0, 2);
+	codec_runtime_prop_update(MUX_LOOPBACK_SELECTOR, MUX_SELECT_LOOPBACK);
 	while( v->target || v->current ){
 		if ( (v->duration - (int32_t)(xTaskGetTickCount() - t0)) < 0 && v->duration > 0){
 			v->target = 0;
