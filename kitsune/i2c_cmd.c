@@ -1009,7 +1009,7 @@ int cmd_pwr_speaker(int argc, char * argv[]) {
 
 
 
-
+int32_t codec_runtime_prop_update(control_blocks_t type, uint32_t value);
 int32_t codec_init(void)
 {
 	uint32_t i;
@@ -1095,6 +1095,8 @@ int32_t codec_init(void)
 	xSemaphoreGiveRecursive(i2c_smphr);
 
 	vTaskDelay(100);
+
+	codec_runtime_prop_update(0,2);
 
 #if 0
 	codec_after_init_test();
