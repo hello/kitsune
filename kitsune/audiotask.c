@@ -172,9 +172,11 @@ typedef struct{
 
 int32_t set_volume(int v, unsigned int dly);
 
+extern volatile int16_t i2s_feedback;	/* fun times */
 static void _change_volume_task(hlo_future_t * result, void * ctx){
 	volatile ramp_ctx_t * v = (ramp_ctx_t*)ctx;
 	portTickType t0 = xTaskGetTickCount();
+	int32_t count,pow = 0;
 	while( v->target || v->current ){
 		if ( (v->duration - (int32_t)(xTaskGetTickCount() - t0)) < 0 && v->duration > 0){
 			v->target = 0;
@@ -193,7 +195,13 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 			vTaskDelay(v->ramp_up_ms);
 		}else{
 			vTaskDelay(10);
-			continue;
+			pow += abs(i2s_feedback);
+			if (pow == 0 && count++ > 200) {
+				SetAudioSignal(FILTER_SIG_RESET);
+				break;
+			} else {
+				continue;
+			}
 		}
 		//fallthrough if volume adjust is needed
 		if(v->current % 10 == 0){
