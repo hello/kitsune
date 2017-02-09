@@ -203,10 +203,10 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 				SetAudioSignal(FILTER_SIG_RESET);
 				LOGE("\r\nDAC Overflow Detected\r\n");
 				break;
-			} else {
+			} else if (i2s_mon != 0) {
 				count = 0;
-				continue;
 			}
+			continue;
 		}
 		//fallthrough if volume adjust is needed
 		if(v->current % 10 == 0){
