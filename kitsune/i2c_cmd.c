@@ -1009,7 +1009,7 @@ int cmd_pwr_speaker(int argc, char * argv[]) {
 
 
 
-
+int32_t codec_runtime_prop_update(control_blocks_t type, uint32_t value);
 int32_t codec_init(void)
 {
 	uint32_t i;

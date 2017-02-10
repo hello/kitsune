@@ -39,6 +39,8 @@
 
 #include "led_cmd.h"
 #include "led_animations.h"
+#include "hlo_audio_tools.h"
+#include "codec_runtime_update.h"
 
 #if 0
 #define PRINT_TIMING
@@ -73,6 +75,7 @@ static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload
 #include "wifi_cmd.h"
 extern bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 static bool _playing = false;
+static bool _playback_interrupted = false;
 bool audio_playing() {
 	return _playing;
 }
@@ -172,13 +175,29 @@ typedef struct{
 
 int32_t set_volume(int v, unsigned int dly);
 
+extern volatile int16_t i2s_mon;	/* fun times */
+
 static void _change_volume_task(hlo_future_t * result, void * ctx){
 	volatile ramp_ctx_t * v = (ramp_ctx_t*)ctx;
 	portTickType t0 = xTaskGetTickCount();
+	int32_t count = 0;
+	codec_runtime_prop_update(MUX_LOOPBACK_SELECTOR, MUX_SELECT_LOOPBACK);
 	while( v->target || v->current ){
 		if ( (v->duration - (int32_t)(xTaskGetTickCount() - t0)) < 0 && v->duration > 0){
 			v->target = 0;
 		}
+
+		if (i2s_mon == 0 && count++ > 10) {
+			SetAudioSignal(FILTER_SIG_RESET);
+			LOGE("\r\nDAC Overflow Detected\r\n");
+			_playback_interrupted = true;
+			count = 0;
+			break;
+		} else if (i2s_mon != 0) {
+			count = 0;
+		}
+
+
 		if(v->current > v->target ){
 			vTaskDelay(v->ramp_down_ms);
 			v->current--;
@@ -209,6 +228,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 		}
 	}
 	AudioTask_StopPlayback();
+	codec_runtime_prop_update(MUX_LOOPBACK_SELECTOR, MUX_SELECT_MIC);
 	hlo_future_write(result, NULL, 0, 0);
 
 
@@ -224,6 +244,7 @@ static uint8_t fadeout_sig(void * ctx) {
 }
 
 extern volatile int last_set_volume;
+extern int audio_sig_stop;
 
 ////-------------------------------------------
 //playback sample app
@@ -267,11 +288,15 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 		vol.current = last_set_volume; //handles fade out if the system volume has changed during the last playback
 		ret = transfer_function(fs, spkr, vol_task, fadeout_sig);
 	}
-
-	hlo_stream_close(fs);
+	if( audio_sig_stop != FILTER_SIG_RESET ) {
+		hlo_stream_close(fs);
+	}
 	hlo_stream_close(spkr);
-	if(desc->onFinished){
-		desc->onFinished(desc->context);
+	hlo_future_destroy(vol_task);
+	if( audio_sig_stop != FILTER_SIG_RESET ) {
+		if(desc->onFinished){
+			desc->onFinished(desc->context);
+		}
 	}
 	DISP("Playback Task Finished %d\r\n", ret);
 }
@@ -286,14 +311,14 @@ void AudioPlaybackTask(void * data) {
 
 	hlo_future_t * state_update_task = hlo_future_create_task_bg(_sense_state_task, NULL, 1024);
 	assert(state_update_task);
-
+	AudioMessage_t last_playback_message;
 	while(1){
 		AudioMessage_t  m;
 		if (xQueueReceive( _playback_queue,(void *) &m, AUDIO_TASK_IDLE_RESET_TIME )) {
 			switch (m.command) {
-
 				case eAudioPlaybackStart:
 				{
+					memcpy(&last_playback_message, &m, sizeof(m));
 					AudioPlaybackDesc_t * info = &m.message.playbackdesc;
 					/** prep  **/
 					_queue_audio_playback_state(PLAYING, info);
@@ -313,6 +338,11 @@ void AudioPlaybackTask(void * data) {
 					reset_audio();
 					LOGI("done.\r\n");
 					hlo_future_write(m.message.reset_sync, NULL,0, 0);
+
+					if (_playback_interrupted) {
+						_playback_interrupted = false;
+						xQueueSend(_playback_queue, &last_playback_message, 0);
+					}
 					break;
 				default:
 					break;
@@ -365,7 +395,6 @@ void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
 		xQueueSendToFront(_playback_queue,(void *)&m,0);
 		_queue_audio_playback_state(PLAYING, desc);
 	}
-
 }
 
 int Cmd_AudioPlayback(int argc, char * argv[]){

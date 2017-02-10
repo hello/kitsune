@@ -34,3 +34,4 @@ int Cmd_stream_transfer(int argc, char * argv[]);
 
 
 void AudioControlTask(void * unused);
+void SetAudioSignal(int s);
