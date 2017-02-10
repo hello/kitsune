@@ -282,11 +282,12 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 		//join async worker
 		vol.target = 0;
 		vol.current = last_set_volume; //handles fade out if the system volume has changed during the last playback
-		ret = transfer_function(fs, spkr, vol_task, fadeout_sig);
+		ret = transfer_function(fs, spkr, NULL, fadeout_sig);
 	}
 
 	hlo_stream_close(fs);
 	hlo_stream_close(spkr);
+	hlo_future_read_once(vol_task, NULL,0);
 	if(desc->onFinished){
 		desc->onFinished(desc->context);
 	}
@@ -306,11 +307,15 @@ void AudioPlaybackTask(void * data) {
 
 	while(1){
 		AudioMessage_t  m;
+		AudioMessage_t last_playback_message;
 		if (xQueueReceive( _playback_queue,(void *) &m, AUDIO_TASK_IDLE_RESET_TIME )) {
+resume:
 			switch (m.command) {
 
 				case eAudioPlaybackStart:
 				{
+					last_playback_message = m;
+
 					AudioPlaybackDesc_t * info = &m.message.playbackdesc;
 					/** prep  **/
 					_queue_audio_playback_state(PLAYING, info);
@@ -330,6 +335,12 @@ void AudioPlaybackTask(void * data) {
 					reset_audio();
 					LOGI("done.\r\n");
 					hlo_future_write(m.message.reset_sync, NULL,0, 0);
+
+					if (_playback_interrupted) {
+						_playback_interrupted = false;
+						m = last_playback_message;
+						goto resume;
+					}
 					break;
 				default:
 					break;
@@ -355,12 +366,6 @@ void AudioTask_ResetCodec(void) {
 		m.message.reset_sync = sync;
 		xQueueSend(_playback_queue,(void *)&m,0);
 		hlo_future_read_once(sync, NULL,0);
-
-		if (_playback_interrupted) {
-			xQueueSendToFront(_playback_queue,(void *)&_last_playback_message,0);
-			_queue_audio_playback_state(PLAYING, &_last_playback_message.message.playbackdesc);
-			_playback_interrupted = false;
-		}
 	}
 }
 void AudioTask_StopPlayback(void) {
@@ -387,8 +392,8 @@ void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
 	if (_playback_queue) {
 		xQueueSendToFront(_playback_queue,(void *)&m,0);
 		_queue_audio_playback_state(PLAYING, desc);
+		_last_playback_message = m;
 	}
-	_last_playback_message = m;
 }
 
 int Cmd_AudioPlayback(int argc, char * argv[]){
