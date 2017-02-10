@@ -285,7 +285,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	}
 	hlo_stream_close(fs);
 	hlo_stream_close(spkr);
-	//hlo_future_destroy(vol_task);
+	hlo_future_destroy(vol_task);
 	if(desc->onFinished){
 		desc->onFinished(desc->context);
 	}
