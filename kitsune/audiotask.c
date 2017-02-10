@@ -76,7 +76,6 @@ static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload
 extern bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 static bool _playing = false;
 static bool _playback_interrupted = false;
-static AudioMessage_t _last_playback_message;
 bool audio_playing() {
 	return _playing;
 }
