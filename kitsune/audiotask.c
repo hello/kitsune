@@ -358,7 +358,7 @@ void AudioTask_ResetCodec(void) {
 
 		if (_playback_interrupted) {
 			xQueueSendToFront(_playback_queue,(void *)&_last_playback_message,0);
-			_queue_audio_playback_state(PLAYING, desc);
+			_queue_audio_playback_state(PLAYING, &_last_playback_message.message.playbackdesc);
 			_playback_interrupted = false;
 		}
 	}
