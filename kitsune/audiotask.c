@@ -75,6 +75,8 @@ static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload
 #include "wifi_cmd.h"
 extern bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 static bool _playing = false;
+static bool _playback_interrupted = false;
+static AudioMessage_t _last_playback_message;
 bool audio_playing() {
 	return _playing;
 }
@@ -202,6 +204,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 			if (i2s_mon == 0 && count++ > 100) {
 				SetAudioSignal(FILTER_SIG_RESET);
 				LOGE("\r\nDAC Overflow Detected\r\n");
+				_playback_interrupted = true;
 				break;
 			} else if (i2s_mon != 0) {
 				count = 0;
@@ -352,6 +355,12 @@ void AudioTask_ResetCodec(void) {
 		m.message.reset_sync = sync;
 		xQueueSend(_playback_queue,(void *)&m,0);
 		hlo_future_read_once(sync, NULL,0);
+
+		if (_playback_interrupted) {
+			xQueueSendToFront(_playback_queue,(void *)&_last_playback_message,0);
+			_queue_audio_playback_state(PLAYING, desc);
+			_playback_interrupted = false;
+		}
 	}
 }
 void AudioTask_StopPlayback(void) {
@@ -379,7 +388,7 @@ void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
 		xQueueSendToFront(_playback_queue,(void *)&m,0);
 		_queue_audio_playback_state(PLAYING, desc);
 	}
-
+	_last_playback_message = m;
 }
 
 int Cmd_AudioPlayback(int argc, char * argv[]){
