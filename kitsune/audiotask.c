@@ -283,10 +283,9 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 		vol.current = last_set_volume; //handles fade out if the system volume has changed during the last playback
 		ret = transfer_function(fs, spkr, vol_task, fadeout_sig);
 	}
-
 	hlo_stream_close(fs);
 	hlo_stream_close(spkr);
-	hlo_future_destroy(vol_task);
+	//hlo_future_destroy(vol_task);
 	if(desc->onFinished){
 		desc->onFinished(desc->context);
 	}
@@ -303,18 +302,14 @@ void AudioPlaybackTask(void * data) {
 
 	hlo_future_t * state_update_task = hlo_future_create_task_bg(_sense_state_task, NULL, 1024);
 	assert(state_update_task);
-
+	AudioMessage_t last_playback_message;
 	while(1){
 		AudioMessage_t  m;
-		AudioMessage_t last_playback_message;
 		if (xQueueReceive( _playback_queue,(void *) &m, AUDIO_TASK_IDLE_RESET_TIME )) {
-resume:
 			switch (m.command) {
-
 				case eAudioPlaybackStart:
 				{
-					last_playback_message = m;
-
+					memcpy(&last_playback_message, &m, sizeof(m));
 					AudioPlaybackDesc_t * info = &m.message.playbackdesc;
 					/** prep  **/
 					_queue_audio_playback_state(PLAYING, info);
@@ -337,8 +332,8 @@ resume:
 
 					if (_playback_interrupted) {
 						_playback_interrupted = false;
-						m = last_playback_message;
-						goto resume;
+						//xQueueSendToFront(_playback_queue, &last_playback_message, 0);
+						vTaskDelay(5000);
 					}
 					break;
 				default:
