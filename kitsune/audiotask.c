@@ -281,12 +281,12 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 		//join async worker
 		vol.target = 0;
 		vol.current = last_set_volume; //handles fade out if the system volume has changed during the last playback
-		ret = transfer_function(fs, spkr, NULL, fadeout_sig);
+		ret = transfer_function(fs, spkr, vol_task, fadeout_sig);
 	}
 
 	hlo_stream_close(fs);
 	hlo_stream_close(spkr);
-	hlo_future_read_once(vol_task, NULL,0);
+	hlo_future_destroy(vol_task);
 	if(desc->onFinished){
 		desc->onFinished(desc->context);
 	}
@@ -338,7 +338,7 @@ resume:
 					if (_playback_interrupted) {
 						_playback_interrupted = false;
 						m = last_playback_message;
-						goto resume;
+					//	goto resume;
 					}
 					break;
 				default:
@@ -391,7 +391,6 @@ void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
 	if (_playback_queue) {
 		xQueueSendToFront(_playback_queue,(void *)&m,0);
 		_queue_audio_playback_state(PLAYING, desc);
-		_last_playback_message = m;
 	}
 }
 
