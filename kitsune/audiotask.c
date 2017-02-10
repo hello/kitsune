@@ -338,7 +338,7 @@ resume:
 					if (_playback_interrupted) {
 						_playback_interrupted = false;
 						m = last_playback_message;
-					//	goto resume;
+						goto resume;
 					}
 					break;
 				default:
