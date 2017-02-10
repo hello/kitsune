@@ -186,6 +186,18 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 		if ( (v->duration - (int32_t)(xTaskGetTickCount() - t0)) < 0 && v->duration > 0){
 			v->target = 0;
 		}
+
+		if (i2s_mon == 0 && count++ > 10) {
+			SetAudioSignal(FILTER_SIG_RESET);
+			LOGE("\r\nDAC Overflow Detected\r\n");
+			_playback_interrupted = true;
+			count = 0;
+			break;
+		} else if (i2s_mon != 0) {
+			count = 0;
+		}
+
+
 		if(v->current > v->target ){
 			vTaskDelay(v->ramp_down_ms);
 			v->current--;
@@ -200,14 +212,6 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 			vTaskDelay(v->ramp_up_ms);
 		}else{
 			vTaskDelay(10);
-			if (i2s_mon == 0 && count++ > 100) {
-				SetAudioSignal(FILTER_SIG_RESET);
-				LOGE("\r\nDAC Overflow Detected\r\n");
-				_playback_interrupted = true;
-				break;
-			} else if (i2s_mon != 0) {
-				count = 0;
-			}
 			continue;
 		}
 		//fallthrough if volume adjust is needed
