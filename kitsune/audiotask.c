@@ -240,6 +240,7 @@ static uint8_t fadeout_sig(void * ctx) {
 }
 
 extern volatile int last_set_volume;
+extern int audio_sig_stop;
 
 ////-------------------------------------------
 //playback sample app
@@ -283,11 +284,15 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 		vol.current = last_set_volume; //handles fade out if the system volume has changed during the last playback
 		ret = transfer_function(fs, spkr, vol_task, fadeout_sig);
 	}
-	hlo_stream_close(fs);
+	if( audio_sig_stop != FILTER_SIG_RESET ) {
+		hlo_stream_close(fs);
+	}
 	hlo_stream_close(spkr);
 	hlo_future_destroy(vol_task);
-	if(desc->onFinished){
-		desc->onFinished(desc->context);
+	if( audio_sig_stop != FILTER_SIG_RESET ) {
+		if(desc->onFinished){
+			desc->onFinished(desc->context);
+		}
 	}
 	DISP("Playback Task Finished %d\r\n", ret);
 }
@@ -332,8 +337,7 @@ void AudioPlaybackTask(void * data) {
 
 					if (_playback_interrupted) {
 						_playback_interrupted = false;
-						//xQueueSendToFront(_playback_queue, &last_playback_message, 0);
-						vTaskDelay(5000);
+						xQueueSend(_playback_queue, &last_playback_message, 0);
 					}
 					break;
 				default:
