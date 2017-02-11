@@ -292,7 +292,9 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 		hlo_stream_close(fs);
 	}
 	hlo_stream_close(spkr);
-	hlo_future_destroy(vol_task);
+	if( vol_ramp ) {
+		hlo_future_destroy(vol_task);
+	}
 	if( audio_sig_stop != FILTER_SIG_RESET ) {
 		if(desc->onFinished){
 			desc->onFinished(desc->context);
