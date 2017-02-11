@@ -298,11 +298,16 @@ void DMAPingPongCompleteAppCB_opt()
 				ReadBuffer(pAudOutBuf,(unsigned char*)ping_p,CB_TRANSFER_SZ);
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
+				bool all_zero = true;
 				for (i = CB_TRANSFER_SZ/4-1; i!=-1 ; --i) {
+					all_zero = all_zero && ( ping_p[i] == 0 );
 					ping_p[(i<<2) + 3] = 0;
 					ping_p[(i<<2) + 2] = (ping_p[i] & 0xFFFF0000);
 					ping_p[(i<<2) + 1] = 0;
 					ping_p[(i<<2) + 0] = (ping_p[i] & 0xFFFFUL) << 16;
+				}
+				if( all_zero ) {
+					i2s_mon = 1;
 				}
 #else
 				for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
@@ -332,11 +337,16 @@ void DMAPingPongCompleteAppCB_opt()
 					ReadBuffer(pAudOutBuf,(unsigned char*)pong_p,CB_TRANSFER_SZ);
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
+				bool all_zero = true;
 				for (i = CB_TRANSFER_SZ/4-1; i!=-1 ; --i) {
+					all_zero = all_zero && ( ping_p[i] == 0 );
 					pong_p[(i<<2) + 3] = 0;
 					pong_p[(i<<2) + 2] = (pong_p[i] & 0xFFFF0000);
 					pong_p[(i<<2) + 1] = 0;
 					pong_p[(i<<2) + 0] = (pong_p[i] & 0xFFFFUL) << 16;
+				}
+				if( all_zero ) {
+					i2s_mon = 1;
 				}
 #else
 					for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
