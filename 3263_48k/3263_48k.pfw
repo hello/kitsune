@@ -7183,7 +7183,7 @@ reg[120][0][49] = 0x40</value>
       <label_text_color>Black</label_text_color>
       <instance_name>Multi_Channel_Digital_In_1</instance_name>
       <x_coordinate>36</x_coordinate>
-      <y_coordinate>492</y_coordinate>
+      <y_coordinate>564</y_coordinate>
       <rate8>false</rate8>
       <rate11>false</rate11>
       <rate16>false</rate16>
@@ -7598,7 +7598,7 @@ reg[120][0][49] = 0x40</value>
       <label_text>Split_7</label_text>
       <label_text_color>Black</label_text_color>
       <instance_name>Split_7</instance_name>
-      <x_coordinate>120</x_coordinate>
+      <x_coordinate>96</x_coordinate>
       <y_coordinate>456</y_coordinate>
       <rate8>false</rate8>
       <rate11>false</rate11>
@@ -10274,7 +10274,7 @@ reg[120][0][49] = 0x40</value>
       <label_text_color>Black</label_text_color>
       <instance_name>Int8xOut_1</instance_name>
       <x_coordinate>348</x_coordinate>
-      <y_coordinate>564</y_coordinate>
+      <y_coordinate>576</y_coordinate>
       <rate8>false</rate8>
       <rate11>false</rate11>
       <rate16>false</rate16>
@@ -86728,6 +86728,72 @@ reg[120][0][49] = 0x40</value>
           <value>miniDSP_D</value>
         </design_property>
         <design_property>
+          <name>TargetStream</name>
+          <qsize>32</qsize>
+          <qvalue>31</qvalue>
+          <type>Enum</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>Primary</value>
+            </rate_value_pair>
+          </values>
+          <configurations>
+            <configuration>
+              <config_name>main</config_name>
+              <config_values>
+                <rate_value_pair>
+                  <rate>RateAll</rate>
+                  <value>Primary</value>
+                </rate_value_pair>
+              </config_values>
+            </configuration>
+          </configurations>
+          <enumnames>
+            <string>Primary</string>
+            <string>Secondary</string>
+            <string>None</string>
+          </enumnames>
+          <enumvalues>
+            <int>0</int>
+            <int>1</int>
+            <int>2</int>
+          </enumvalues>
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <min_fix_val xsi:type="DapLongFixed">
+            <whole>-4</whole>
+            <fraction>0</fraction>
+          </min_fix_val>
+          <max_fix_val xsi:type="DapLongFixed">
+            <whole>3</whole>
+            <fraction>536870911</fraction>
+          </max_fix_val>
+          <min_qfix_val>0.0</min_qfix_val>
+          <max_qfix_val>0.0</max_qfix_val>
+          <readonly>false</readonly>
+          <hidden>false</hidden>
+          <propagate_property>false</propagate_property>
+          <instance_number>0</instance_number>
+          <channel_number>0</channel_number>
+          <input_channel_number>0</input_channel_number>
+          <output_channel_number>0</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>false</shared_between_configs>
+          <value>Primary</value>
+        </design_property>
+        <design_property>
           <name>SynchMode</name>
           <qsize>62</qsize>
           <qvalue>31</qvalue>
@@ -86791,62 +86857,6 @@ reg[120][0][49] = 0x40</value>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
           <value>Disabled</value>
-        </design_property>
-        <design_property>
-          <name>TargetStream</name>
-          <qsize>32</qsize>
-          <qvalue>31</qvalue>
-          <type>Enum</type>
-          <values>
-            <rate_value_pair>
-              <rate>RateAll</rate>
-              <value>Primary</value>
-            </rate_value_pair>
-          </values>
-          <configurations>
-            <configuration>
-              <config_name>main</config_name>
-              <config_values>
-                <rate_value_pair>
-                  <rate>RateAll</rate>
-                  <value>Primary</value>
-                </rate_value_pair>
-              </config_values>
-            </configuration>
-          </configurations>
-          <enumnames>
-            <string>Primary</string>
-            <string>Secondary</string>
-            <string>None</string>
-          </enumnames>
-          <enumvalues>
-            <int>0</int>
-            <int>1</int>
-            <int>2</int>
-          </enumvalues>
-          <min_int_val>-2147483648</min_int_val>
-          <max_int_val>2147483647</max_int_val>
-          <min_float_val>-1.7976931348623157E+308</min_float_val>
-          <max_float_val>1.7976931348623157E+308</max_float_val>
-          <readonly>false</readonly>
-          <hidden>false</hidden>
-          <propagate_property>false</propagate_property>
-          <instance_number>0</instance_number>
-          <channel_number>0</channel_number>
-          <input_channel_number>0</input_channel_number>
-          <output_channel_number>0</output_channel_number>
-          <int_delta_val>1</int_delta_val>
-          <dap_short_delta_val>
-            <whole>0</whole>
-            <fraction>1</fraction>
-          </dap_short_delta_val>
-          <dap_long_delta_val>
-            <whole>0</whole>
-            <fraction>1</fraction>
-          </dap_long_delta_val>
-          <delay_width>Delay24bit</delay_width>
-          <shared_between_configs>false</shared_between_configs>
-          <value>Primary</value>
         </design_property>
         <design_property>
           <name>InstanceId</name>
@@ -87126,6 +87136,72 @@ reg[120][0][49] = 0x40</value>
           <value>miniDSP_A</value>
         </design_property>
         <design_property>
+          <name>TargetStream</name>
+          <qsize>32</qsize>
+          <qvalue>31</qvalue>
+          <type>Enum</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>Primary</value>
+            </rate_value_pair>
+          </values>
+          <configurations>
+            <configuration>
+              <config_name>main</config_name>
+              <config_values>
+                <rate_value_pair>
+                  <rate>RateAll</rate>
+                  <value>Primary</value>
+                </rate_value_pair>
+              </config_values>
+            </configuration>
+          </configurations>
+          <enumnames>
+            <string>Primary</string>
+            <string>Secondary</string>
+            <string>None</string>
+          </enumnames>
+          <enumvalues>
+            <int>0</int>
+            <int>1</int>
+            <int>2</int>
+          </enumvalues>
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <min_fix_val xsi:type="DapLongFixed">
+            <whole>-4</whole>
+            <fraction>0</fraction>
+          </min_fix_val>
+          <max_fix_val xsi:type="DapLongFixed">
+            <whole>3</whole>
+            <fraction>536870911</fraction>
+          </max_fix_val>
+          <min_qfix_val>0.0</min_qfix_val>
+          <max_qfix_val>0.0</max_qfix_val>
+          <readonly>false</readonly>
+          <hidden>false</hidden>
+          <propagate_property>false</propagate_property>
+          <instance_number>0</instance_number>
+          <channel_number>0</channel_number>
+          <input_channel_number>0</input_channel_number>
+          <output_channel_number>0</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>false</shared_between_configs>
+          <value>Primary</value>
+        </design_property>
+        <design_property>
           <name>SynchMode</name>
           <qsize>62</qsize>
           <qvalue>31</qvalue>
@@ -87189,62 +87265,6 @@ reg[120][0][49] = 0x40</value>
           <delay_width>Delay24bit</delay_width>
           <shared_between_configs>false</shared_between_configs>
           <value>Disabled</value>
-        </design_property>
-        <design_property>
-          <name>TargetStream</name>
-          <qsize>32</qsize>
-          <qvalue>31</qvalue>
-          <type>Enum</type>
-          <values>
-            <rate_value_pair>
-              <rate>RateAll</rate>
-              <value>Primary</value>
-            </rate_value_pair>
-          </values>
-          <configurations>
-            <configuration>
-              <config_name>main</config_name>
-              <config_values>
-                <rate_value_pair>
-                  <rate>RateAll</rate>
-                  <value>Primary</value>
-                </rate_value_pair>
-              </config_values>
-            </configuration>
-          </configurations>
-          <enumnames>
-            <string>Primary</string>
-            <string>Secondary</string>
-            <string>None</string>
-          </enumnames>
-          <enumvalues>
-            <int>0</int>
-            <int>1</int>
-            <int>2</int>
-          </enumvalues>
-          <min_int_val>-2147483648</min_int_val>
-          <max_int_val>2147483647</max_int_val>
-          <min_float_val>-1.7976931348623157E+308</min_float_val>
-          <max_float_val>1.7976931348623157E+308</max_float_val>
-          <readonly>false</readonly>
-          <hidden>false</hidden>
-          <propagate_property>false</propagate_property>
-          <instance_number>0</instance_number>
-          <channel_number>0</channel_number>
-          <input_channel_number>0</input_channel_number>
-          <output_channel_number>0</output_channel_number>
-          <int_delta_val>1</int_delta_val>
-          <dap_short_delta_val>
-            <whole>0</whole>
-            <fraction>1</fraction>
-          </dap_short_delta_val>
-          <dap_long_delta_val>
-            <whole>0</whole>
-            <fraction>1</fraction>
-          </dap_long_delta_val>
-          <delay_width>Delay24bit</delay_width>
-          <shared_between_configs>false</shared_between_configs>
-          <value>Primary</value>
         </design_property>
         <design_property>
           <name>InstanceId</name>
@@ -87629,6 +87649,950 @@ reg[120][0][49] = 0x40</value>
       <Hierarchical>false</Hierarchical>
       <Encrypt>false</Encrypt>
     </symbol>
+    <symbol>
+      <instance_id>Model.Mono_Mixer_2</instance_id>
+      <component_id>Mono_Mixer_TI_v2</component_id>
+      <design_properties>
+        <design_property>
+          <name>InputChannels</name>
+          <qsize>62</qsize>
+          <qvalue>31</qvalue>
+          <type>Enum</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>2</value>
+            </rate_value_pair>
+          </values>
+          <configurations>
+            <configuration>
+              <config_name>main</config_name>
+              <config_values>
+                <rate_value_pair>
+                  <rate>RateAll</rate>
+                  <value>2</value>
+                </rate_value_pair>
+              </config_values>
+            </configuration>
+          </configurations>
+          <enumnames>
+            <string>2</string>
+            <string>3</string>
+            <string>4</string>
+            <string>5</string>
+          </enumnames>
+          <enumvalues>
+            <int>2</int>
+            <int>3</int>
+            <int>4</int>
+            <int>5</int>
+          </enumvalues>
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <min_fix_val xsi:type="DapLongFixed">
+            <whole>-4</whole>
+            <fraction>0</fraction>
+          </min_fix_val>
+          <max_fix_val xsi:type="DapLongFixed">
+            <whole>3</whole>
+            <fraction>536870911</fraction>
+          </max_fix_val>
+          <min_qfix_val>0.0</min_qfix_val>
+          <max_qfix_val>0.0</max_qfix_val>
+          <readonly>false</readonly>
+          <hidden>false</hidden>
+          <propagate_property>false</propagate_property>
+          <instance_number>0</instance_number>
+          <channel_number>0</channel_number>
+          <input_channel_number>0</input_channel_number>
+          <output_channel_number>0</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>true</shared_between_configs>
+          <value>2</value>
+        </design_property>
+        <design_property>
+          <name>OutputChannels</name>
+          <qsize>62</qsize>
+          <qvalue>31</qvalue>
+          <type>Enum</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>1</value>
+            </rate_value_pair>
+          </values>
+          <configurations>
+            <configuration>
+              <config_name>main</config_name>
+              <config_values>
+                <rate_value_pair>
+                  <rate>RateAll</rate>
+                  <value>1</value>
+                </rate_value_pair>
+              </config_values>
+            </configuration>
+          </configurations>
+          <enumnames>
+            <string>1</string>
+          </enumnames>
+          <enumvalues>
+            <int>1</int>
+          </enumvalues>
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <min_fix_val xsi:type="DapLongFixed">
+            <whole>-4</whole>
+            <fraction>0</fraction>
+          </min_fix_val>
+          <max_fix_val xsi:type="DapLongFixed">
+            <whole>3</whole>
+            <fraction>536870911</fraction>
+          </max_fix_val>
+          <min_qfix_val>0.0</min_qfix_val>
+          <max_qfix_val>0.0</max_qfix_val>
+          <readonly>false</readonly>
+          <hidden>false</hidden>
+          <propagate_property>false</propagate_property>
+          <instance_number>0</instance_number>
+          <channel_number>0</channel_number>
+          <input_channel_number>0</input_channel_number>
+          <output_channel_number>0</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>true</shared_between_configs>
+          <value>1</value>
+        </design_property>
+        <design_property>
+          <name>TargetProcessor</name>
+          <qsize>62</qsize>
+          <qvalue>31</qvalue>
+          <type>Enum</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>miniDSP_D</value>
+            </rate_value_pair>
+          </values>
+          <configurations>
+            <configuration>
+              <config_name>main</config_name>
+              <config_values>
+                <rate_value_pair>
+                  <rate>RateAll</rate>
+                  <value>miniDSP_D</value>
+                </rate_value_pair>
+              </config_values>
+            </configuration>
+          </configurations>
+          <description>Processor where this component instance resides</description>
+          <enumnames>
+            <string>miniDSP_A</string>
+            <string>miniDSP_D</string>
+          </enumnames>
+          <enumvalues>
+            <int>0</int>
+            <int>1</int>
+          </enumvalues>
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <min_fix_val xsi:type="DapLongFixed">
+            <whole>-4</whole>
+            <fraction>0</fraction>
+          </min_fix_val>
+          <max_fix_val xsi:type="DapLongFixed">
+            <whole>3</whole>
+            <fraction>536870911</fraction>
+          </max_fix_val>
+          <min_qfix_val>0.0</min_qfix_val>
+          <max_qfix_val>0.0</max_qfix_val>
+          <readonly>false</readonly>
+          <hidden>false</hidden>
+          <propagate_property>false</propagate_property>
+          <instance_number>-1</instance_number>
+          <channel_number>-1</channel_number>
+          <input_channel_number>-1</input_channel_number>
+          <output_channel_number>-1</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>true</shared_between_configs>
+          <value>miniDSP_D</value>
+        </design_property>
+        <design_property>
+          <name>SynchMode</name>
+          <qsize>62</qsize>
+          <qvalue>31</qvalue>
+          <type>Enum</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>Disabled</value>
+            </rate_value_pair>
+          </values>
+          <configurations>
+            <configuration>
+              <config_name>main</config_name>
+              <config_values>
+                <rate_value_pair>
+                  <rate>RateAll</rate>
+                  <value>Disabled</value>
+                </rate_value_pair>
+              </config_values>
+            </configuration>
+          </configurations>
+          <description>miniDSP_A and miniDSP_D operate in synchronous mode</description>
+          <enumnames>
+            <string>Disabled</string>
+            <string>Enabled</string>
+          </enumnames>
+          <enumvalues>
+            <int>0</int>
+            <int>1</int>
+          </enumvalues>
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <min_fix_val xsi:type="DapLongFixed">
+            <whole>-4</whole>
+            <fraction>0</fraction>
+          </min_fix_val>
+          <max_fix_val xsi:type="DapLongFixed">
+            <whole>3</whole>
+            <fraction>536870911</fraction>
+          </max_fix_val>
+          <min_qfix_val>0.0</min_qfix_val>
+          <max_qfix_val>0.0</max_qfix_val>
+          <readonly>true</readonly>
+          <hidden>false</hidden>
+          <propagate_property>true</propagate_property>
+          <instance_number>-1</instance_number>
+          <channel_number>-1</channel_number>
+          <input_channel_number>-1</input_channel_number>
+          <output_channel_number>-1</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>false</shared_between_configs>
+          <value>Disabled</value>
+        </design_property>
+        <design_property>
+          <name>TargetStream</name>
+          <qsize>32</qsize>
+          <qvalue>31</qvalue>
+          <type>Enum</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>Primary</value>
+            </rate_value_pair>
+          </values>
+          <configurations>
+            <configuration>
+              <config_name>main</config_name>
+              <config_values>
+                <rate_value_pair>
+                  <rate>RateAll</rate>
+                  <value>Primary</value>
+                </rate_value_pair>
+              </config_values>
+            </configuration>
+          </configurations>
+          <enumnames>
+            <string>Primary</string>
+            <string>Secondary</string>
+            <string>None</string>
+          </enumnames>
+          <enumvalues>
+            <int>0</int>
+            <int>1</int>
+            <int>2</int>
+          </enumvalues>
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <readonly>false</readonly>
+          <hidden>false</hidden>
+          <propagate_property>false</propagate_property>
+          <instance_number>0</instance_number>
+          <channel_number>0</channel_number>
+          <input_channel_number>0</input_channel_number>
+          <output_channel_number>0</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>false</shared_between_configs>
+          <value>Primary</value>
+        </design_property>
+        <design_property>
+          <name>InstanceId</name>
+          <qsize>32</qsize>
+          <qvalue>31</qvalue>
+          <type>String</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>Mono_Mixer_2</value>
+            </rate_value_pair>
+          </values>
+          <configurations />
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <readonly>false</readonly>
+          <hidden>false</hidden>
+          <propagate_property>false</propagate_property>
+          <instance_number>0</instance_number>
+          <channel_number>0</channel_number>
+          <input_channel_number>0</input_channel_number>
+          <output_channel_number>0</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>false</shared_between_configs>
+          <value>Mono_Mixer_2</value>
+        </design_property>
+      </design_properties>
+      <runtime_properties>
+        <runtime_property>
+          <name>Channel1_Gain</name>
+          <qsize>24</qsize>
+          <qvalue>23</qvalue>
+          <q_fixed_delta_val_str>0.00000011920928955078125</q_fixed_delta_val_str>
+          <type>QFixed</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>0.99899995326995849609375</value>
+            </rate_value_pair>
+          </values>
+          <configurations>
+            <configuration>
+              <config_name>main</config_name>
+              <config_values>
+                <rate_value_pair>
+                  <rate>RateAll</rate>
+                  <value>0.99899995326995849609375</value>
+                </rate_value_pair>
+              </config_values>
+            </configuration>
+          </configurations>
+          <description>Channel 1 Gain</description>
+          <enumnames />
+          <enumvalues />
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <min_fix_val xsi:type="DapLongFixed">
+            <whole>-4</whole>
+            <fraction>0</fraction>
+          </min_fix_val>
+          <max_fix_val xsi:type="DapLongFixed">
+            <whole>3</whole>
+            <fraction>536870911</fraction>
+          </max_fix_val>
+          <min_qfix_val>-1.0</min_qfix_val>
+          <max_qfix_val>0.99999988079071044921875</max_qfix_val>
+          <readonly>false</readonly>
+          <hidden>false</hidden>
+          <propagate_property>false</propagate_property>
+          <instance_number>-1</instance_number>
+          <channel_number>-1</channel_number>
+          <input_channel_number>2</input_channel_number>
+          <output_channel_number>-1</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>false</shared_between_configs>
+          <value>0.99899995326995849609375</value>
+        </runtime_property>
+        <runtime_property>
+          <name>Channel2_Gain</name>
+          <qsize>24</qsize>
+          <qvalue>23</qvalue>
+          <q_fixed_delta_val_str>0.00000011920928955078125</q_fixed_delta_val_str>
+          <type>QFixed</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>0.99989998340606689453125</value>
+            </rate_value_pair>
+          </values>
+          <configurations>
+            <configuration>
+              <config_name>main</config_name>
+              <config_values>
+                <rate_value_pair>
+                  <rate>RateAll</rate>
+                  <value>0.99989998340606689453125</value>
+                </rate_value_pair>
+              </config_values>
+            </configuration>
+          </configurations>
+          <description>Channel 2 Gain</description>
+          <enumnames />
+          <enumvalues />
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <min_fix_val xsi:type="DapLongFixed">
+            <whole>-4</whole>
+            <fraction>0</fraction>
+          </min_fix_val>
+          <max_fix_val xsi:type="DapLongFixed">
+            <whole>3</whole>
+            <fraction>536870911</fraction>
+          </max_fix_val>
+          <min_qfix_val>-1.0</min_qfix_val>
+          <max_qfix_val>0.99999988079071044921875</max_qfix_val>
+          <readonly>false</readonly>
+          <hidden>false</hidden>
+          <propagate_property>false</propagate_property>
+          <instance_number>-1</instance_number>
+          <channel_number>-1</channel_number>
+          <input_channel_number>2</input_channel_number>
+          <output_channel_number>-1</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>false</shared_between_configs>
+          <value>0.99989998340606689453125</value>
+        </runtime_property>
+        <runtime_property>
+          <name>Channel3_Gain</name>
+          <qsize>24</qsize>
+          <qvalue>23</qvalue>
+          <q_fixed_delta_val_str>0.00000011920928955078125</q_fixed_delta_val_str>
+          <type>QFixed</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>0.0</value>
+            </rate_value_pair>
+          </values>
+          <configurations>
+            <configuration>
+              <config_name>main</config_name>
+              <config_values>
+                <rate_value_pair>
+                  <rate>RateAll</rate>
+                  <value>0.0</value>
+                </rate_value_pair>
+              </config_values>
+            </configuration>
+          </configurations>
+          <description>Channel 3 Gain</description>
+          <enumnames />
+          <enumvalues />
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <min_fix_val xsi:type="DapLongFixed">
+            <whole>-4</whole>
+            <fraction>0</fraction>
+          </min_fix_val>
+          <max_fix_val xsi:type="DapLongFixed">
+            <whole>3</whole>
+            <fraction>536870911</fraction>
+          </max_fix_val>
+          <min_qfix_val>-1.0</min_qfix_val>
+          <max_qfix_val>0.99999988079071044921875</max_qfix_val>
+          <readonly>false</readonly>
+          <hidden>false</hidden>
+          <propagate_property>false</propagate_property>
+          <instance_number>-1</instance_number>
+          <channel_number>-1</channel_number>
+          <input_channel_number>3</input_channel_number>
+          <output_channel_number>-1</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>false</shared_between_configs>
+          <value>0.0</value>
+        </runtime_property>
+        <runtime_property>
+          <name>Channel4_Gain</name>
+          <qsize>24</qsize>
+          <qvalue>23</qvalue>
+          <q_fixed_delta_val_str>0.00000011920928955078125</q_fixed_delta_val_str>
+          <type>QFixed</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>0.0</value>
+            </rate_value_pair>
+          </values>
+          <configurations>
+            <configuration>
+              <config_name>main</config_name>
+              <config_values>
+                <rate_value_pair>
+                  <rate>RateAll</rate>
+                  <value>0.0</value>
+                </rate_value_pair>
+              </config_values>
+            </configuration>
+          </configurations>
+          <description>Channel 4 Gain</description>
+          <enumnames />
+          <enumvalues />
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <min_fix_val xsi:type="DapLongFixed">
+            <whole>-4</whole>
+            <fraction>0</fraction>
+          </min_fix_val>
+          <max_fix_val xsi:type="DapLongFixed">
+            <whole>3</whole>
+            <fraction>536870911</fraction>
+          </max_fix_val>
+          <min_qfix_val>-1.0</min_qfix_val>
+          <max_qfix_val>0.99999988079071044921875</max_qfix_val>
+          <readonly>false</readonly>
+          <hidden>false</hidden>
+          <propagate_property>false</propagate_property>
+          <instance_number>-1</instance_number>
+          <channel_number>-1</channel_number>
+          <input_channel_number>4</input_channel_number>
+          <output_channel_number>-1</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>false</shared_between_configs>
+          <value>0.0</value>
+        </runtime_property>
+        <runtime_property>
+          <name>Channel5_Gain</name>
+          <qsize>24</qsize>
+          <qvalue>23</qvalue>
+          <q_fixed_delta_val_str>0.00000011920928955078125</q_fixed_delta_val_str>
+          <type>QFixed</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>0.0</value>
+            </rate_value_pair>
+          </values>
+          <configurations>
+            <configuration>
+              <config_name>main</config_name>
+              <config_values>
+                <rate_value_pair>
+                  <rate>RateAll</rate>
+                  <value>0.0</value>
+                </rate_value_pair>
+              </config_values>
+            </configuration>
+          </configurations>
+          <description>Channel 5 Gain</description>
+          <enumnames />
+          <enumvalues />
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <min_fix_val xsi:type="DapLongFixed">
+            <whole>-4</whole>
+            <fraction>0</fraction>
+          </min_fix_val>
+          <max_fix_val xsi:type="DapLongFixed">
+            <whole>3</whole>
+            <fraction>536870911</fraction>
+          </max_fix_val>
+          <min_qfix_val>-1.0</min_qfix_val>
+          <max_qfix_val>0.99999988079071044921875</max_qfix_val>
+          <readonly>false</readonly>
+          <hidden>false</hidden>
+          <propagate_property>false</propagate_property>
+          <instance_number>-1</instance_number>
+          <channel_number>-1</channel_number>
+          <input_channel_number>5</input_channel_number>
+          <output_channel_number>-1</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>false</shared_between_configs>
+          <value>0.0</value>
+        </runtime_property>
+      </runtime_properties>
+      <i2c_properties>
+        <i2c_property>
+          <name>DSPCoefBlockStart1</name>
+          <qsize>62</qsize>
+          <qvalue>31</qvalue>
+          <type>Int</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>21</value>
+            </rate_value_pair>
+          </values>
+          <configurations />
+          <description>Gain values for Ch1 .. Ch5</description>
+          <enumnames />
+          <enumvalues />
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <min_fix_val xsi:type="DapLongFixed">
+            <whole>-4</whole>
+            <fraction>0</fraction>
+          </min_fix_val>
+          <max_fix_val xsi:type="DapLongFixed">
+            <whole>3</whole>
+            <fraction>536870911</fraction>
+          </max_fix_val>
+          <min_qfix_val>0.0</min_qfix_val>
+          <max_qfix_val>0.0</max_qfix_val>
+          <readonly>false</readonly>
+          <hidden>true</hidden>
+          <propagate_property>false</propagate_property>
+          <instance_number>-1</instance_number>
+          <channel_number>0</channel_number>
+          <input_channel_number>-1</input_channel_number>
+          <output_channel_number>-1</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>true</shared_between_configs>
+          <value>21</value>
+        </i2c_property>
+        <i2c_property>
+          <name>DSPCoefBlockLength1</name>
+          <qsize>62</qsize>
+          <qvalue>31</qvalue>
+          <type>Int</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>5</value>
+            </rate_value_pair>
+          </values>
+          <configurations />
+          <description>Gain values for Ch1 .. Ch5</description>
+          <enumnames />
+          <enumvalues />
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <min_fix_val xsi:type="DapLongFixed">
+            <whole>-4</whole>
+            <fraction>0</fraction>
+          </min_fix_val>
+          <max_fix_val xsi:type="DapLongFixed">
+            <whole>3</whole>
+            <fraction>536870911</fraction>
+          </max_fix_val>
+          <min_qfix_val>0.0</min_qfix_val>
+          <max_qfix_val>0.0</max_qfix_val>
+          <readonly>true</readonly>
+          <hidden>true</hidden>
+          <propagate_property>false</propagate_property>
+          <instance_number>-1</instance_number>
+          <channel_number>0</channel_number>
+          <input_channel_number>-1</input_channel_number>
+          <output_channel_number>-1</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>true</shared_between_configs>
+          <value>5</value>
+        </i2c_property>
+        <i2c_property>
+          <name>I2CPage1</name>
+          <qsize>62</qsize>
+          <qvalue>31</qvalue>
+          <type>Int</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>1</value>
+            </rate_value_pair>
+          </values>
+          <configurations />
+          <enumnames />
+          <enumvalues />
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <min_fix_val xsi:type="DapLongFixed">
+            <whole>-4</whole>
+            <fraction>0</fraction>
+          </min_fix_val>
+          <max_fix_val xsi:type="DapLongFixed">
+            <whole>3</whole>
+            <fraction>536870911</fraction>
+          </max_fix_val>
+          <min_qfix_val>0.0</min_qfix_val>
+          <max_qfix_val>0.0</max_qfix_val>
+          <readonly>false</readonly>
+          <hidden>true</hidden>
+          <propagate_property>false</propagate_property>
+          <instance_number>0</instance_number>
+          <channel_number>0</channel_number>
+          <input_channel_number>0</input_channel_number>
+          <output_channel_number>0</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>false</shared_between_configs>
+          <value>1</value>
+        </i2c_property>
+        <i2c_property>
+          <name>I2CRegister1</name>
+          <qsize>62</qsize>
+          <qvalue>31</qvalue>
+          <type>Int</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>92</value>
+            </rate_value_pair>
+          </values>
+          <configurations />
+          <enumnames />
+          <enumvalues />
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <min_fix_val xsi:type="DapLongFixed">
+            <whole>-4</whole>
+            <fraction>0</fraction>
+          </min_fix_val>
+          <max_fix_val xsi:type="DapLongFixed">
+            <whole>3</whole>
+            <fraction>536870911</fraction>
+          </max_fix_val>
+          <min_qfix_val>0.0</min_qfix_val>
+          <max_qfix_val>0.0</max_qfix_val>
+          <readonly>false</readonly>
+          <hidden>true</hidden>
+          <propagate_property>false</propagate_property>
+          <instance_number>0</instance_number>
+          <channel_number>0</channel_number>
+          <input_channel_number>0</input_channel_number>
+          <output_channel_number>0</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>false</shared_between_configs>
+          <value>92</value>
+        </i2c_property>
+        <i2c_property>
+          <name>I2CBook1</name>
+          <qsize>62</qsize>
+          <qvalue>31</qvalue>
+          <type>Int</type>
+          <values>
+            <rate_value_pair>
+              <rate>RateAll</rate>
+              <value>80</value>
+            </rate_value_pair>
+          </values>
+          <configurations />
+          <enumnames />
+          <enumvalues />
+          <min_int_val>-2147483648</min_int_val>
+          <max_int_val>2147483647</max_int_val>
+          <min_float_val>-1.7976931348623157E+308</min_float_val>
+          <max_float_val>1.7976931348623157E+308</max_float_val>
+          <min_fix_val xsi:type="DapLongFixed">
+            <whole>-4</whole>
+            <fraction>0</fraction>
+          </min_fix_val>
+          <max_fix_val xsi:type="DapLongFixed">
+            <whole>3</whole>
+            <fraction>536870911</fraction>
+          </max_fix_val>
+          <min_qfix_val>0.0</min_qfix_val>
+          <max_qfix_val>0.0</max_qfix_val>
+          <readonly>false</readonly>
+          <hidden>true</hidden>
+          <propagate_property>false</propagate_property>
+          <instance_number>0</instance_number>
+          <channel_number>0</channel_number>
+          <input_channel_number>0</input_channel_number>
+          <output_channel_number>0</output_channel_number>
+          <int_delta_val>1</int_delta_val>
+          <dap_short_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_short_delta_val>
+          <dap_long_delta_val>
+            <whole>0</whole>
+            <fraction>1</fraction>
+          </dap_long_delta_val>
+          <delay_width>Delay24bit</delay_width>
+          <shared_between_configs>false</shared_between_configs>
+          <value>80</value>
+        </i2c_property>
+      </i2c_properties>
+      <current_rate>Rate32</current_rate>
+      <symbol_model>Mono_Mixer</symbol_model>
+      <fill_color>Yellow</fill_color>
+      <color_alpha>255</color_alpha>
+      <fore_color_alpha>255</fore_color_alpha>
+      <fore_color>Yellow</fore_color>
+      <gradient_angle>90</gradient_angle>
+      <fill_type>Solid</fill_type>
+      <label_text>Mono_Mixer_2</label_text>
+      <label_text_color>Black</label_text_color>
+      <instance_name>Mono_Mixer_2</instance_name>
+      <x_coordinate>156</x_coordinate>
+      <y_coordinate>564</y_coordinate>
+      <rate8>false</rate8>
+      <rate11>false</rate11>
+      <rate16>false</rate16>
+      <rate22>false</rate22>
+      <rate24>false</rate24>
+      <rate32>true</rate32>
+      <rate44>false</rate44>
+      <rate48>false</rate48>
+      <rate88>false</rate88>
+      <rate96>false</rate96>
+      <rate176>false</rate176>
+      <rate192>false</rate192>
+      <alias_of>None</alias_of>
+      <current_target>AIC3263</current_target>
+      <target_type>TypeC</target_type>
+      <framework_type>AIC3263App8x4x</framework_type>
+      <minidsp_a_cycles>1408</minidsp_a_cycles>
+      <minidsp_a_memory>1536</minidsp_a_memory>
+      <minidsp_d_cycles>1408</minidsp_d_cycles>
+      <minidsp_d_memory>3072</minidsp_d_memory>
+      <CycleChecked>false</CycleChecked>
+      <sample_rate>32000</sample_rate>
+      <secondary_sample_rate>32000</secondary_sample_rate>
+      <component_revision>5576</component_revision>
+      <overlay>all</overlay>
+      <Hierarchical>false</Hierarchical>
+      <Encrypt>false</Encrypt>
+    </symbol>
   </symbol_nodes>
   <link_nodes>
     <link>
@@ -87964,60 +88928,12 @@ reg[120][0][49] = 0x40</value>
       <FromComponentVersion>Split_TI_v1</FromComponentVersion>
     </link>
     <link>
-      <from_symbol>Model.Multi_Channel_Digital_In_1</from_symbol>
-      <to_symbol>Model.Split_7</to_symbol>
-      <from_port>Model.Multi_Channel_Digital_In_1.Ch1_Out</from_port>
-      <to_port>Model.Split_7.Ch1_In</to_port>
-      <points>
-        <X>119.999992</X>
-        <Y>467.999939</Y>
-      </points>
-      <points>
-        <X>59.9999962</X>
-        <Y>503.999969</Y>
-      </points>
-      <line_color>Black</line_color>
-      <line_width>2</line_width>
-      <draw_start_port>Model.Split_7.Ch1_In</draw_start_port>
-      <draw_end_port>Model.Multi_Channel_Digital_In_1.Ch1_Out</draw_end_port>
-      <draw_start_symbol>Model.Split_7</draw_start_symbol>
-      <draw_end_symbol>Model.Multi_Channel_Digital_In_1</draw_end_symbol>
-      <feedback_link>false</feedback_link>
-      <overlay>all</overlay>
-      <ToComponentVersion>Split_TI_v1</ToComponentVersion>
-      <FromComponentVersion>Multi_Channel_Digital_In_TI_v1</FromComponentVersion>
-    </link>
-    <link>
-      <from_symbol>Model.Split_7</from_symbol>
-      <to_symbol>Model.Biquad_7</to_symbol>
-      <from_port>Model.Split_7.Ch2_Out</from_port>
-      <to_port>Model.Biquad_7.Ch1_In</to_port>
-      <points>
-        <X>143.999985</X>
-        <Y>479.999939</Y>
-      </points>
-      <points>
-        <X>204</X>
-        <Y>576</Y>
-      </points>
-      <line_color>Black</line_color>
-      <line_width>2</line_width>
-      <draw_start_port>Model.Split_7.Ch2_Out</draw_start_port>
-      <draw_end_port>Model.Biquad_7.Ch1_In</draw_end_port>
-      <draw_start_symbol>Model.Split_7</draw_start_symbol>
-      <draw_end_symbol>Model.Biquad_7</draw_end_symbol>
-      <feedback_link>false</feedback_link>
-      <overlay>all</overlay>
-      <ToComponentVersion>Biquad_TI_v1</ToComponentVersion>
-      <FromComponentVersion>Split_TI_v1</FromComponentVersion>
-    </link>
-    <link>
       <from_symbol>Model.Split_7</from_symbol>
       <to_symbol>Model.cearEchoCanceller_1</to_symbol>
       <from_port>Model.Split_7.Ch1_Out</from_port>
       <to_port>Model.cearEchoCanceller_1.Ch1_In</to_port>
       <points>
-        <X>143.999985</X>
+        <X>119.999985</X>
         <Y>467.999939</Y>
       </points>
       <points>
@@ -88113,7 +89029,7 @@ reg[120][0][49] = 0x40</value>
       <from_port>Model.Biquad_7.Ch1_Out</from_port>
       <to_port>Model.Split_1.Ch1_In</to_port>
       <points>
-        <X>251.999969</X>
+        <X>251.999985</X>
         <Y>575.999939</Y>
       </points>
       <points>
@@ -88142,7 +89058,7 @@ reg[120][0][49] = 0x40</value>
       </points>
       <points>
         <X>348</X>
-        <Y>576</Y>
+        <Y>588</Y>
       </points>
       <line_color>Black</line_color>
       <line_width>2</line_width>
@@ -88250,6 +89166,118 @@ reg[120][0][49] = 0x40</value>
       <overlay>all</overlay>
       <ToComponentVersion>Mono_Mux_1_TI_v1</ToComponentVersion>
       <FromComponentVersion>Split_TI_v1</FromComponentVersion>
+    </link>
+    <link>
+      <from_symbol>Model.Multi_Channel_Digital_In_1</from_symbol>
+      <to_symbol>Model.Mono_Mixer_2</to_symbol>
+      <from_port>Model.Multi_Channel_Digital_In_1.Ch2_Out</from_port>
+      <to_port>Model.Mono_Mixer_2.Ch2_In</to_port>
+      <points>
+        <X>59.9999962</X>
+        <Y>588</Y>
+      </points>
+      <points>
+        <X>156</X>
+        <Y>588</Y>
+      </points>
+      <line_color>Black</line_color>
+      <line_width>2</line_width>
+      <draw_start_port>Model.Multi_Channel_Digital_In_1.Ch2_Out</draw_start_port>
+      <draw_end_port>Model.Mono_Mixer_2.Ch2_In</draw_end_port>
+      <draw_start_symbol>Model.Multi_Channel_Digital_In_1</draw_start_symbol>
+      <draw_end_symbol>Model.Mono_Mixer_2</draw_end_symbol>
+      <feedback_link>false</feedback_link>
+      <overlay>all</overlay>
+      <ToComponentVersion>Mono_Mixer_TI_v2</ToComponentVersion>
+      <FromComponentVersion>Multi_Channel_Digital_In_TI_v1</FromComponentVersion>
+    </link>
+    <link>
+      <from_symbol>Model.Mono_Mixer_2</from_symbol>
+      <to_symbol>Model.Biquad_7</to_symbol>
+      <from_port>Model.Mono_Mixer_2.Ch1_Out</from_port>
+      <to_port>Model.Biquad_7.Ch1_In</to_port>
+      <points>
+        <X>180</X>
+        <Y>576</Y>
+      </points>
+      <points>
+        <X>204</X>
+        <Y>576</Y>
+      </points>
+      <line_color>Black</line_color>
+      <line_width>2</line_width>
+      <draw_start_port>Model.Mono_Mixer_2.Ch1_Out</draw_start_port>
+      <draw_end_port>Model.Biquad_7.Ch1_In</draw_end_port>
+      <draw_start_symbol>Model.Mono_Mixer_2</draw_start_symbol>
+      <draw_end_symbol>Model.Biquad_7</draw_end_symbol>
+      <feedback_link>false</feedback_link>
+      <overlay>all</overlay>
+      <ToComponentVersion>Biquad_TI_v1</ToComponentVersion>
+      <FromComponentVersion>Mono_Mixer_TI_v2</FromComponentVersion>
+    </link>
+    <link>
+      <from_symbol>Model.Split_7</from_symbol>
+      <to_symbol>Model.Mono_Mixer_2</to_symbol>
+      <from_port>Model.Split_7.Ch2_Out</from_port>
+      <to_port>Model.Mono_Mixer_2.Ch1_In</to_port>
+      <points>
+        <X>119.999985</X>
+        <Y>479.999939</Y>
+      </points>
+      <points>
+        <X>144</X>
+        <Y>480</Y>
+      </points>
+      <points>
+        <X>144</X>
+        <Y>576</Y>
+      </points>
+      <points>
+        <X>156</X>
+        <Y>576</Y>
+      </points>
+      <line_color>Black</line_color>
+      <line_width>2</line_width>
+      <draw_start_port>Model.Split_7.Ch2_Out</draw_start_port>
+      <draw_end_port>Model.Mono_Mixer_2.Ch1_In</draw_end_port>
+      <draw_start_symbol>Model.Split_7</draw_start_symbol>
+      <draw_end_symbol>Model.Mono_Mixer_2</draw_end_symbol>
+      <feedback_link>false</feedback_link>
+      <overlay>all</overlay>
+      <ToComponentVersion>Mono_Mixer_TI_v2</ToComponentVersion>
+      <FromComponentVersion>Split_TI_v1</FromComponentVersion>
+    </link>
+    <link>
+      <from_symbol>Model.Multi_Channel_Digital_In_1</from_symbol>
+      <to_symbol>Model.Split_7</to_symbol>
+      <from_port>Model.Multi_Channel_Digital_In_1.Ch1_Out</from_port>
+      <to_port>Model.Split_7.Ch1_In</to_port>
+      <points>
+        <X>59.9999962</X>
+        <Y>576</Y>
+      </points>
+      <points>
+        <X>72</X>
+        <Y>576</Y>
+      </points>
+      <points>
+        <X>72</X>
+        <Y>468</Y>
+      </points>
+      <points>
+        <X>95.99999</X>
+        <Y>467.999939</Y>
+      </points>
+      <line_color>Black</line_color>
+      <line_width>2</line_width>
+      <draw_start_port>Model.Multi_Channel_Digital_In_1.Ch1_Out</draw_start_port>
+      <draw_end_port>Model.Split_7.Ch1_In</draw_end_port>
+      <draw_start_symbol>Model.Multi_Channel_Digital_In_1</draw_start_symbol>
+      <draw_end_symbol>Model.Split_7</draw_end_symbol>
+      <feedback_link>false</feedback_link>
+      <overlay>all</overlay>
+      <ToComponentVersion>Split_TI_v1</ToComponentVersion>
+      <FromComponentVersion>Multi_Channel_Digital_In_TI_v1</FromComponentVersion>
     </link>
   </link_nodes>
   <image_nodes />
