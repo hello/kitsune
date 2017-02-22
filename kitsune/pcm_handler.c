@@ -301,10 +301,10 @@ void DMAPingPongCompleteAppCB_opt()
 				bool all_zero = true;
 				for (i = CB_TRANSFER_SZ/4-1; i!=-1 ; --i) {
 					all_zero = all_zero && ( ping_p[i] == 0 );
-					ping_p[(i<<2) + 3] = (ping_p[i] & 0xFFFF0000);
-					ping_p[(i<<2) + 2] = 0;
-					ping_p[(i<<2) + 1] = (ping_p[i] & 0xFFFFUL) << 16;
-					ping_p[(i<<2) + 0] = 0;
+					ping_p[(i<<2) + 3] = 0;
+					ping_p[(i<<2) + 2] = (ping_p[i] & 0xFFFF0000);
+					ping_p[(i<<2) + 1] = 0;
+					ping_p[(i<<2) + 0] = (ping_p[i] & 0xFFFFUL) << 16;
 				}
 				if( all_zero ) {
 					i2s_mon = 1;
@@ -340,10 +340,10 @@ void DMAPingPongCompleteAppCB_opt()
 				bool all_zero = true;
 				for (i = CB_TRANSFER_SZ/4-1; i!=-1 ; --i) {
 					all_zero = all_zero && ( ping_p[i] == 0 );
-					pong_p[(i<<2) + 3] = (pong_p[i] & 0xFFFF0000);
-					pong_p[(i<<2) + 2] = 0;
-					pong_p[(i<<2) + 1] = (pong_p[i] & 0xFFFFUL) << 16;
-					pong_p[(i<<2) + 0] = 0;
+					pong_p[(i<<2) + 3] = 0;
+					pong_p[(i<<2) + 2] = (pong_p[i] & 0xFFFF0000);
+					pong_p[(i<<2) + 1] = 0;
+					pong_p[(i<<2) + 0] = (pong_p[i] & 0xFFFFUL) << 16;
 				}
 				if( all_zero ) {
 					i2s_mon = 1;
