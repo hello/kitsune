@@ -188,9 +188,16 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 		}
 
 		if (i2s_mon == 0 && count++ > 10) {
-			SetAudioSignal(FILTER_SIG_RESET);
+			// Do not reset
+		    // SetAudioSignal(FILTER_SIG_RESET);
+
+		    // Not really DAC overflow, but keeping this log
+		    // to help detect I2S playback channel switch
 			LOGE("\r\nDAC Overflow Detected\r\n");
-			_playback_interrupted = true;
+
+			// Do not resume playback
+			//_playback_interrupted = true;
+
 			count = 0;
 			break;
 		} else if (i2s_mon != 0) {
