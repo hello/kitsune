@@ -289,11 +289,16 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 
 	ret = transfer_function(fs, spkr, desc->context, sig_stop);
 
-	if( vol_ramp && ret > 0 ) {
+	if( vol_ramp ) {
 		//join async worker
 		vol.target = 0;
 		vol.current = last_set_volume; //handles fade out if the system volume has changed during the last playback
-		ret = transfer_function(fs, spkr, vol_task, fadeout_sig);
+		if( ret > 0 ) {
+			ret = transfer_function(fs, spkr, vol_task, fadeout_sig);
+		} else {
+			vol.current = 1;
+			hlo_future_read(vol_task, NULL, 0, 0);
+		}
 	}
 	if( audio_sig_stop != FILTER_SIG_RESET ) {
 		hlo_stream_close(fs);
