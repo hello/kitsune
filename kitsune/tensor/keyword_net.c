@@ -210,6 +210,9 @@ static void feats_callback(void * p, Weight_t * feats) {
 
 				//did we reach the desired number of counts?
 				if (callback_item->active_count == callback_item->min_duration && callback_item->on_end && callback_item->debounce_count >= NUM_DEBOUNCE_SAMPLES) {
+					//reset debounce count
+					callback_item->debounce_count = 0;
+
 					//do callback
 					callback_item->on_end(callback_item->context,(Keyword_t)i, callback_item->max_value);
 					
