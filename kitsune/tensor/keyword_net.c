@@ -15,7 +15,7 @@
 
 #include "hlo_http.h"
 
-#define NEURAL_NET_MODEL "model_nov07_lstm_med_adam_okay_sense_stop_snooze_tiny_end0_fa_0223_ep077.c' 
+#define NEURAL_NET_MODEL "model_nov07_lstm_med_adam_okay_sense_stop_snooze_tiny_end0_fa_0223_ep077.c"
 #include NEURAL_NET_MODEL
 const static char * k_net_id = NEURAL_NET_MODEL;
 
