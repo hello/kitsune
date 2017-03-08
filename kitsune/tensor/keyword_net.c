@@ -15,6 +15,9 @@
 
 #include "hlo_http.h"
 
+//about 1.5 seconds
+#define NUM_DEBOUNCE_SAMPLES (100)
+
 #define NEURAL_NET_MODEL "model_nov07_lstm_med_adam_okay_sense_stop_snooze_tiny_end0_fa_0223_ep077.c"
 #include NEURAL_NET_MODEL
 const static char * k_net_id = NEURAL_NET_MODEL;
@@ -29,6 +32,7 @@ typedef struct {
 	uint32_t active_count;
 	int16_t max_value;
 	uint32_t min_duration;
+	uint32_t debounce_count;
 } CallbackItem_t;
 
 typedef struct {
@@ -181,6 +185,12 @@ static void feats_callback(void * p, Weight_t * feats) {
 		if (callback_item) {
 			const int16_t val = (int16_t)out->x[i];
 
+			//increment and saturate, note the post++ happens after the comparison
+			if (callback_item->debounce_count++ == UINT32_MAX) {
+				callback_item->debounce_count = UINT32_MAX;
+			}
+
+
 			//track max value of net output for this keyword
 			if (callback_item->active_count && val > callback_item->max_value) {
 				callback_item->max_value = val;
@@ -199,7 +209,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 				callback_item->active_count++;
 
 				//did we reach the desired number of counts?
-				if (callback_item->active_count == callback_item->min_duration && callback_item->on_end) {
+				if (callback_item->active_count == callback_item->min_duration && callback_item->on_end && callback_item->debounce_count >= NUM_DEBOUNCE_SAMPLES) {
 					//do callback
 					callback_item->on_end(callback_item->context,(Keyword_t)i, callback_item->max_value);
 					
