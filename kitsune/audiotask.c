@@ -199,7 +199,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 			//_playback_interrupted = true;
 
 			count = 0;
-			break;
+			//break;
 		} else if (i2s_mon != 0) {
 			count = 0;
 		}
