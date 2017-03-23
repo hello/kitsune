@@ -115,7 +115,7 @@ static int _start_connection(hlo_sock_ctx_t * ctx) {
 		}
 
 		if (ctx->sock < 0) {
-			DISP("sock fail 2\n");
+			LOGE("sock fail 2\n");
 			goto exit;
 		} else {
 			timeval tv = (timeval ) { .tv_sec = 1, .tv_usec = 0, };
