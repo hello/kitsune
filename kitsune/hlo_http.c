@@ -77,8 +77,8 @@ static int _start_connection(hlo_sock_ctx_t * ctx) {
 
 		if( ctx->sec == SOCKET_SEC_SSL ) {
 			ctx->sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
-			if (ctx->sock <= 0) {
-				DISP("sock fail\n");
+			if (ctx->sock < 0) {
+				LOGE("sock fail\n");
 				goto exit;
 			}
 #define SL_SSL_CA_CERT_FILE_NAME "/cert/digi.cer"
@@ -99,7 +99,7 @@ static int _start_connection(hlo_sock_ctx_t * ctx) {
 							SL_SO_SECURE_FILES_CA_FILE_NAME,
 							SL_SSL_CA_CERT_FILE_NAME,
 							strlen(SL_SSL_CA_CERT_FILE_NAME)) < 0) {
-				LOGI("error setting ssl options\r\n");
+				LOGE("error setting ssl options\r\n");
 			}
 			{
 				char buf[8];
@@ -115,7 +115,7 @@ static int _start_connection(hlo_sock_ctx_t * ctx) {
 		}
 
 		if (ctx->sock < 0) {
-			DISP("sock fail 2\n");
+			LOGE("sock fail 2\n");
 			goto exit;
 		} else {
 			timeval tv = (timeval ) { .tv_sec = 1, .tv_usec = 0, };
