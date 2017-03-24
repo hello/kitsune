@@ -33,14 +33,14 @@ bool audio_playing();
 #include "audiofeatures.h"
 #include "tensor/tinytensor_math_defs.h"
 
-#define OKAY_SENSE_THRESHOLD     TOFIX(0.50)
+#define OKAY_SENSE_THRESHOLD     TOFIX(0.90)
 #define OKAY_SENSE_MIN_DURATION  3
 
-#define SNOOZE_THRESHOLD      TOFIX(0.3)
-#define SNOOZE_MIN_DURATION   3
+#define SNOOZE_THRESHOLD      TOFIX(0.7)
+#define SNOOZE_MIN_DURATION   2
 
-#define STOP_THRESHOLD        TOFIX(0.3)
-#define STOP_MIN_DURATION     3
+#define STOP_THRESHOLD        TOFIX(0.7)
+#define STOP_MIN_DURATION     2
 
 static xSemaphoreHandle _statsMutex = NULL;
 static AudioEnergyStats_t _stats;

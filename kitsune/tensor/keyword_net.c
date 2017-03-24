@@ -18,7 +18,7 @@
 //about 1.5 seconds
 #define NUM_DEBOUNCE_SAMPLES (100)
 
-#define NEURAL_NET_MODEL "model_mar15_lstm_med_adam_okay_sense_stop_snooze_tiny_end0_fa_tp_0315_dub_cat100_bat1_ep157.c"
+#define NEURAL_NET_MODEL "model_mar15_lstm_med_adam_okay_sense_stop_snooze_tiny_end0_fa2_tp2_0320_dub_ep296.c"
 #include NEURAL_NET_MODEL
 const static char * k_net_id = NEURAL_NET_MODEL;
 
