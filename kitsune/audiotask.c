@@ -180,13 +180,15 @@ extern volatile int16_t i2s_mon;	/* fun times */
 static void _change_volume_task(hlo_future_t * result, void * ctx){
 	volatile ramp_ctx_t * v = (ramp_ctx_t*)ctx;
 	portTickType t0 = xTaskGetTickCount();
+#ifdef DBG_AUDIO_LOOPBACK
 	int32_t count = 0;
+#endif
 	codec_runtime_prop_update(MUX_LOOPBACK_SELECTOR, MUX_SELECT_LOOPBACK);
 	while( v->target || v->current ){
 		if ( (v->duration - (int32_t)(xTaskGetTickCount() - t0)) < 0 && v->duration > 0){
 			v->target = 0;
 		}
-
+#ifdef DBG_AUDIO_LOOPBACK
 		if (i2s_mon == 0 && count++ > 10) {
 			// Do not reset
 		    // SetAudioSignal(FILTER_SIG_RESET);
@@ -203,6 +205,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 		} else if (i2s_mon != 0) {
 			count = 0;
 		}
+#endif
 
 
 		if(v->current > v->target ){
@@ -315,6 +318,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	DISP("Playback Task Finished %d\r\n", ret);
 }
 void SetAudioSignal(int i);
+void reset_audio() ;
 void AudioPlaybackTask(void * data) {
 	_playback_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	assert(_playback_queue);
