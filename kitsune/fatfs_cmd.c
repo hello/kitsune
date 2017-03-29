@@ -1046,8 +1046,6 @@ void file_download_task( void * params ) {
             {
                 goto end_download_task;
             }
-            hello_fs_unlink(path_buff);
-            DISP("Deleted file: %s\n", path_buff);
 
             char path_buf[64] = {0};
 
