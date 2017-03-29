@@ -1042,13 +1042,6 @@ void file_download_task( void * params ) {
 
 
         if (filename && url && host && path) {
-            if(global_filename( filename ))
-            {
-                goto end_download_task;
-            }
-            hello_fs_unlink(path_buff);
-            DISP("Deleted file: %s\n", path_buff);
-
             char path_buf[64] = {0};
 
 			hlo_stream_t * sf_str, *http_str, *sock_str;
@@ -1099,6 +1092,13 @@ void file_download_task( void * params ) {
                 }
                 LOGI("done, closing\n");
 			} else {
+
+	            if(global_filename( filename ))
+	            {
+	                goto end_download_task;
+	            }
+
+
 				char buf[512];
 				// Set file download pending for download manager
 				update_file_download_status(true);
@@ -1112,7 +1112,10 @@ void file_download_task( void * params ) {
 				strncat(buf, "/", 64 );
 				strncat(buf, filename, 64 );
 
-				sf_str = fs_stream_open(buf, HLO_STREAM_CREATE_NEW);
+                hello_fs_unlink(buf);
+                DISP("Deleted file: %s\n", buf);
+
+				sf_str = fs_stream_open(buf, HLO_STREAM_WRITE);
 
 				while(1){
 					if(hlo_stream_transfer_between( http_str, sf_str, (uint8_t*)buf, sizeof(buf), 4 ) < 0){
