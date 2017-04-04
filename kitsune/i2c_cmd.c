@@ -700,10 +700,6 @@ int32_t set_volume(int v, unsigned int dly) {
 	if(v < 0) v = 0;
 	if(v >64) v = 64;
 
-	v = 64-v;
-	v <<= 10;
-	v /= 560;
-
 	static bool muted = false;
 
 	if( v == 0 && !muted ) {
@@ -714,6 +710,10 @@ int32_t set_volume(int v, unsigned int dly) {
 		codec_unmute_spkr();
 		muted = false;
 	}
+
+	v = 64-v;
+	v <<= 10;
+	v /= 560;
 
 	if( xSemaphoreTakeRecursive(i2c_smphr, dly)) {
 
