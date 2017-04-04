@@ -343,9 +343,6 @@ hlo_stream_t * fs_stream_open(const char * path, uint32_t options){
                     }
                 }
             }
-            else {
-                LOGE ("HLO_STREAM_CREATE_NEW failed: %s\n", path);
-            }
             break;
 		case HLO_STREAM_READ:
 			fs_stream_impl.write = NULL;
@@ -358,6 +355,7 @@ hlo_stream_t * fs_stream_open(const char * path, uint32_t options){
 		}
 		if(res != FR_OK){
 fail:
+            LOGE ("hlo stream option: 0x%X for %s failed with %d\n", options, path, res);
 			vPortFree(fs);
 			return NULL;
 		}
