@@ -689,6 +689,7 @@ int32_t set_system_volume(int new_volume) {
 	return set_volume(new_volume, portMAX_DELAY);
 }
 volatile int last_set_volume = 0;
+static bool codec_muted = true;
 
 int32_t set_volume(int v, unsigned int dly) {
 	LOGI("v %d\n", v);
@@ -699,8 +700,6 @@ int32_t set_volume(int v, unsigned int dly) {
 
 	if(v < 0) v = 0;
 	if(v >64) v = 64;
-
-	static bool muted = false;
 
 	if( v == 0 && !codec_muted ) {
 		codec_mute_spkr();
@@ -731,7 +730,6 @@ int32_t set_volume(int v, unsigned int dly) {
 
 }
 
-static bool codec_muted = true;
 void codec_watchdog() {
 	unsigned char cmd[2];
 	bool overcurrent, spkr_off;
