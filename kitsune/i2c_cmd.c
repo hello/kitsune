@@ -702,13 +702,11 @@ int32_t set_volume(int v, unsigned int dly) {
 
 	static bool muted = false;
 
-	if( v == 0 && !muted ) {
+	if( v == 0 && !codec_muted ) {
 		codec_mute_spkr();
-		muted = true;
 	}
-	if( v != 0 && muted ) {
+	if( v != 0 && codec_muted ) {
 		codec_unmute_spkr();
-		muted = false;
 	}
 
 	v = 64-v;
@@ -936,6 +934,8 @@ void codec_mute_spkr(void)
 	char send_stop = 1;
 	unsigned char cmd[2];
 
+	LOGI("codec: muting\n");
+
 	codec_set_book(0);
 
 	//	w 30 00 00 # Select Page 0
@@ -956,6 +956,8 @@ void codec_unmute_spkr(void)
 {
 	char send_stop = 1;
 	unsigned char cmd[2];
+
+	LOGI("codec: unmuting\n");
 
 	set_volume(0, portMAX_DELAY);
 
