@@ -704,6 +704,17 @@ int32_t set_volume(int v, unsigned int dly) {
 	v <<= 10;
 	v /= 560;
 
+	static bool muted = false;
+
+	if( v == 0 && !muted ) {
+		codec_mute_spkr();
+		muted = true;
+	}
+	if( v != 0 && muted ) {
+		codec_unmute_spkr();
+		muted = false;
+	}
+
 	if( xSemaphoreTakeRecursive(i2c_smphr, dly)) {
 
 		codec_set_book(0);
