@@ -1046,7 +1046,6 @@ void file_download_task( void * params ) {
             {
                 goto end_download_task;
             }
-            hello_fs_unlink(path_buff);
 
             char path_buf[64] = {0};
 
@@ -1111,7 +1110,7 @@ void file_download_task( void * params ) {
 				strncat(buf, "/", 64 );
 				strncat(buf, filename, 64 );
 
-				sf_str = fs_stream_open(buf, HLO_STREAM_WRITE);
+				sf_str = fs_stream_open(buf, HLO_STREAM_CREATE_NEW);
 
 				while(1){
 					if(hlo_stream_transfer_between( http_str, sf_str, (uint8_t*)buf, sizeof(buf), 4 ) < 0){

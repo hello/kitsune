@@ -19,6 +19,7 @@ extern "C" {
 #define HLO_STREAM_WRITE		(1 << 0)
 #define HLO_STREAM_READ	 		(1 << 1)
 #define HLO_STREAM_READ_WRITE	(HLO_STREAM_WRITE | HLO_STREAM_READ)
+#define HLO_STREAM_CREATE_NEW   (1 << 2)
 
 //steam return codes
 #define HLO_STREAM_ERROR		-1
