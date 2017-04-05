@@ -352,6 +352,8 @@ uint32_t _next_keepalive_interval(uint32_t base, uint32_t range){
 }
 
 void _give_playback_sem(void * context) {
+
+	DISP("\r\giving\r\n");
 	xSemaphoreGive(*(xSemaphoreHandle*)context);
 }
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
@@ -529,7 +531,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				xSemaphoreHandle playback_sem = xSemaphoreCreateBinary();
 
 				AudioPlaybackDesc_t desc;
-				desc.context = NULL;
+				desc.context = &playback_sem;
 				desc.durationInSeconds = INT32_MAX;
 				desc.to_fade_out_ms = desc.fade_in_ms = desc.fade_out_ms = 0;
 				desc.onFinished = _give_playback_sem;
@@ -542,6 +544,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 				LOGI("\r\n===========\r\n");
 				xSemaphoreTake(playback_sem, 60*1000);
+
+				DISP("\r\ndeleting\r\n");
 				vSemaphoreDelete(playback_sem);
 				LOGI("\r\n===========\r\n");
 			}
