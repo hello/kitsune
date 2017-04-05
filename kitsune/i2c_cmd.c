@@ -692,6 +692,9 @@ volatile int last_set_volume = 0;
 static bool codec_muted = true;
 
 static _set_volume_raw(int v, unsigned int dly) {
+	char send_stop = 1;
+	unsigned char cmd[2];
+
 	v = 64-v;
 	v <<= 10;
 	v /= 560;
@@ -716,9 +719,6 @@ static _set_volume_raw(int v, unsigned int dly) {
 int32_t set_volume(int v, unsigned int dly) {
 	LOGI("v %d\n", v);
 	last_set_volume = v;
-
-	char send_stop = 1;
-	unsigned char cmd[2];
 
 	if(v < 0) v = 0;
 	if(v >64) v = 64;
