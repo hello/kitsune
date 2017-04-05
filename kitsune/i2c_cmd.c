@@ -691,23 +691,7 @@ int32_t set_system_volume(int new_volume) {
 volatile int last_set_volume = 0;
 static bool codec_muted = true;
 
-int32_t set_volume(int v, unsigned int dly) {
-	LOGI("v %d\n", v);
-	last_set_volume = v;
-
-	char send_stop = 1;
-	unsigned char cmd[2];
-
-	if(v < 0) v = 0;
-	if(v >64) v = 64;
-
-	if( v == 0 && !codec_muted ) {
-		codec_mute_spkr();
-	}
-	if( v != 0 && codec_muted ) {
-		codec_unmute_spkr();
-	}
-
+static _set_volume_raw(int v, unsigned int dly) {
 	v = 64-v;
 	v <<= 10;
 	v /= 560;
@@ -727,6 +711,26 @@ int32_t set_volume(int v, unsigned int dly) {
 	} else {
 		return -1;
 	}
+}
+
+int32_t set_volume(int v, unsigned int dly) {
+	LOGI("v %d\n", v);
+	last_set_volume = v;
+
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	if(v < 0) v = 0;
+	if(v >64) v = 64;
+
+	if( v == 0 && !codec_muted ) {
+		codec_mute_spkr();
+	}
+	if( v != 0 && codec_muted ) {
+		codec_unmute_spkr();
+	}
+
+	_set_volume_raw(v,dly);
 
 }
 
@@ -957,7 +961,7 @@ void codec_unmute_spkr(void)
 
 	LOGI("codec: unmuting\n");
 
-	set_volume(0, portMAX_DELAY);
+	_set_volume_raw(0, portMAX_DELAY);
 
 	codec_set_book(0);
 
