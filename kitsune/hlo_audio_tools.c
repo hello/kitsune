@@ -350,6 +350,12 @@ uint32_t _next_keepalive_interval(uint32_t base, uint32_t range){
 	}
 	return base +  (rand() % KEEPALIVE_INTERVAL_RANGE);
 }
+
+void _give_playback_sem(void * context) {
+
+	DISP("\r\giving\r\n");
+	xSemaphoreGive(*(xSemaphoreHandle*)context);
+}
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
 	int ret = 0;
@@ -522,11 +528,13 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				output = hlo_stream_bw_limited( output, 1, 5000);
 				output = hlo_light_stream( output, false );
 
+				xSemaphoreHandle playback_sem = xSemaphoreCreateBinary();
+
 				AudioPlaybackDesc_t desc;
-				desc.context = NULL;
+				desc.context = &playback_sem;
 				desc.durationInSeconds = INT32_MAX;
 				desc.to_fade_out_ms = desc.fade_in_ms = desc.fade_out_ms = 0;
-				desc.onFinished = NULL;
+				desc.onFinished = _give_playback_sem;
 				desc.rate = AUDIO_SAMPLE_RATE;
 				desc.stream = output;
 				desc.volume = sys_volume;
@@ -534,6 +542,11 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				ustrncpy(desc.source_name, "voice", sizeof(desc.source_name));
 				AudioTask_StartPlayback(&desc);
 
+				LOGI("\r\n===========\r\n");
+				xSemaphoreTake(playback_sem, 60*1000);
+
+				DISP("\r\ndeleting\r\n");
+				vSemaphoreDelete(playback_sem);
 				LOGI("\r\n===========\r\n");
 			}
 	}
