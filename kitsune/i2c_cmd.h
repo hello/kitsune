@@ -23,6 +23,10 @@ int get_ir( int * ir );
 int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p );
 int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, unsigned int humid );
 
+uint8_t tvoc_get_hw_version(void);
+uint16_t tvoc_get_fw_boot_version(void);
+uint16_t tvoc_get_fw_app_version(void);
+
 typedef enum {
 	ZOPT_UV = 0,
 	ZOPT_ALS = 1,
@@ -32,6 +36,9 @@ int Cmd_read_uv(int argc, char *argv[]);
 int Cmd_uvr(int argc, char *argv[]);
 int Cmd_uvw(int argc, char *argv[]);
 int Cmd_set_tvenv(int argc, char * argv[]);
+int cmd_tvoc_get_ver(int argc, char *argv[]);
+int cmd_tvoc_status(int argc, char *argv[]);
+int cmd_tvoc_errid(int argc, char *argv[]);
 int init_humid_sensor();
 int init_temp_sensor();
 

@@ -244,14 +244,18 @@ int Cmd_read_temp_hum_press(int argc, char *argv[]) {
 	return SUCCESS;
 }
 
+/********************************************************************************
+ *                     GAS SENSOR CCS811 - BEGIN
+ ********************************************************************************/
 bool tvoc_wa = false;
+uint8_t tvoc_i2c_addr = 0x5A;
 int init_tvoc(int measmode) {
 	unsigned char b[2];
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
 	b[0] = 0;
-	(I2C_IF_Write(0x5a, b, 1, 1));
-	(I2C_IF_Read(0x5a, b, 1));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
+	(I2C_IF_Read(tvoc_i2c_addr, b, 1));
 
 	if( !(b[0] & 0x10) ) {
 		LOGE("no valid fw for TVOC\n");
@@ -260,11 +264,11 @@ int init_tvoc(int measmode) {
 	}
 	//boot
 	b[0] = 0xf4;
-	(I2C_IF_Write(0x5a, b, 1, 1));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
 	vTaskDelay(100);
 	b[0] = 0;
-	(I2C_IF_Write(0x5a, b, 1, 1));
-	(I2C_IF_Read(0x5a, b, 1));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
+	(I2C_IF_Read(tvoc_i2c_addr, b, 1));
 	if( !(b[0] & 0x90) ) {
 		LOGE("fail to boot TVOC\n");
 		xSemaphoreGiveRecursive(i2c_smphr);
@@ -272,16 +276,19 @@ int init_tvoc(int measmode) {
 	}
 	b[0] = 1;
 	b[1] = measmode;
-	(I2C_IF_Write(0x5a, b, 2, 1));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 2, 1));
 
 	b[0] = 0x24;
-	(I2C_IF_Write(0x5a, b, 1, 1));
-	(I2C_IF_Read(0x5a, b, 2));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
+	(I2C_IF_Read(tvoc_i2c_addr, b, 2));
 
-	LOGE("TVOC FW %d.%d.%d\n",(b[0]>>4) & 0xf,b[0] & 0xf, b[1]);
+	LOGI("TVOC FW %d.%d.%d\n",(b[0]>>4) & 0xf,b[0] & 0xf, b[1]);
 	if (b[0] == 0x02 && b[1] == 0x4) {
 		LOGE("apply TVOC FW 0.2.4 workaround\n");
 		tvoc_wa = true;
+	}
+	else {
+		tvoc_wa = false;
 	}
 
 	xSemaphoreGiveRecursive(i2c_smphr);
@@ -309,7 +316,7 @@ static int set_tvoc_env(int temp, unsigned int humid){
 		b[3] |= 1;
 	}
 	b[4] = 0;
-	(I2C_IF_Write(0x5a, b, 5, 1));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 5, 1));
 	vTaskDelay(10);
 	xSemaphoreGiveRecursive(i2c_smphr);
 	return 0;
@@ -349,9 +356,9 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 	 * read alg_result_data
 	 */
 	b[0] = 2;
-	(I2C_IF_Write(0x5a, b, 1, 1));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
 	memset(b,0, sizeof(b));
-	(I2C_IF_Read(0x5a, b, 8));
+	(I2C_IF_Read(tvoc_i2c_addr, b, 8));
 
 	DBG_TVOC("%x:%x:%x:%x:%x:%x:%x:%x\n",
 			b[0],b[1],b[2],b[3],b[4],b[5],
@@ -368,8 +375,8 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 	if( b[4] & 0x01 ) {
 		LOGE("TVOC error %x ", b[5] );
 		b[0] = 0xe0;
-		(I2C_IF_Write(0x5a, b, 1, 1));
-		(I2C_IF_Read(0x5a, b, 1));
+		(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
+		(I2C_IF_Read(tvoc_i2c_addr, b, 1));
 		LOGE("%x\n", b[0]);
 		xSemaphoreGiveRecursive(i2c_smphr);
 		return -1;
@@ -401,6 +408,137 @@ int Cmd_meas_TVOC(int argc, char *argv[]) {
 	}
 	return -1;
 }
+
+#define APP_VALID_MASK (0x1 << 4)
+inline static uint8_t _tvoc_read_status_reg(void){
+
+	uint8_t status_reg_cmd[2] = {0x00, 0xFF};
+
+	if(xSemaphoreTakeRecursive(i2c_smphr, 30000)){
+
+		(I2C_IF_Write(tvoc_i2c_addr, status_reg_cmd, 1, 1));
+		(I2C_IF_Read(tvoc_i2c_addr, &status_reg_cmd[1], 1));
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+	DBG_TVOC("TV: status reg: %x\n",status_reg_cmd[1]);
+
+	return status_reg_cmd[1];
+
+}
+
+inline static uint8_t _tvoc_read_err_id(void){
+
+	uint8_t err_id_cmd[2] = {0xE0, 0xFF};
+
+	if(xSemaphoreTakeRecursive(i2c_smphr, 30000)){
+
+		(I2C_IF_Write(tvoc_i2c_addr, err_id_cmd, 1, 1));
+		(I2C_IF_Read(tvoc_i2c_addr, &err_id_cmd[1], 1));
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+	DBG_TVOC("TV: err id: %x\n",err_id_cmd[1]);
+
+	return err_id_cmd[1];
+
+}
+
+inline static int _tvoc_reset(void){
+
+	uint8_t sw_reset_cmd[5] = {0xFF, 0x11, 0xE5, 0x72, 0x8A };
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+
+	(I2C_IF_Write(tvoc_i2c_addr, sw_reset_cmd, 5, 1));
+	vTaskDelay(10);
+	xSemaphoreGiveRecursive(i2c_smphr);
+
+	return 0;
+}
+
+uint8_t tvoc_get_hw_version(void){
+
+	uint8_t hw_ver_cmd[2] = {0x21, 0xFF};
+
+	if(xSemaphoreTakeRecursive(i2c_smphr, 30000)){
+
+		(I2C_IF_Write(tvoc_i2c_addr, hw_ver_cmd, 1, 1));
+		(I2C_IF_Read(tvoc_i2c_addr, &hw_ver_cmd[1], 1));
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+	return hw_ver_cmd[1];
+}
+
+uint16_t tvoc_get_fw_boot_version(void){
+
+	uint8_t fw_boot_ver_cmd[3] = {0x23, 0xFF, 0xFF};
+
+	if(xSemaphoreTakeRecursive(i2c_smphr, 30000)){
+
+		(I2C_IF_Write(tvoc_i2c_addr, fw_boot_ver_cmd, 1, 1));
+		(I2C_IF_Read(tvoc_i2c_addr, &fw_boot_ver_cmd[1], 2));
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+	DBG_TVOC("FW Boot: 0x%x\n",fw_boot_ver_cmd[1]<<8 | fw_boot_ver_cmd[2] );
+
+	return (fw_boot_ver_cmd[1]<<8) | fw_boot_ver_cmd[2];
+
+}
+
+uint16_t tvoc_get_fw_app_version(void){
+
+	uint8_t fw_app_ver_cmd[3] = {0x24, 0xFF, 0xFF};
+
+	if(xSemaphoreTakeRecursive(i2c_smphr, 30000)){
+
+		(I2C_IF_Write(tvoc_i2c_addr, fw_app_ver_cmd, 1, 1));
+		(I2C_IF_Read(tvoc_i2c_addr, &fw_app_ver_cmd[1], 2));
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+	DBG_TVOC("FW APP: 0x%x\n",(fw_app_ver_cmd[1] << 8) | fw_app_ver_cmd[2] );
+
+	return (fw_app_ver_cmd[1] << 8) | fw_app_ver_cmd[2];
+
+}
+
+// Cmd to get hardware and fw version of CCS811
+int cmd_tvoc_get_ver(int argc, char *argv[]) {
+
+	LOGI("*TVOC VERSION* \n -Current HW version: 0x%x. FW Boot Version: 0x%x, FW App Version: 0x%x- \n",
+			tvoc_get_hw_version(), tvoc_get_fw_boot_version(), tvoc_get_fw_app_version());
+
+	return 0;
+}
+
+// Cmd to get hardware and fw version of CCS811
+int cmd_tvoc_status(int argc, char *argv[]) {
+
+	LOGI("*TVOC STATUS REG* %x\n", _tvoc_read_status_reg());
+
+	return 0;
+}
+
+// Cmd to get TVOC error id
+int cmd_tvoc_errid(int argc, char *argv[]) {
+
+	LOGI("*TVOC ERR ID* %x\n", _tvoc_read_err_id());
+
+	return 0;
+}
+
+/********************************************************************************
+ *                     GAS SENSOR CCS811 - END
+ ********************************************************************************/
+
 static bool haz_tmg4903() {
 	unsigned char b[2]={0};
 	b[0] = 0x92;
