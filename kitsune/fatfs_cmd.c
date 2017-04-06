@@ -999,6 +999,8 @@ xQueueHandle download_queue = 0;
 
 hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint);
 
+int tvoc_fw_update(const char* path, const char* filename);
+
 void file_download_task( void * params ) {
     SyncResponse_FileDownload download_info;
     unsigned char top_sha_cache[SHA1_SIZE];

@@ -244,45 +244,55 @@ int Cmd_read_temp_hum_press(int argc, char *argv[]) {
 	return SUCCESS;
 }
 
+/********************************************************************************
+ *                     GAS SENSOR CCS811 - BEGIN
+ ********************************************************************************/
 bool tvoc_wa = false;
+uint8_t tvoc_i2c_addr = 0x5A;
+bool tvoc_app_fw_invalid = false;
 int init_tvoc(int measmode) {
 	unsigned char b[2];
+
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
-	b[0] = 0;
-	(I2C_IF_Write(0x5a, b, 1, 1));
-	(I2C_IF_Read(0x5a, b, 1));
-
-	if( !(b[0] & 0x10) ) {
-		LOGE("no valid fw for TVOC\n");
-		xSemaphoreGiveRecursive(i2c_smphr);
-		return -1;
-	}
-	//boot
+	//boot sensor and start application
 	b[0] = 0xf4;
-	(I2C_IF_Write(0x5a, b, 1, 1));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
 	vTaskDelay(100);
 	b[0] = 0;
-	(I2C_IF_Write(0x5a, b, 1, 1));
-	(I2C_IF_Read(0x5a, b, 1));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
+	(I2C_IF_Read(tvoc_i2c_addr, b, 1));
 	if( !(b[0] & 0x90) ) {
-		LOGE("fail to boot TVOC\n");
+	    UARTprintf("fail to boot TVOC\n");
 		xSemaphoreGiveRecursive(i2c_smphr);
 		return -1;
 	}
+    if( !(b[0] & 0x10) ) {
+        UARTprintf("no valid fw for TVOC\n");
+        tvoc_app_fw_invalid = true;
+        xSemaphoreGiveRecursive(i2c_smphr);
+        return -1;
+    }
+
+    tvoc_app_fw_invalid = false;
+
+    // Set Measure Mode
 	b[0] = 1;
 	b[1] = measmode;
-	(I2C_IF_Write(0x5a, b, 2, 1));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 2, 1));
 
+	// Read sensor firmware version
 	b[0] = 0x24;
-	(I2C_IF_Write(0x5a, b, 1, 1));
-	(I2C_IF_Read(0x5a, b, 2));
-
-	LOGE("TVOC FW %d.%d.%d\n",(b[0]>>4) & 0xf,b[0] & 0xf, b[1]);
-	if (b[0] == 0x02 && b[1] == 0x4) {
-		LOGE("apply TVOC FW 0.2.4 workaround\n");
-		tvoc_wa = true;
-	}
+	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
+	(I2C_IF_Read(tvoc_i2c_addr, b, 2));
+    UARTprintf("TVOC FW %d.%d.%d\n",(b[0]>>4) & 0xf,b[0] & 0xf, b[1]);
+    if (b[0] == 0x02 && b[1] == 0x4) {
+        UARTprintf("apply TVOC FW 0.2.4 workaround\n");
+        tvoc_wa = true;
+    }
+    else {
+        tvoc_wa = false;
+    }
 
 	xSemaphoreGiveRecursive(i2c_smphr);
 	return 0;
@@ -309,7 +319,7 @@ static int set_tvoc_env(int temp, unsigned int humid){
 		b[3] |= 1;
 	}
 	b[4] = 0;
-	(I2C_IF_Write(0x5a, b, 5, 1));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 5, 1));
 	vTaskDelay(10);
 	xSemaphoreGiveRecursive(i2c_smphr);
 	return 0;
@@ -349,9 +359,9 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 	 * read alg_result_data
 	 */
 	b[0] = 2;
-	(I2C_IF_Write(0x5a, b, 1, 1));
+	(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
 	memset(b,0, sizeof(b));
-	(I2C_IF_Read(0x5a, b, 8));
+	(I2C_IF_Read(tvoc_i2c_addr, b, 8));
 
 	DBG_TVOC("%x:%x:%x:%x:%x:%x:%x:%x\n",
 			b[0],b[1],b[2],b[3],b[4],b[5],
@@ -368,8 +378,8 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 	if( b[4] & 0x01 ) {
 		LOGE("TVOC error %x ", b[5] );
 		b[0] = 0xe0;
-		(I2C_IF_Write(0x5a, b, 1, 1));
-		(I2C_IF_Read(0x5a, b, 1));
+		(I2C_IF_Write(tvoc_i2c_addr, b, 1, 1));
+		(I2C_IF_Read(tvoc_i2c_addr, b, 1));
 		LOGE("%x\n", b[0]);
 		xSemaphoreGiveRecursive(i2c_smphr);
 		return -1;
@@ -401,6 +411,303 @@ int Cmd_meas_TVOC(int argc, char *argv[]) {
 	}
 	return -1;
 }
+
+#define APP_VALID_MASK (0x1 << 4)
+inline static uint8_t _tvoc_read_status_reg(void){
+
+	uint8_t status_reg_cmd[2] = {0x00, 0xFF};
+
+	if(xSemaphoreTakeRecursive(i2c_smphr, 30000)){
+
+		(I2C_IF_Write(tvoc_i2c_addr, status_reg_cmd, 1, 1));
+		(I2C_IF_Read(tvoc_i2c_addr, &status_reg_cmd[1], 1));
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+	DBG_TVOC("TV: status reg: %x\n",status_reg_cmd[1]);
+
+	return status_reg_cmd[1];
+
+}
+
+inline static uint8_t _tvoc_read_err_id(void){
+
+	uint8_t err_id_cmd[2] = {0xE0, 0xFF};
+
+	if(xSemaphoreTakeRecursive(i2c_smphr, 30000)){
+
+		(I2C_IF_Write(tvoc_i2c_addr, err_id_cmd, 1, 1));
+		(I2C_IF_Read(tvoc_i2c_addr, &err_id_cmd[1], 1));
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+	DBG_TVOC("TV: err id: %x\n",err_id_cmd[1]);
+
+	return err_id_cmd[1];
+
+}
+
+inline static int _tvoc_reset(void){
+
+	uint8_t sw_reset_cmd[5] = {0xFF, 0x11, 0xE5, 0x72, 0x8A };
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+
+	(I2C_IF_Write(tvoc_i2c_addr, sw_reset_cmd, 5, 1));
+	vTaskDelay(10);
+	xSemaphoreGiveRecursive(i2c_smphr);
+
+	return 0;
+}
+
+inline static int _tvoc_erase_app(void){
+
+	uint8_t erase_cmd[5] = {0xF1, 0xE7, 0xA7, 0xE6, 0x09 };
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+
+	(I2C_IF_Write(tvoc_i2c_addr, erase_cmd, 5, 1));
+	xSemaphoreGiveRecursive(i2c_smphr);
+
+	vTaskDelay(500);
+
+	int ret = _tvoc_read_status_reg() & APP_VALID_MASK;
+
+	DBG_TVOC("TV:erase ret:%d, APP_VALID_MASK: %d\n",ret, APP_VALID_MASK);
+
+	if(ret) return -1;
+	else return 0;
+}
+
+#define BIN_FILENAME_LENGTH		(64)
+#include "ff.h"
+#include "hellofilesystem.h"
+inline static int _tvoc_program_app(const char* file){
+	uint32_t bytes_to_read=0, bytes_read=0;
+	uint8_t i2c_payload[9] = {0};
+	FRESULT res;
+	FIL fp = {0};
+
+	//open file for read
+	res = hello_fs_open(&fp, file, FA_READ);
+	if (res) {
+		LOGE("TV: error opening file for read %d\n", res);
+		return res;
+	}
+
+	// read into SHA
+	bytes_to_read = 8;
+	i2c_payload[0] = 0xF2;
+	res = hello_fs_read(&fp,&i2c_payload[1],bytes_to_read, &bytes_read);
+
+	LOGI("TV: program start.\n");
+	while ( (bytes_to_read == bytes_read) && (res == FR_OK) ) {
+
+
+		assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+
+		(I2C_IF_Write(tvoc_i2c_addr, i2c_payload, 9, 1));
+		xSemaphoreGiveRecursive(i2c_smphr);
+
+
+		res = hello_fs_read(&fp,&i2c_payload[1],bytes_to_read, &bytes_read);
+	}
+	LOGI("TV: program done. Bytes read: %d, res:%d\n", bytes_read, res);
+	hello_fs_close(&fp);
+	return 0;
+}
+
+inline static int _tvoc_verify_app(void){
+
+	uint8_t verify_cmd[1] = {0xF3 };
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+
+	(I2C_IF_Write(tvoc_i2c_addr, verify_cmd, 1, 1));
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+
+	vTaskDelay(100);
+
+	return ( (_tvoc_read_status_reg() & APP_VALID_MASK) ? 0:-1);
+}
+
+uint8_t tvoc_get_hw_version(void){
+
+	uint8_t hw_ver_cmd[2] = {0x21, 0xFF};
+
+	if(xSemaphoreTakeRecursive(i2c_smphr, 30000)){
+
+		(I2C_IF_Write(tvoc_i2c_addr, hw_ver_cmd, 1, 1));
+		(I2C_IF_Read(tvoc_i2c_addr, &hw_ver_cmd[1], 1));
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+	return hw_ver_cmd[1];
+}
+
+uint16_t tvoc_get_fw_boot_version(void){
+
+	uint8_t fw_boot_ver_cmd[3] = {0x23, 0xFF, 0xFF};
+
+	if(xSemaphoreTakeRecursive(i2c_smphr, 30000)){
+
+		(I2C_IF_Write(tvoc_i2c_addr, fw_boot_ver_cmd, 1, 1));
+		(I2C_IF_Read(tvoc_i2c_addr, &fw_boot_ver_cmd[1], 2));
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+	DBG_TVOC("FW Boot: 0x%x\n",fw_boot_ver_cmd[1]<<8 | fw_boot_ver_cmd[2] );
+
+	return (fw_boot_ver_cmd[1]<<8) | fw_boot_ver_cmd[2];
+
+}
+
+uint16_t tvoc_get_fw_app_version(void){
+
+	uint8_t fw_app_ver_cmd[3] = {0x24, 0xFF, 0xFF};
+
+	if(xSemaphoreTakeRecursive(i2c_smphr, 30000)){
+
+		(I2C_IF_Write(tvoc_i2c_addr, fw_app_ver_cmd, 1, 1));
+		(I2C_IF_Read(tvoc_i2c_addr, &fw_app_ver_cmd[1], 2));
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+	DBG_TVOC("FW APP: 0x%x\n",(fw_app_ver_cmd[1] << 8) | fw_app_ver_cmd[2] );
+
+	return (fw_app_ver_cmd[1] << 8) | fw_app_ver_cmd[2];
+
+}
+
+// CCS811 firmware update
+// Returns 0 if firmware update is successful, -1 otherwise
+int tvoc_fw_update(const char* path, const char* filename)
+{
+	int ret_val = 0;
+	char bin_file[BIN_FILENAME_LENGTH];
+
+	LOGI("*TVOC FW UPDATE* \n -Current HW version: 0x%x. FW Boot Version: 0x%x, FW App Version: 0x%x- \n",
+			tvoc_get_hw_version(), tvoc_get_fw_boot_version(), tvoc_get_fw_app_version());
+
+
+	if( !filename || !path ){
+		ret_val = -5;
+		goto tvoc_fail;
+	}
+
+    if(strlen(path) + strlen(filename) + 1 + 1 > BIN_FILENAME_LENGTH)
+    {
+        ret_val = -6;
+        goto tvoc_fail;
+    }
+
+    strncpy(bin_file,path,BIN_FILENAME_LENGTH);
+    if(strcmp("/", bin_file))
+    {
+        strcat(bin_file, "/");
+    }
+    strncat(bin_file, filename, BIN_FILENAME_LENGTH);
+
+    LOGI("TVOC FW Filename:%s\n",bin_file);
+
+	// reset CCS811
+	if(_tvoc_reset()){
+		ret_val = -2;
+		goto tvoc_fail;
+	}
+
+	vTaskDelay(100);
+
+	DBG_TVOC("TV: Bootloader Mode: %x\n",_tvoc_read_status_reg());
+
+	// erase application
+	if(_tvoc_erase_app()){
+		ret_val = -3;
+		goto tvoc_fail;
+	}
+
+	// read binary and write to CCS811
+	if(_tvoc_program_app(bin_file)){
+		ret_val = -1;
+		goto tvoc_fail;
+	}
+
+
+	// verify
+	if(!_tvoc_verify_app()){
+		LOGI("*TVOC FW UPDATE DONE* \n -Current HW version: 0x%x. FW Boot Version: 0x%x, FW App Version: 0x%x- \n",
+				tvoc_get_hw_version(), tvoc_get_fw_boot_version(), tvoc_get_fw_app_version());
+
+		// reset CCS811
+		if(_tvoc_reset()){
+			ret_val = -2;
+			goto tvoc_fail;
+		}
+
+		init_tvoc(0x30);
+
+		return 0;
+	}
+	else{
+		ret_val = -4;
+		goto tvoc_fail;
+	}
+
+tvoc_fail:
+		LOGE("*TVOC FW UPDATE NOT SUCCESSFUL - %d* \n",ret_val);
+		return ret_val;
+}
+
+
+// Cmd to firmware update CCS811
+int cmd_tvoc_fw_update(int argc, char *argv[]) {
+
+	if(argc < 3) {
+		LOGE("Usage: tvfw <path> <filename>\n");
+		return -1;
+	}
+
+    // update firmware using filename and path
+    tvoc_fw_update(argv[1],argv[2]);
+
+
+	return 0;
+}
+
+// Cmd to get hardware and fw version of CCS811
+int cmd_tvoc_get_ver(int argc, char *argv[]) {
+
+	LOGI("*TVOC VERSION* \n -Current HW version: 0x%x. FW Boot Version: 0x%x, FW App Version: 0x%x- \n",
+			tvoc_get_hw_version(), tvoc_get_fw_boot_version(), tvoc_get_fw_app_version());
+
+	return 0;
+}
+
+// Cmd to get hardware and fw version of CCS811
+int cmd_tvoc_status(int argc, char *argv[]) {
+
+	LOGI("*TVOC STATUS REG* %x\n", _tvoc_read_status_reg());
+
+	return 0;
+}
+
+// Cmd to get TVOC error id
+int cmd_tvoc_errid(int argc, char *argv[]) {
+
+	LOGI("*TVOC ERR ID* %x\n", _tvoc_read_err_id());
+
+	return 0;
+}
+
+/********************************************************************************
+ *                     GAS SENSOR CCS811 - END
+ ********************************************************************************/
+
 static bool haz_tmg4903() {
 	unsigned char b[2]={0};
 	b[0] = 0x92;
