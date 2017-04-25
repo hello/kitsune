@@ -301,8 +301,13 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 					fade_length = info->fade_out_ms;
 				}
 			} else if( returnFlags) {
-				LOGI("stopping playback");
-				break;
+				if(info->cancelable){
+					LOGI("stopping playback");
+					break;
+				}else{
+					LOGI("playback cancel disallowed\r\n");
+				}
+
 			}
 
 		}

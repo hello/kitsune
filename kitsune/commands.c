@@ -451,6 +451,7 @@ int Cmd_play_buff(int argc, char *argv[]) {
 	desc.fade_in_ms = 0;
 	desc.fade_out_ms = 0;
     desc.rate = atoi(argv[2]);
+    desc.cancelable = true;
 
     AudioTask_StartPlayback(&desc);
 
@@ -676,6 +677,7 @@ void thread_alarm(void * unused) {
 					desc.volume = 57;
 					desc.onFinished = thread_alarm_on_finished;
 					desc.rate = 48000;
+					desc.cancelable = true;
 
 					AudioTask_StartPlayback(&desc);
 
