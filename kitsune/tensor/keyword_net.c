@@ -132,8 +132,9 @@ static void feats_callback(void * p, Weight_t * feats) {
 	for (i = 0; i < NUM_MEL_BINS; i++) {
 		melfeats8[i] = feats[i] >> (QFIXEDPOINT - 7);
 	}
-
-	audio_features_upload_task_buffer_bytes(melfeats8,NUM_MEL_BINS);
+        
+        //TEMOPRARILY COMMENTED OUT.  MEMORY LEAK?
+	//audio_features_upload_task_buffer_bytes(melfeats8,NUM_MEL_BINS);
 
 	temp_tensor.dims[0] = 1;
 	temp_tensor.dims[1] = 1;
