@@ -751,6 +751,10 @@ static int _fetch_response_code(void * ctx){
 	}//done parsing response
 	return 0;
 }
+static int _flush_post_session(void * ctx){
+	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+	return _post_chunked(session);
+}
 static int _close_post_session(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
 	int code = 0;
@@ -806,6 +810,7 @@ hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const c
 		.write = _post_content_with_header,
 		.read = _get_post_response,
 		.close = _close_post_session,
+		.flush = _flush_post_session,
 	};
 	hlo_stream_t * ret = _new_stream(sock, &functions, HLO_STREAM_READ_WRITE);
 	if( !ret ){

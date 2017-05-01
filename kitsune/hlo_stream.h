@@ -42,6 +42,7 @@ typedef struct{
 	int (*write)(void * ctx, const void * buf, size_t size);
 	int (*read)(void * ctx, void * buf, size_t size);
 	int (*close)(void * ctx);
+	int (*flush)(void * ctx);
 }hlo_stream_vftbl_t;
 
 typedef struct{
@@ -72,6 +73,10 @@ int hlo_stream_read(hlo_stream_t * stream, void * buf, size_t size);
  * 2.  the close method is implemented, but returns an error (Usually means it has deinit errors)
  */
 int hlo_stream_close(hlo_stream_t * stream);
+/**
+ * Threadsafe, flushes out any buffered bytes in the sink.
+ */
+int hlo_stream_flush(hlo_stream_t * stream);
 /**
  * Threadsafe, causes the next read op that would return 0 to return EOF
  */
