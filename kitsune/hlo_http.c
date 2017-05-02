@@ -14,6 +14,8 @@
 #include "hlo_proto_tools.h"
 #include "sys_time.h"
 #include <ustdlib.h>
+#include "endpoints.h"
+
 //====================================================================
 //Protected API Declaration
 //
