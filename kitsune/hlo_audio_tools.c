@@ -42,6 +42,9 @@ bool audio_playing();
 #define STOP_THRESHOLD        TOFIX(0.5)
 #define STOP_MIN_DURATION     3
 
+#define CRYING_THRESHOLD      TOFIX(0.60)
+#define CRYING_MIN_DURTION    (10)
+
 static xSemaphoreHandle _statsMutex = NULL;
 static AudioEnergyStats_t _stats;
 
@@ -234,6 +237,15 @@ static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	nn_keyword_ctx_t * p = (nn_keyword_ctx_t*)ctx;
 }
 
+static void _crying_begin(void * ctx, Keyword_t keyword, int16_t value){
+
+}
+
+static void _crying_stop(void * ctx, Keyword_t keyword, int16_t value){
+	LOGI("WAAAAAAAAAAH!  WAAAAAH!\n");
+}
+
+
 bool cancel_alarm();
 static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)ctx;
@@ -380,6 +392,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	keyword_net_register_callback(&nn_ctx,okay_sense,OKAY_SENSE_THRESHOLD,OKAY_SENSE_MIN_DURATION,_voice_begin_keyword,_voice_finish_keyword);
 	keyword_net_register_callback(&nn_ctx,snooze,SNOOZE_THRESHOLD,SNOOZE_MIN_DURATION,_voice_begin_keyword,_snooze_stop);
 	keyword_net_register_callback(&nn_ctx,stop,STOP_THRESHOLD,STOP_MIN_DURATION,_voice_begin_keyword,_stop_stop);
+	keyword_net_register_callback(&nn_ctx,crying,CRYING_THRESHOLD,CRYING_MIN_DURTION,_crying_begin,_crying_stop);
 	keyword_net_register_speech_callback(&nn_ctx,_speech_detect_callback);
 
 	//wrap output in hmac stream
@@ -611,6 +624,10 @@ static void _finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 
 		case stop:
 			DISP("STOP\r\n");
+			break;
+
+		case crying:
+			DISP("CRYING!!!!!\r\n");
 			break;
 
 		default:

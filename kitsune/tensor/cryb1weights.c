@@ -1,4 +1,4 @@
-#include "tinytensor_lstm_crying_layer.h"
+#include "tinytensor_lstm_layer.h"
 #include "tinytensor_conv_layer.h"
 #include "tinytensor_fullyconnected_layer.h"
 #include "tinytensor_math.h"
@@ -95,12 +95,12 @@ const static FullyConnectedLayer_t dense_crying_01 = {&dense_crying01_full,&dens
 
 
 static ConstLayer_t _crying_layers[3];
-static ConstSequentialNetwork_t net = {&_crying_layers[0],3};
+static ConstSequentialNetwork_t _crying_net = {&_crying_layers[0],3};
 static ConstSequentialNetwork_t initialize_crying_network(void) {
 
-  _crying_layers[0] = tinytensor_create_lstm_crying_layer(&lstm_crying_01);
-  _crying_layers[1] = tinytensor_create_lstm_crying_layer(&lstm_crying_02);
+  _crying_layers[0] = tinytensor_create_lstm_layer(&lstm_crying_01);
+  _crying_layers[1] = tinytensor_create_lstm_layer(&lstm_crying_02);
   _crying_layers[2] = tinytensor_create_fullyconnected_layer(&dense_crying_01);
-  return net;
+  return _crying_net;
 
 }
