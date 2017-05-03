@@ -22,7 +22,8 @@
 #include NEURAL_NET_MODEL
 const static char * k_net_id = NEURAL_NET_MODEL;
 
-//#include "cryb1weights.c"
+#define CRYING
+#include "cryb1weights.c"
 
 static volatile int _is_net_running = 1;
 
@@ -166,7 +167,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 	}
 
 #ifdef CRYING
-	allout[crying] = cryingout->x[0];
+	allout[okay] = cryingout->x[0];
 #endif
 
 	CHKCYC("evalnet");
@@ -176,6 +177,9 @@ static void feats_callback(void * p, Weight_t * feats) {
 		return;
 	}
 	if(context->counter % 50 ==0){
+		DISP("%d,%d\r\n",cryingout->x[0],cryingout->x[1]);
+
+		/*
 		Weight_t max = out->x[1];
 		for (j = 2; j < out->dims[3]; j++) {
 			max = max > out->x[j] ? max : out->x[j];
@@ -189,7 +193,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 			}
 		}
 		DISP("%03d %d\r", out->x[1], idlecnt);
-
+*/
 		idlecnt = 0;
 	}
 
@@ -287,6 +291,11 @@ void keyword_net_initialize(void) {
 	}
 
 	_context.net = initialize_network();
+#ifdef CRYING
+	_context.cryingnet = initialize_crying_network();
+#endif
+
+
 	net_stats_init(&_context.stats,NUM_KEYWORDS,k_net_id);
 
     tinytensor_allocate_states(&_context.state, &_context.net);

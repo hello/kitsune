@@ -7,7 +7,6 @@ typedef enum {
 	stop,
 	snooze,
     okay,
-	crying,
 	NUM_KEYWORDS
 
 } Keyword_t;
