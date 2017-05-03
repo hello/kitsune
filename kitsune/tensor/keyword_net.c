@@ -22,7 +22,7 @@
 #include NEURAL_NET_MODEL
 const static char * k_net_id = NEURAL_NET_MODEL;
 
-#include "cryb1weights.c"
+//#include "cryb1weights.c"
 
 static volatile int _is_net_running = 1;
 
@@ -41,9 +41,10 @@ typedef struct {
     ConstSequentialNetwork_t net;
     SequentialNetworkStates_t state;
 
+#ifdef CRYING
     ConstSequentialNetwork_t cryingnet;
     SequentialNetworkStates_t cryingstate;
-
+#endif
     uint8_t keyword_on_states[NUM_KEYWORDS];
 
     CallbackItem_t callbacks[NUM_KEYWORDS];
@@ -119,7 +120,7 @@ __attribute__((section(".ramcode")))
 static void feats_callback(void * p, Weight_t * feats) {
 	KeywordNetContext_t * context = (KeywordNetContext_t *)p;
 	Tensor_t * out;
-	Tensor_t * cryingout;
+	Tensor_t * cryingout = 0;
 	Weight_t allout[20] = {0};
 
 	Tensor_t temp_tensor;
@@ -156,14 +157,17 @@ static void feats_callback(void * p, Weight_t * feats) {
 	CHKCYC(" eval prep");
 	out = tinytensor_eval_stateful_net(&context->net, &context->state, &temp_tensor,NET_FLAG_LSTM_DAMPING);
 
+#ifdef CRYING
 	cryingout = tinytensor_eval_stateful_net(&context->cryingnet, &context->cryingstate, &temp_tensor,NET_FLAG_LSTM_DAMPING);
+#endif
 
 	for (i = 0; i < NUM_KEYWORDS; i++) {
 		allout[i] = out->x[i];
 	}
 
+#ifdef CRYING
 	allout[crying] = cryingout->x[0];
-
+#endif
 
 	CHKCYC("evalnet");
 
@@ -260,7 +264,10 @@ static void feats_callback(void * p, Weight_t * feats) {
 
 	//free
 	out->delete_me(out);
-	cryingout->delete_me(cryingout);
+
+	if (cryingout) {
+		cryingout->delete_me(cryingout);
+	}
 
 	CHKCYC("eval cmplt");
 }
@@ -283,7 +290,11 @@ void keyword_net_initialize(void) {
 	net_stats_init(&_context.stats,NUM_KEYWORDS,k_net_id);
 
     tinytensor_allocate_states(&_context.state, &_context.net);
+
+
+#ifdef CRYING
     tinytensor_allocate_states(&_context.cryingstate, &_context.cryingnet);
+#endif
 
 	tinytensor_features_initialize(&_context,feats_callback, speech_detect_callback);
 
@@ -298,7 +309,10 @@ void keyword_net_deinitialize(void) {
 	tinytensor_features_deinitialize();
 
 	tinytensor_free_states(&_context.state,&_context.net);
+
+#ifdef CRYING
 	tinytensor_free_states(&_context.cryingstate,&_context.cryingnet);
+#endif
 
 	//works even if debug_stream is null
 	hlo_stream_close(_context.debug_stream);
