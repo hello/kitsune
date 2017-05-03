@@ -177,9 +177,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 		return;
 	}
 	if(context->counter % 50 ==0){
-		DISP("%d,%d\r\n",cryingout->x[0],cryingout->x[1]);
 
-		/*
 		Weight_t max = out->x[1];
 		for (j = 2; j < out->dims[3]; j++) {
 			max = max > out->x[j] ? max : out->x[j];
@@ -193,7 +191,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 			}
 		}
 		DISP("%03d %d\r", out->x[1], idlecnt);
-*/
+
 		idlecnt = 0;
 	}
 

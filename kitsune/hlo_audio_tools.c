@@ -15,7 +15,7 @@
 #include "wifi_cmd.h"
 #include "i2c_cmd.h"
 #include "sys_time.h"
-
+#include "led_animations.h"
 #include "ble_proto.h"
 
 #include "endpoints.h"
@@ -42,8 +42,8 @@ bool audio_playing();
 #define STOP_THRESHOLD        TOFIX(0.5)
 #define STOP_MIN_DURATION     3
 
-#define CRYING_THRESHOLD      TOFIX(0.5)
-#define CRYING_MIN_DURATION   1
+#define CRYING_THRESHOLD      TOFIX(0.6)
+#define CRYING_MIN_DURATION   10
 
 static xSemaphoreHandle _statsMutex = NULL;
 static AudioEnergyStats_t _stats;
@@ -237,6 +237,28 @@ static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	nn_keyword_ctx_t * p = (nn_keyword_ctx_t*)ctx;
 }
 
+static void _crying_begin(void * ctx, Keyword_t keyword, int16_t value){
+
+}
+
+static void _crying_stop(void * ctx, Keyword_t keyword, int16_t value){
+	const char * arg1 = "x";
+	const char * arg2 = "$fRINGTONE/NEW006.RAW";
+	const char * arg3 = "$a";
+
+	const char * args[3] = {arg1,arg2,arg3};
+
+	Cmd_stream_transfer(3,args);
+
+	/*
+	uint8_t trippy_base[3] = { 0, 0, 0 };
+	uint8_t trippy_range[3] = { 254, 254, 254 };
+	play_led_trippy(trippy_base, trippy_range,0,1, 10000);
+	*/
+}
+
+
+
 bool cancel_alarm();
 static void _voice_finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 	nn_keyword_ctx_t * p = (nn_keyword_ctx_t *)ctx;
@@ -383,6 +405,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	keyword_net_register_callback(&nn_ctx,okay_sense,OKAY_SENSE_THRESHOLD,OKAY_SENSE_MIN_DURATION,_voice_begin_keyword,_voice_finish_keyword);
 	keyword_net_register_callback(&nn_ctx,snooze,SNOOZE_THRESHOLD,SNOOZE_MIN_DURATION,_voice_begin_keyword,_snooze_stop);
 	keyword_net_register_callback(&nn_ctx,stop,STOP_THRESHOLD,STOP_MIN_DURATION,_voice_begin_keyword,_stop_stop);
+	keyword_net_register_callback(&nn_ctx,okay,CRYING_THRESHOLD,CRYING_MIN_DURATION,_crying_begin,_crying_stop);
+
 	keyword_net_register_speech_callback(&nn_ctx,_speech_detect_callback);
 
 	//wrap output in hmac stream
@@ -617,7 +641,8 @@ static void _finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 			break;
 
 		case okay:
-			DISP("CRYING\r\n");
+			_crying_stop(0,0,0);
+
 			break;
 
 		default:
