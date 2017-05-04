@@ -242,15 +242,17 @@ static void _crying_begin(void * ctx, Keyword_t keyword, int16_t value){
 }
 volatile extern int sys_volume;
 
+
+int hlo_filter_data_transfer(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal)
+
 static void _crying_stop(void * ctx, Keyword_t keyword, int16_t value){
-	uint8_t buf[512];
 	hlo_stream_t * s = fs_stream_open("/RINGTONE/NEW006.RAW", HLO_STREAM_READ);
 	s = hlo_light_stream( s, true );
 
 	hlo_stream_t * a = hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_PLAYBACK);
 	set_volume(sys_volume, portMAX_DELAY);
 
-	hlo_stream_transfer_between( s, a,  buf, sizeof(buf), 2);
+	hlo_filter_data_transfer( s, a,  NULL, _can_has_sig_stop);
 
 	hlo_stream_close(s);
 	hlo_stream_close(a);
