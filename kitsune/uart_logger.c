@@ -369,9 +369,11 @@ void _logstr_wrapper(const char * str, int len, void * data ) {
     if(tag & self.view_tag){
     	echo = true;
     }
+#ifdef SENSE_LTS
     if(tag & self.store_tag){
     	store = true;
     }
+#endif
     if( !booted ) {
     	store = false;
     }
@@ -565,6 +567,7 @@ int analytics_event( const char *pcString, ...) {
 	va_list vaArgP;
 	event_ctx_t ctx = {0};
 
+#ifndef SENSE_LTS
 	ctx.ptr = pvPortMalloc(128);
 	assert(ctx.ptr);
 	memset(ctx.ptr, 0, 128);
@@ -578,6 +581,7 @@ int analytics_event( const char *pcString, ...) {
     		vPortFree(ctx.ptr);
     	}
     }
+#endif
 
     return 0;
 }

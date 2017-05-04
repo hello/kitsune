@@ -10,6 +10,8 @@
 extern "C" {
 #endif
 
+#define SENSE_LTS
+
 //User Options
 //keep this large to reduce HTTP request printing overheads
 #define SENSE_LOG_RW_SIZE		512
