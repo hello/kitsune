@@ -827,6 +827,9 @@ static void _show_led_status()
 }
 
 static void _on_wave(){
+
+	SetAudioSignal(1);
+
 	if(	cancel_alarm() ) {
 		stop_led_animation( 0, 33 );
 	} else {

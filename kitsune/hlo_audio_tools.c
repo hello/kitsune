@@ -17,6 +17,7 @@
 #include "sys_time.h"
 #include "led_animations.h"
 #include "ble_proto.h"
+#include "led_animations.h"
 
 #include "endpoints.h"
 
@@ -243,7 +244,8 @@ static void _crying_begin(void * ctx, Keyword_t keyword, int16_t value){
 volatile extern int sys_volume;
 
 
-int hlo_filter_data_transfer(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal)
+int hlo_filter_data_transfer(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
+static uint8_t _can_has_sig_stop(void * unused);
 
 static void _crying_stop(void * ctx, Keyword_t keyword, int16_t value){
 	hlo_stream_t * s = fs_stream_open("/RINGTONE/NEW006.RAW", HLO_STREAM_READ);
@@ -257,6 +259,8 @@ static void _crying_stop(void * ctx, Keyword_t keyword, int16_t value){
 
 	hlo_stream_close(s);
 	hlo_stream_close(a);
+
+	stop_led_animation(0,0);
 }
 
 
