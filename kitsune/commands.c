@@ -1783,7 +1783,9 @@ void launch_tasks() {
 	play_startup_sound();
 	display_pairing_animation();
 
+#ifndef SENSE_LTS
 	xTaskCreate(AudioControlTask, "AudioControl",  7*1024 / 4, NULL, 2, NULL);
+#endif
 
 	//only network message is used in the stack of this task
 	xTaskCreate(audio_features_upload_task,"audioFeatsUpload",512/4,NULL,2,NULL);
