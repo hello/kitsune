@@ -252,6 +252,7 @@ static void _crying_stop(void * ctx, Keyword_t keyword, int16_t value){
 	hlo_stream_t * a = hlo_audio_open_mono(AUDIO_SAMPLE_RATE,HLO_AUDIO_PLAYBACK);
 	set_volume(sys_volume, portMAX_DELAY);
 
+	audio_sig_stop = 0;
 	hlo_filter_data_transfer( s, a,  NULL, _can_has_sig_stop);
 
 	hlo_stream_close(s);
