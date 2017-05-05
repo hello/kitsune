@@ -369,7 +369,7 @@ void _logstr_wrapper(const char * str, int len, void * data ) {
     if(tag & self.view_tag){
     	echo = true;
     }
-#ifdef SENSE_LTS
+#ifndef SENSE_LTS
     if(tag & self.store_tag){
     	store = true;
     }
