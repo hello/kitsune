@@ -1205,7 +1205,7 @@ void sample_sensor_data(periodic_data* data,NetStats_t * keyword_net_stats)
 
 	//get audio -- this is thread safe
 	AudioTask_DumpOncePerMinuteStats(&aud_data);
-#if 1
+#ifndef SENSE_LTS
 	//Benjo wrote this:  get keyword statistics -- this is thread safe
 	//IF we have memory allocated for this
 	if (keyword_net_stats && keyword_net_get_and_reset_stats(keyword_net_stats)) {
@@ -1354,6 +1354,7 @@ int Cmd_inttemp(int argc, char *argv[]);
 void thread_sensor_poll(void* unused) {
 	periodic_data data = {0};
 	NetStats_t keyword_net_stats;
+
 	unsigned int count = 0;
 
 	while (1) {
