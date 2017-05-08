@@ -83,8 +83,8 @@ static void _on_voice_control( VoiceControl * cmd ) {
 }
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
-
-static void _on_led_control( LedDemo * cmd ) {
+#include "led_animations.h"
+static void _on_led_demo( LedDemo * cmd ) {
 	LOGI("LED DEMO!\n");
 	switch( cmd->animation ) {
 	case LedDemo_Animation_SPIN:
