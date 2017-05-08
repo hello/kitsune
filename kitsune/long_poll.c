@@ -83,6 +83,19 @@ static void _on_voice_control( VoiceControl * cmd ) {
 }
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
+
+static void _on_led_control( LedDemo * cmd ) {
+	LOGI("LED DEMO!\n");
+	switch( cmd->animation ) {
+	case LedDemo_Animation_SPIN:
+		play_led_wheel(LED_MAX, cmd->r, cmd->g, cmd->b,1,18,3);
+		break;
+	case LedDemo_Animation_GLOW:
+		play_led_animation_solid(LED_MAX, cmd->r, cmd->g, cmd->b,1, 18,3);
+		break;
+	}
+}
+
 static bool _on_message(pb_istream_t *stream, const pb_field_t *field, void **arg) {
 	Message message;
 
@@ -111,6 +124,9 @@ static bool _on_message(pb_istream_t *stream, const pb_field_t *field, void **ar
 	}
 	if(message.has_voice_control) {
 		_on_voice_control(&message.voice_control);
+	}
+	if(message.has_led_demo) {
+		_on_led_demo(&message.led_demo);
 	}
 	if( message.has_voice_control || message.has_volume ) {
 		SenseState sense_state = {0};
