@@ -324,6 +324,7 @@ static void _save_block_queue( TickType_t dly ) {
  * PUBLIC functions
  */
 void uart_logger_flush(void){
+#ifndef SENSE_LTS
 	//set the task to exit and wait for it to do so
 	xSemaphoreTake(self.print_sem, portMAX_DELAY);
 	self.view_tag = self.store_tag = 0;
@@ -331,6 +332,7 @@ void uart_logger_flush(void){
 	//write out whatever's left in the logging block
 	_save_newest((const char*)self.logging_block, self.widx );
 	_save_block_queue(0);
+#endif
 }
 int Cmd_log_upload(int argc, char *argv[]){
 	xSemaphoreTake(self.print_sem, portMAX_DELAY);
