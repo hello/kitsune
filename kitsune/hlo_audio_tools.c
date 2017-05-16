@@ -248,6 +248,9 @@ int hlo_filter_data_transfer(hlo_stream_t * input, hlo_stream_t * output, void *
 static uint8_t _can_has_sig_stop(void * unused);
 
 static void _crying_stop(void * ctx, Keyword_t keyword, int16_t value){
+
+	play_led_animation_solid(255, 255,0,0, 0,0,0);
+	/*
 	hlo_stream_t * s = fs_stream_open("/RINGTONE/NEW006.RAW", HLO_STREAM_READ);
 	s = hlo_light_stream( s, true );
 
@@ -261,6 +264,7 @@ static void _crying_stop(void * ctx, Keyword_t keyword, int16_t value){
 	hlo_stream_close(a);
 
 	stop_led_animation(0,0);
+	*/
 }
 
 
@@ -411,7 +415,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	keyword_net_register_callback(&nn_ctx,okay_sense,OKAY_SENSE_THRESHOLD,OKAY_SENSE_MIN_DURATION,_voice_begin_keyword,_voice_finish_keyword);
 	keyword_net_register_callback(&nn_ctx,snooze,SNOOZE_THRESHOLD,SNOOZE_MIN_DURATION,_voice_begin_keyword,_snooze_stop);
 	keyword_net_register_callback(&nn_ctx,stop,STOP_THRESHOLD,STOP_MIN_DURATION,_voice_begin_keyword,_stop_stop);
-	keyword_net_register_callback(&nn_ctx,okay,CRYING_THRESHOLD,CRYING_MIN_DURATION,_crying_begin,_crying_stop);
+	keyword_net_register_callback(&nn_ctx,crying,CRYING_THRESHOLD,CRYING_MIN_DURATION,_crying_begin,_crying_stop);
 
 	keyword_net_register_speech_callback(&nn_ctx,_speech_detect_callback);
 

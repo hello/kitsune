@@ -1201,6 +1201,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/tensor/audio_buffering.h</locationURI>
 		</link>
 		<link>
+			<name>tensor/crying_net.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/crying_net.c</locationURI>
+		</link>
+		<link>
+			<name>tensor/crying_net.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/crying_net.h</locationURI>
+		</link>
+		<link>
 			<name>tensor/features_types.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/tensor/features_types.h</locationURI>
@@ -1234,6 +1244,16 @@
 			<name>tensor/net_stats.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/tensor/net_stats.h</locationURI>
+		</link>
+		<link>
+			<name>tensor/snoring_net.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/snoring_net.c</locationURI>
+		</link>
+		<link>
+			<name>tensor/snoring_net.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/snoring_net.h</locationURI>
 		</link>
 		<link>
 			<name>tensor/tinytensor_conv_layer.c</name>
@@ -1319,6 +1339,16 @@
 			<name>tensor/tinytensor_types.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/tensor/tinytensor_types.h</locationURI>
+		</link>
+		<link>
+			<name>tensor/voice_net.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/voice_net.c</locationURI>
+		</link>
+		<link>
+			<name>tensor/voice_net.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/voice_net.h</locationURI>
 		</link>
 		<link>
 			<name>tests/TestNetwork.c</name>

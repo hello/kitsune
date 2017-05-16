@@ -11,7 +11,7 @@ extern "C" {
 #include "tinytensor_math_defs.h"
 #include <stdbool.h>
 
-#define NET_STATS_MAX_OUTPUTS (5)
+#define NET_STATS_MAX_OUTPUTS (8)
 #define NET_STATS_HISTOGRAM_BINS_2N (3)
 #define NET_STATS_HISTOGRAM_BINS (1 << NET_STATS_HISTOGRAM_BINS_2N)
 #define NET_STATS_SHIFT (QFIXEDPOINT - NET_STATS_HISTOGRAM_BINS_2N)
