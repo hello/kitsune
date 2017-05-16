@@ -175,7 +175,7 @@ static void feats_callback(void * p, Weight_t * feats) {
 
 	voiceout = tinytensor_eval_stateful_net(&context->voicenet, &context->voicestate, &temp_tensor,NET_FLAG_LSTM_DAMPING);
 
-	for (i = 0; i < NUM_KEYWORDS; i++) {
+	for (i = 0; i <= okay; i++) {
 		allout[i] = out->x[i];
 	}
 

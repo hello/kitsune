@@ -46,6 +46,13 @@ bool audio_playing();
 #define CRYING_THRESHOLD      TOFIX(0.6)
 #define CRYING_MIN_DURATION   10
 
+#define SNORING_THRESHOLD      TOFIX(0.6)
+#define SNORING_MIN_DURATION   66
+
+#define VOICE_THRESHOLD      TOFIX(0.9)
+#define VOICE_MIN_DURATION   30
+
+
 static xSemaphoreHandle _statsMutex = NULL;
 static AudioEnergyStats_t _stats;
 
@@ -238,7 +245,7 @@ static void _voice_begin_keyword(void * ctx, Keyword_t keyword, int16_t value){
 //	nn_keyword_ctx_t * p = (nn_keyword_ctx_t*)ctx;
 }
 
-static void _crying_begin(void * ctx, Keyword_t keyword, int16_t value){
+static void _do_nothing(void * ctx, Keyword_t keyword, int16_t value){
 
 }
 volatile extern int sys_volume;
@@ -246,6 +253,15 @@ volatile extern int sys_volume;
 
 int hlo_filter_data_transfer(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
 static uint8_t _can_has_sig_stop(void * unused);
+
+static void _snoring_stop(void * ctx, Keyword_t keyword, int16_t value) {
+	play_led_animation_solid(255, 0,0,255, 0,0,0);
+
+}
+
+static void _voice_stop(void * ctx, Keyword_t keyword, int16_t value) {
+	play_led_animation_solid(255, 0,255,0, 0,0,0);
+}
 
 static void _crying_stop(void * ctx, Keyword_t keyword, int16_t value){
 
@@ -415,7 +431,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	keyword_net_register_callback(&nn_ctx,okay_sense,OKAY_SENSE_THRESHOLD,OKAY_SENSE_MIN_DURATION,_voice_begin_keyword,_voice_finish_keyword);
 	keyword_net_register_callback(&nn_ctx,snooze,SNOOZE_THRESHOLD,SNOOZE_MIN_DURATION,_voice_begin_keyword,_snooze_stop);
 	keyword_net_register_callback(&nn_ctx,stop,STOP_THRESHOLD,STOP_MIN_DURATION,_voice_begin_keyword,_stop_stop);
-	keyword_net_register_callback(&nn_ctx,crying,CRYING_THRESHOLD,CRYING_MIN_DURATION,_crying_begin,_crying_stop);
+	keyword_net_register_callback(&nn_ctx,crying,CRYING_THRESHOLD,CRYING_MIN_DURATION,_do_nothing,_crying_stop);
+	keyword_net_register_callback(&nn_ctx,snoring,SNORING_THRESHOLD,SNORING_MIN_DURATION,_do_nothing,_snoring_stop);
+	keyword_net_register_callback(&nn_ctx,voice,VOICE_THRESHOLD,VOICE_MIN_DURATION,_do_nothing,_voice_stop);
 
 	keyword_net_register_speech_callback(&nn_ctx,_speech_detect_callback);
 
@@ -651,8 +669,19 @@ static void _finish_keyword(void * ctx, Keyword_t keyword, int16_t value){
 			break;
 
 		case okay:
-			_crying_stop(0,0,0);
+			DISP("OKAY\r\n");
+			break;
 
+		case crying:
+			DISP("CRYING\r\n");
+			break;
+
+		case snoring:
+			DISP("SNORING\r\n");
+			break;
+
+		case voice:
+			DISP("VOICE\r\n");
 			break;
 
 		default:
@@ -669,7 +698,9 @@ int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * outpu
 	keyword_net_register_callback(0,okay_sense,OKAY_SENSE_THRESHOLD,OKAY_SENSE_MIN_DURATION, _begin_keyword,_finish_keyword);
 	keyword_net_register_callback(0,snooze,SNOOZE_THRESHOLD,SNOOZE_MIN_DURATION, _begin_keyword,_finish_keyword);
 	keyword_net_register_callback(0,stop,STOP_THRESHOLD,STOP_MIN_DURATION, _begin_keyword,_finish_keyword);
-	keyword_net_register_callback(0,okay,CRYING_THRESHOLD,CRYING_MIN_DURATION, _begin_keyword,_finish_keyword);
+	keyword_net_register_callback(0,crying,CRYING_THRESHOLD,CRYING_MIN_DURATION, _begin_keyword,_finish_keyword);
+	keyword_net_register_callback(0,snoring,SNORING_THRESHOLD,SNORING_MIN_DURATION, _begin_keyword,_finish_keyword);
+	keyword_net_register_callback(0,voice,VOICE_THRESHOLD,VOICE_MIN_DURATION, _begin_keyword,_finish_keyword);
 
 	//keyword_net_register_callback(0,alexa,80,_begin_keyword,_finish_keyword);
 
