@@ -49,8 +49,8 @@ bool audio_playing();
 #define SNORING_THRESHOLD      TOFIX(0.6)
 #define SNORING_MIN_DURATION   66
 
-#define VOICE_THRESHOLD      TOFIX(0.9)
-#define VOICE_MIN_DURATION   30
+#define VOICE_THRESHOLD      TOFIX(0.6)
+#define VOICE_MIN_DURATION   10
 
 
 static xSemaphoreHandle _statsMutex = NULL;
@@ -254,18 +254,21 @@ volatile extern int sys_volume;
 int hlo_filter_data_transfer(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
 static uint8_t _can_has_sig_stop(void * unused);
 
+#define LIGHT_DELAY (10)
+#define LIGHT_REPEAT (0)
 static void _snoring_stop(void * ctx, Keyword_t keyword, int16_t value) {
-	play_led_animation_solid(255, 0,0,255, 0,0,0);
+	play_led_animation_solid(255, 0,0,255, LIGHT_REPEAT,LIGHT_DELAY,0);
 
 }
 
 static void _voice_stop(void * ctx, Keyword_t keyword, int16_t value) {
-	play_led_animation_solid(255, 0,255,0, 0,0,0);
+	//yellow
+	play_led_animation_solid(255, 255,255,0, LIGHT_REPEAT,LIGHT_DELAY,0);
 }
 
 static void _crying_stop(void * ctx, Keyword_t keyword, int16_t value){
-
-	play_led_animation_solid(255, 255,0,0, 0,0,0);
+	//pink
+	play_led_animation_solid(255, 255,102,178, LIGHT_REPEAT,LIGHT_DELAY,0);
 	/*
 	hlo_stream_t * s = fs_stream_open("/RINGTONE/NEW006.RAW", HLO_STREAM_READ);
 	s = hlo_light_stream( s, true );
